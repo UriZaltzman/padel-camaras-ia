@@ -1,0 +1,26 @@
+node_modules/
+.turbo/
+dist/
+.next/
+coverage/
+generated/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.DS_Store
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# ML artifacts and recordings never go to git
+ml/data/
+ml/artifacts/
+mlruns/
+*.mp4
+*.parquet

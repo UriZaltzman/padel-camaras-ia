@@ -1,0 +1,84 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  typescript:
+    name: TypeScript (affected packages)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Format (whole repo)
+        run: pnpm format:check
+      - name: Lint, types, tests and build of what changed
+        run: >
+          pnpm turbo run lint typecheck test build
+          --filter="...[origin/${{ github.base_ref }}]"
+
+  python-changes:
+    name: Detect Python changes
+    runs-on: ubuntu-latest
+    outputs:
+      projects: ${{ steps.filter.outputs.changes }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            packages/config:
+              - 'packages/config/**'
+              - 'uv.lock'
+            services/edge-agent:
+              - 'services/edge-agent/**'
+              - 'packages/config/**'
+              - 'uv.lock'
+            ml:
+              - 'ml/**'
+              - 'packages/config/**'
+              - 'uv.lock'
+
+  python:
+    name: Python (${{ matrix.project }})
+    needs: python-changes
+    if: needs.python-changes.outputs.projects != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(needs.python-changes.outputs.projects) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.project }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - name: Format
+        run: uv run ruff format --check .
+      - name: Lint
+        run: uv run ruff check .
+      - name: Types
+        run: uv run mypy --config-file "$GITHUB_WORKSPACE/packages/config/mypy.ini" .
+      - name: Tests
+        # Exit code 5 means "no tests collected" (empty skeletons); anything else fails.
+        run: uv run pytest || [ $? -eq 5 ]

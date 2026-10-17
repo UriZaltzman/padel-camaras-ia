@@ -1,0 +1,17 @@
+# Bill of materials for the club kit. The internal console quote tool reads this file.
+# Estimated prices from docs/estructura.md ("Hardware y presupuesto del combo"); if they differ, that document wins.
+# Every price keeps status TODO_COTIZAR until there is a real quote with supplier, date and validity.
+fx_ars_per_usd: 1535          # TODO_COTIZAR: actualizar al cotizar (Rava, 9/10/2026)
+markup_purchase_plan: 0.25    # plan compra: costo + 25%
+per_court:
+  - { item: "Cámara IP 8MP (4K) PoE de exterior, lente 2,8-4 mm", qty: 2, usd_estimated_total: 300, status: TODO_COTIZAR }
+  - { item: "Soportes elevados detrás del vidrio de fondo", qty: 2, usd_estimated_total: 120, status: TODO_COTIZAR }
+  - { item: "Botón inalámbrico para clips + cartel con QR", qty: 1, usd_estimated_total: 40, status: TODO_COTIZAR }
+  - { item: "Cable UTP de exterior, caños e instalación", qty: 1, usd_estimated_total: 180, status: TODO_COTIZAR }
+per_club:
+  - { item: "Computadora con GPU clase RTX 4060, 32 GB, disco 2 TB", qty: 1, usd_estimated_total: 1300, status: TODO_COTIZAR }
+  - { item: "Switch PoE de 8 puertos", qty: 1, usd_estimated_total: 130, status: TODO_COTIZAR }
+  - { item: "UPS de 1 kVA", qty: 1, usd_estimated_total: 150, status: TODO_COTIZAR }
+  - { item: "Router 4G de respaldo", qty: 1, usd_estimated_total: 100, status: TODO_COTIZAR }
+  - { item: "Gabinete con ventilación", qty: 1, usd_estimated_total: 80, status: TODO_COTIZAR }
+# Control: 4 canchas x 640 + 1.760 = US$4.320 (ARS 6.631.200)
