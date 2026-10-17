@@ -1,0 +1,16 @@
+# Used by BuildKit when building with -f services/edge-agent/Dockerfile from the repo root.
+# Send only what the image needs: never .env files, recordings or other apps.
+**
+!pyproject.toml
+!uv.lock
+!packages/config/pyproject.toml
+!packages/config/brand.py
+!ml/pyproject.toml
+!services/edge-agent/
+services/edge-agent/tests/
+services/edge-agent/.env*
+**/__pycache__/
+**/.venv/
+**/.mypy_cache/
+**/.pytest_cache/
+**/.ruff_cache/
