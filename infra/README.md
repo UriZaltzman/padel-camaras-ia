@@ -4,6 +4,11 @@ Dueño: `club-devops`.
 
 Docker, Terraform, scripts de despliegue y `hardware/bom.yaml`. Ver `.claude/agents/club-devops.md`.
 
+| Carpeta     | Qué hay                                                                      |
+| ----------- | ---------------------------------------------------------------------------- |
+| `camsim/`   | Simulador de cámaras en Docker Compose (ver `services/edge-agent/README.md`) |
+| `hardware/` | `bom.yaml` del equipo del club                                               |
+
 ## hardware
 
 `hardware/bom.yaml` es la lista de materiales del combo. `hardware/` es además un miembro del workspace de uv (`hardware-bom`) con el esquema Pydantic y los totales que usa el cotizador de la consola interna:

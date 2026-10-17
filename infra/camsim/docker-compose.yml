@@ -1,0 +1,60 @@
+# Camera simulator: N simulated courts, 2 RTSP cameras each (court-<n>-a, court-<n>-b).
+#
+#   docker compose -f infra/camsim/docker-compose.yml up -d --build
+#   CAMSIM_COURTS=4 docker compose -f infra/camsim/docker-compose.yml up -d --build
+#   docker compose -f infra/camsim/docker-compose.yml exec camsim edge-camsim list
+#   docker compose -f infra/camsim/docker-compose.yml exec camsim edge-camsim probe
+#   docker compose -f infra/camsim/docker-compose.yml exec camsim edge-camsim stop court-1-a
+#   docker compose -f infra/camsim/docker-compose.yml exec camsim edge-camsim start court-1-a
+#
+# Streams: rtsp://localhost:8554/court-<n>-<a|b> from the host, rtsp://mediamtx:8554/... from
+# other containers on this network. Recorded videos go in infra/camsim/videos (never in git):
+# <camera>.mp4 for one camera, default.mp4 for all; without them a synthetic FFmpeg testsrc
+# video is generated on first start.
+name: camsim
+
+services:
+  mediamtx:
+    # RTSP server, MIT license. Pinned: bump on purpose, not by accident.
+    image: bluenviron/mediamtx:1.9.3
+    environment:
+      MTX_RTMP: 'no'
+      MTX_HLS: 'no'
+      MTX_WEBRTC: 'no'
+      MTX_SRT: 'no'
+    ports:
+      # Only reachable from this machine unless CAMSIM_BIND is changed on purpose.
+      - '${CAMSIM_BIND:-127.0.0.1}:${CAMSIM_RTSP_PORT:-8554}:8554'
+    restart: unless-stopped
+
+  camsim:
+    # Same image as the club agent (it already has FFmpeg), running the simulator instead.
+    build:
+      context: ../..
+      dockerfile: services/edge-agent/Dockerfile
+    image: edge-agent:local
+    entrypoint: ['/usr/bin/tini', '--', 'edge-camsim']
+    command: ['run']
+    depends_on:
+      - mediamtx
+    environment:
+      CAMSIM_COURTS: '${CAMSIM_COURTS:-2}'
+      CAMSIM_RTSP_URL: 'rtsp://mediamtx:8554'
+      CAMSIM_ADVERTISED_RTSP_URL: 'rtsp://localhost:${CAMSIM_RTSP_PORT:-8554}'
+      CAMSIM_VIDEO_DIR: /videos
+      CAMSIM_STATE_DIR: /var/lib/edge-agent/camsim
+      CAMSIM_TEST_VIDEO_SIZE: '${CAMSIM_TEST_VIDEO_SIZE:-2560x1440}'
+      CAMSIM_LOG_LEVEL: '${CAMSIM_LOG_LEVEL:-INFO}'
+    volumes:
+      - type: bind
+        source: ./videos
+        target: /videos
+        read_only: true
+        bind:
+          create_host_path: true
+      - camsim-state:/var/lib/edge-agent
+    stop_grace_period: 15s
+    restart: unless-stopped
+
+volumes:
+  camsim-state:
