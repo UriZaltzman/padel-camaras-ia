@@ -1,0 +1,7 @@
+# Ruff config for the license checker: the shared repo config, plus the test
+# ignores. The shared "**/tests/**" glob is resolved relative to packages/config,
+# so it does not reach this folder.
+extend = "../../packages/config/ruff.toml"
+
+[lint.per-file-ignores]
+"test_*.py" = ["S101", "PLR2004", "ANN"]
