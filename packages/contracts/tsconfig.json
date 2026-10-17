@@ -1,0 +1,8 @@
+{
+  "extends": "@app/config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": ["src", "generated/typescript", "test/fixtures"]
+}

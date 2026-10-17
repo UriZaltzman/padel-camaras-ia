@@ -3,16 +3,32 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "files": [
     "openapi",
-    "events"
+    "events",
+    "src",
+    "generated/typescript"
   ],
   "scripts": {
-    "lint": "spectral lint openapi/openapi.yaml --ruleset .spectral.yaml --fail-severity warn",
+    "contracts:generate": "node scripts/generate.mjs",
+    "lint": "spectral lint openapi/openapi.yaml --ruleset .spectral.yaml --fail-severity warn && eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"test/**/*.test.mjs\"",
     "format:check": "prettier --check ."
   },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
   "devDependencies": {
+    "@app/config": "workspace:*",
     "@stoplight/spectral-cli": "^6.15.0",
-    "prettier": "^3.3.3"
+    "eslint": "^9.15.0",
+    "openapi-typescript": "7.13.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "yaml": "^2.6.1"
   }
 }
