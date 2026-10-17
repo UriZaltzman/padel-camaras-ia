@@ -1,2 +1,119 @@
 # Every AI threshold lives here (CLAUDE.md: no magic numbers). Owned by vision-ia.
-# Initial values come from docs/especificacion-tecnica.md sections 5 to 7; vision-ia fills them in.
+# Initial values come from docs/especificacion-tecnica.md sections 5 to 7.
+# Loaded and validated by ml.thresholds.load_thresholds(): a missing key, an unknown key
+# or a value of the wrong type stops the pipeline at startup.
+# Units are in the key name: _m metres, _cm centimetres, _s seconds, _deg degrees,
+# _px pixels, _frames video frames, _share a fraction between 0 and 1.
+
+# Section 5: court geometry. Origin at the side-A corner, y runs along the 20 m length.
+court:
+  width_m: 10.0
+  length_m: 20.0
+  net_y_m: 10.0
+  net_height_center_m: 0.88
+  net_height_posts_m: 0.92
+  service_line_from_net_m: 6.95
+
+# Section 5.1: calibration.
+calibration:
+  reference_points: 12
+  max_mean_error_cm: 5.0
+  daily_check_local_hour: 7
+  court_mask_margin_m: 1.5
+
+# Section 5.2: player detection.
+players:
+  min_confidence: 0.5
+  players_on_court: 4
+
+# Section 5.3: tracking (ByteTrack + Hungarian merge into exactly 4 tracks).
+tracking:
+  bytetrack_match_threshold: 0.5
+  track_memory_s: 2.0
+
+# Section 5.5: ball (TrackNetV3-style heatmap + constant-acceleration Kalman filter).
+ball:
+  input_width_px: 512
+  input_height_px: 288
+  input_frames: 3
+  min_heatmap_peak: 0.5
+  kalman_max_gap_frames: 10
+
+# Section 5.6: pose, only around candidate shots.
+pose:
+  window_s: 0.5
+  keypoints: 17
+
+# Section 5.7: shot detection.
+shots:
+  min_direction_change_deg: 35.0
+  max_wrist_distance_m: 1.2
+
+# Section 5.9: shot-type classifier.
+shot_type:
+  min_confidence: 0.6
+  pose_half_window_frames: 15
+
+# Section 6: point state machine and corrections.
+point:
+  ball_lost_timeout_s: 4.0
+  min_confidence: 0.7
+
+# Section 6: scoring rules.
+scoring:
+  games_per_set: 6
+  min_game_lead: 2
+  tiebreak_points: 7
+  super_tiebreak_points: 10
+
+# Section 7: statistics (formula_version tracks changes to how these are used).
+stats:
+  zone_columns: 3
+  zone_rows: 3
+  net_zone_depth_m: 3.0
+  coverage_uncovered_distance_m: 3.0
+  net_unguarded_distance_m: 4.0
+  net_unguarded_min_points: 3
+  net_unguarded_min_lost_share: 0.25
+  same_side_player_share: 0.6
+  same_side_third_share: 0.5
+  forced_error_move_distance_m: 3.0
+  forced_error_move_time_s: 1.2
+  net_time_distance_m: 4.0
+  net_approach_from_m: 6.0
+  net_approach_to_m: 4.0
+  position_smoothing_window_s: 0.5
+  heatmap_cell_m: 0.5
+  ball_speed_frames_after_shot: 3
+
+# Section 7: automatic highlights. Weights must add up to 1.
+highlights:
+  weight_rally_length: 0.4
+  weight_smash_or_vibora_winner: 0.3
+  weight_ball_speed: 0.2
+  weight_key_point: 0.1
+  top_points: 5
+  tail_after_point_s: 2.0
+
+# Section 7: phrase insights.
+insights:
+  facts_per_match: 3
+  max_words_per_phrase: 15
+
+# Section 7: vertical reel.
+reel:
+  width_px: 1080
+  height_px: 1920
+  min_duration_s: 20.0
+  max_duration_s: 30.0
+  logo_duration_s: 1.5
+  highlights: 3
+
+# Section 7: lesson mode.
+lesson_mode:
+  min_out_of_range_share: 0.4
+  top_improvements: 3
+
+# Section 7: player level (Glicko-2).
+rating:
+  min_matches_to_show: 5
