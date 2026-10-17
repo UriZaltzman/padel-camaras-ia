@@ -1,0 +1,10 @@
+# Lint and type-check tools for the license checker (CI only; nothing here is
+# distributed). Versions match uv.lock so tests/licenses is checked like the rest
+# of the Python code. Regenerate requirements-lint.txt with:
+#   uv pip compile --python-version 3.12 --universal --generate-hashes requirements-lint.in -o requirements-lint.txt
+-r requirements.in
+ruff==0.17.1
+mypy==2.4.0
+# Needed by the pydantic.mypy plugin enabled in packages/config/mypy.ini.
+pydantic==2.14.1
+types-PyYAML
