@@ -175,7 +175,7 @@ components:
           $ref: '#/components/schemas/ErrorCode'
         message:
           type: string
-          description: Short text for the end user, in es-AR, from the API translation files (drift test).
+          description: Short text for the end user, in es-AR, from the API translation files.
         details:
           type: object
           additionalProperties: true
