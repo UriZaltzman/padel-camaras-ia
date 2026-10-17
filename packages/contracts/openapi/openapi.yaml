@@ -1,0 +1,466 @@
+openapi: 3.1.0
+
+info:
+  title: Padel Camera Platform API
+  version: 0.1.0
+  summary: Public REST contract for the mobile app, the web, the club panel and the club device.
+  description: |
+    REST API with JSON bodies under `/v1`. This file is the single source of truth: TypeScript
+    and Pydantic types are generated from it and are never written by hand.
+
+    ## Conventions
+
+    - JSON property names are `snake_case`.
+    - IDs are UUID v7 (`Uuid`).
+    - Timestamps are RFC 3339 in UTC (`Timestamp`). Clients display them in
+      `America/Argentina/Buenos_Aires`.
+    - Money is an integer number of ARS cents (`AmountCents`). Never decimals.
+    - Every response carries an `X-Request-Id` header. Support uses it to find the request in the
+      structured logs.
+
+    ## Errors
+
+    Every 4xx and 5xx response has the same body, the `Error` schema: `{code, message, details}`.
+
+    - `code` is a stable, upper-case identifier from the `ErrorCode` catalog (for example
+      `BOOKING_SLOT_TAKEN`). Clients branch on `code`, never on `message` or on the HTTP status
+      alone. Codes are never renamed or reused; removing one requires a new major version.
+    - `message` is a short text for the end user, in `es-AR`, taken from the API translation
+      files. Clients may show it as a fallback when they have no copy of their own for `code`.
+    - `details` is optional and machine-readable. Its shape depends on `code` and is documented in
+      the catalog. It never contains personal data, tokens or stack traces: technical detail goes
+      to the log, linked by `X-Request-Id`.
+
+    HTTP status usage: `400` malformed request, `401` missing or invalid credentials, `403` not
+    allowed, `404` not found (also used when the caller may not know the resource exists), `409`
+    conflict with the current state, `410` gone for good, `422` well-formed but breaks a business
+    rule, `429` rate limited, `5xx` server or provider failure.
+
+    ## Pagination
+
+    Lists use opaque cursors: `?cursor=&limit=`. `limit` defaults to 20 and accepts 1 to 50; a value
+    outside that range is rejected with `VALIDATION_FAILED`. The response wraps the items in a
+    page object whose `next_cursor` is `null` on the last page. Clients pass `next_cursor` back
+    unchanged; a malformed or expired cursor returns `INVALID_CURSOR`. List operations reuse the
+    `Cursor` and `Limit` parameters and build their response schema with `allOf` over `Page`.
+
+    ## Rate limits
+
+    60 requests per minute per authenticated user, and per client IP for unauthenticated
+    requests. Every response carries `RateLimit-Limit`, `RateLimit-Remaining` and
+    `RateLimit-Reset`. Going over the limit returns `429` with `RATE_LIMITED` and a `Retry-After`
+    header in seconds.
+  contact:
+    name: arquitecto (contract owner)
+    url: https://github.com/UriZaltzman/padel-camaras-ia
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+  x-rate-limit:
+    requests: 60
+    window_seconds: 60
+    scope: user
+
+servers:
+  - url: /v1
+    description: Same host as the client. Each environment serves the API under `/v1`.
+
+security:
+  - bearerAuth: []
+
+tags: []
+
+# Module endpoints are added by their own issues (#22 onward). Every operation must:
+# - document `429` and reference `components/responses` for every 4xx and 5xx response;
+# - reuse `Cursor` and `Limit` when it returns a list.
+paths: {}
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token valid for 15 minutes, renewed with a rotating refresh token.
+
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor from a previous page's `next_cursor`. Omit it for the first page.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 512
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items in the page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
+
+  headers:
+    X-Request-Id:
+      description: Unique id of the request, also present in the structured logs.
+      schema:
+        type: string
+    RateLimit-Limit:
+      description: Requests allowed in the current window (60).
+      schema:
+        type: integer
+        minimum: 0
+    RateLimit-Remaining:
+      description: Requests left in the current window.
+      schema:
+        type: integer
+        minimum: 0
+    RateLimit-Reset:
+      description: Seconds until the current window resets.
+      schema:
+        type: integer
+        minimum: 0
+    Retry-After:
+      description: Seconds to wait before retrying.
+      schema:
+        type: integer
+        minimum: 0
+
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+      description: UUID v7.
+      examples:
+        - 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b
+    Timestamp:
+      type: string
+      format: date-time
+      description: RFC 3339 timestamp in UTC.
+      examples:
+        - '2026-10-17T21:30:00Z'
+    AmountCents:
+      type: integer
+      minimum: 0
+      description: Amount in ARS cents. Never decimals.
+      examples:
+        - 1500000
+
+    Page:
+      type: object
+      description: |
+        Base of every paginated response. A list operation combines it with `allOf` and adds an
+        `items` array of its own type.
+      required:
+        - next_cursor
+      properties:
+        next_cursor:
+          type:
+            - string
+            - 'null'
+          description: Cursor for the next page, or `null` on the last page.
+
+    Error:
+      type: object
+      description: Body of every 4xx and 5xx response.
+      required:
+        - code
+        - message
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+          description: Short text for the end user, in es-AR, from the API translation files.
+        details:
+          type: object
+          additionalProperties: true
+          description: Optional machine-readable detail. Shape per code in the `ErrorCode` catalog.
+      examples:
+        - code: BOOKING_SLOT_TAKEN
+          message: Ese turno se acaba de ocupar. Elegí otro horario.
+          details:
+            court_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b
+            starts_at: '2026-10-17T21:30:00Z'
+
+    ValidationIssue:
+      type: object
+      description: One invalid field, used in `details.issues` of `VALIDATION_FAILED`.
+      required:
+        - path
+        - rule
+      properties:
+        path:
+          type: string
+          description: JSON pointer or parameter name of the invalid value, e.g. `/players/0/phone`.
+        rule:
+          type: string
+          description: Machine-readable rule that failed, e.g. `required`, `max`, `format`.
+
+    ErrorCode:
+      type: string
+      description: |
+        Stable error codes. The catalog in `x-error-catalog` gives the HTTP status, the meaning
+        and the `details` shape of each one. Codes are only added, never renamed or reused.
+      pattern: '^[A-Z][A-Z0-9_]*$'
+      enum:
+        # Common
+        - VALIDATION_FAILED
+        - INVALID_CURSOR
+        - UNAUTHENTICATED
+        - ACCESS_TOKEN_EXPIRED
+        - FORBIDDEN
+        - NOT_FOUND
+        - INVALID_STATE_TRANSITION
+        - RATE_LIMITED
+        - INTERNAL_ERROR
+        - SERVICE_UNAVAILABLE
+        # Auth and users
+        - OTP_INVALID
+        - OTP_EXPIRED
+        - OTP_ATTEMPTS_EXCEEDED
+        - REFRESH_TOKEN_INVALID
+        - TERMS_NOT_ACCEPTED
+        # Clubs
+        - CLUB_FEATURE_DISABLED
+        - CLUB_SERVICE_SUSPENDED
+        # Bookings
+        - BOOKING_SLOT_TAKEN
+        - BOOKING_SLOT_INVALID
+        - BOOKING_HOLD_EXPIRED
+        - BOOKING_FULL
+        - BOOKING_INVITE_INVALID
+        # Matches and media
+        - MATCH_NOT_PUBLISHED
+        - MATCH_PLAYER_SLOT_TAKEN
+        - MATCH_ALREADY_JOINED
+        - MEDIA_NOT_READY
+        - MEDIA_EXPIRED
+        # Coaches
+        - COACH_ACCESS_NOT_GRANTED
+        # Payments
+        - PAYMENT_PROVIDER_ERROR
+        - WEBHOOK_SIGNATURE_INVALID
+        # Club panel and device
+        - RECORDING_NOT_ACTIVE
+        - DEVICE_CERTIFICATE_INVALID
+        - DEVICE_CLUB_MISMATCH
+      x-error-catalog:
+        - code: VALIDATION_FAILED
+          http_status: 400
+          description: The request is malformed or a field breaks its schema (Zod at the edge).
+          details: '`issues`: array of `ValidationIssue`.'
+        - code: INVALID_CURSOR
+          http_status: 400
+          description: The pagination cursor is malformed, expired or from another list.
+        - code: UNAUTHENTICATED
+          http_status: 401
+          description: No access token, or the token is not valid.
+        - code: ACCESS_TOKEN_EXPIRED
+          http_status: 401
+          description: The access token expired. Renew it with the refresh token and retry.
+        - code: FORBIDDEN
+          http_status: 403
+          description: The caller's role does not allow this action (section 12 permissions).
+        - code: NOT_FOUND
+          http_status: 404
+          description: The resource does not exist or belongs to another club.
+          details: '`resource`: resource type, e.g. `booking`.'
+        - code: INVALID_STATE_TRANSITION
+          http_status: 409
+          description: The entity cannot move to the requested status from its current one.
+          details: '`entity`, `from` and `to` statuses.'
+        - code: RATE_LIMITED
+          http_status: 429
+          description: More than 60 requests per minute. Wait for `Retry-After` seconds.
+        - code: INTERNAL_ERROR
+          http_status: 500
+          description: Unexpected server error. The detail is in the log under `X-Request-Id`.
+        - code: SERVICE_UNAVAILABLE
+          http_status: 503
+          description: The API or a dependency is temporarily down. Safe to retry later.
+        - code: OTP_INVALID
+          http_status: 401
+          description: The WhatsApp code is wrong.
+          details: '`attempts_remaining`: integer.'
+        - code: OTP_EXPIRED
+          http_status: 401
+          description: The WhatsApp code is older than 5 minutes. Request a new one.
+        - code: OTP_ATTEMPTS_EXCEEDED
+          http_status: 401
+          description: Five wrong attempts for this code. Request a new one.
+        - code: REFRESH_TOKEN_INVALID
+          http_status: 401
+          description: The refresh token is expired, revoked or was already used. Sign in again.
+        - code: TERMS_NOT_ACCEPTED
+          http_status: 403
+          description: The user has not accepted the terms and privacy policy (Ley 25.326).
+        - code: CLUB_FEATURE_DISABLED
+          http_status: 403
+          description: The club has not enabled this feature or paid extra.
+          details: '`feature`: feature key.'
+        - code: CLUB_SERVICE_SUSPENDED
+          http_status: 403
+          description: The club's service is cut for 30 days of unpaid subscription.
+        - code: BOOKING_SLOT_TAKEN
+          http_status: 409
+          description: Another held or confirmed booking overlaps the slot (exclusion constraint).
+          details: '`court_id`, `starts_at`.'
+        - code: BOOKING_SLOT_INVALID
+          http_status: 422
+          description: The slot breaks the court rules (opening hours, duration or start step).
+        - code: BOOKING_HOLD_EXPIRED
+          http_status: 409
+          description: The 10-minute hold expired before the deposit was paid; the slot was released.
+        - code: BOOKING_FULL
+          http_status: 409
+          description: The booking already has its 4 players.
+        - code: BOOKING_INVITE_INVALID
+          http_status: 422
+          description: The invite link is invalid, already used or the booking is no longer active.
+        - code: MATCH_NOT_PUBLISHED
+          http_status: 409
+          description: The action needs a published match (clips, score correction, downloads).
+        - code: MATCH_PLAYER_SLOT_TAKEN
+          http_status: 409
+          description: Another user already claimed that player position in the match.
+        - code: MATCH_ALREADY_JOINED
+          http_status: 409
+          description: The user is already a player in this match.
+        - code: MEDIA_NOT_READY
+          http_status: 409
+          description: The video or clip is still being processed or uploaded.
+        - code: MEDIA_EXPIRED
+          http_status: 410
+          description: The media was deleted (full videos are deleted after 30 days).
+        - code: COACH_ACCESS_NOT_GRANTED
+          http_status: 403
+          description: The student has not given this coach access to their matches or lessons.
+        - code: PAYMENT_PROVIDER_ERROR
+          http_status: 502
+          description: Mercado Pago failed or rejected the request. Safe to retry later.
+        - code: WEBHOOK_SIGNATURE_INVALID
+          http_status: 401
+          description: The Mercado Pago webhook `x-signature` does not verify.
+        - code: RECORDING_NOT_ACTIVE
+          http_status: 409
+          description: The court is not recording, so there is nothing to stop.
+        - code: DEVICE_CERTIFICATE_INVALID
+          http_status: 401
+          description: The club device client certificate is missing, expired or revoked (mTLS).
+        - code: DEVICE_CLUB_MISMATCH
+          http_status: 403
+          description: The device tried to act on a match, court or upload of another club.
+
+  responses:
+    BadRequest:
+      description: Malformed request (`VALIDATION_FAILED`, `INVALID_CURSOR`).
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing or invalid credentials.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: The caller is not allowed to do this.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: The resource does not exist or is not visible to the caller.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Conflict with the current state of the resource.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Gone:
+      description: The resource was deleted for good.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnprocessableEntity:
+      description: Well-formed request that breaks a business rule.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooManyRequests:
+      description: Rate limit exceeded (`RATE_LIMITED`).
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Unexpected server error (`INTERNAL_ERROR`).
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadGateway:
+      description: An external provider failed (`PAYMENT_PROVIDER_ERROR`).
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: Temporarily unavailable (`SERVICE_UNAVAILABLE`).
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

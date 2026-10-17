@@ -1,0 +1,92 @@
+extends:
+  - spectral:oas
+
+functionsDir: ./spectral/functions
+functions:
+  - errorCatalog
+
+rules:
+  # Shared building blocks (pagination, error responses) are defined before the module
+  # endpoints that use them (#22 onward). Re-enable once every module is in the contract.
+  oas3-unused-component: off
+
+  error-code-catalog:
+    description: Every error code is in the enum and in x-error-catalog, once, with status and description.
+    severity: error
+    message: '{{error}}'
+    given: $.components.schemas.ErrorCode
+    then:
+      function: errorCatalog
+
+  error-schema-shape:
+    description: The error body is {code, message, details}.
+    severity: error
+    given: $.components.schemas.Error
+    then:
+      - field: required
+        function: schema
+        functionOptions:
+          schema:
+            type: array
+            const: [code, message]
+      - field: properties
+        function: schema
+        functionOptions:
+          schema:
+            type: object
+            required: [code, message, details]
+            propertyNames:
+              enum: [code, message, details]
+
+  error-responses-use-components:
+    description: Every 4xx and 5xx operation response is a $ref to components/responses.
+    severity: error
+    resolved: false
+    given: $.paths[*][get,put,post,delete,patch].responses[?(@property.match(/^[45]/))]
+    then:
+      - field: $ref
+        function: truthy
+      - field: $ref
+        function: pattern
+        functionOptions:
+          match: '^#/components/responses/'
+
+  component-error-responses-use-error-schema:
+    description: Every response in components/responses returns the Error schema.
+    severity: error
+    resolved: false
+    given: $.components.responses[*].content.application/json.schema
+    then:
+      field: $ref
+      function: pattern
+      functionOptions:
+        match: '^#/components/schemas/Error$'
+
+  operation-documents-rate-limit:
+    description: Every operation documents the 429 rate-limit response.
+    severity: error
+    given: $.paths[*][get,put,post,delete,patch].responses
+    then:
+      field: '429'
+      function: truthy
+
+  pagination-limit-max-50:
+    description: A `limit` query parameter allows at most 50 items.
+    severity: error
+    given: $..parameters[?(@.name == 'limit' && @.in == 'query')].schema
+    then:
+      field: maximum
+      function: schema
+      functionOptions:
+        schema:
+          type: integer
+          maximum: 50
+
+  properties-snake-case:
+    description: JSON property names are snake_case.
+    severity: error
+    given: $..properties[*]~
+    then:
+      function: casing
+      functionOptions:
+        type: snake

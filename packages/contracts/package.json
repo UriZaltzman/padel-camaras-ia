@@ -1,0 +1,18 @@
+{
+  "name": "@app/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "openapi",
+    "events"
+  ],
+  "scripts": {
+    "lint": "spectral lint openapi/openapi.yaml --ruleset .spectral.yaml --fail-severity warn",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@stoplight/spectral-cli": "^6.15.0",
+    "prettier": "^3.3.3"
+  }
+}
