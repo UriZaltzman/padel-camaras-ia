@@ -25,3 +25,4 @@ mlruns/
 *.mp4
 *.parquet
 .github/planning/created.json
+.claude/worktrees/

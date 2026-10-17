@@ -6,31 +6,39 @@ Lo actualiza el orquestador cada viernes o cuando se lo piden. Corto y en españ
 
 **Qué se cerró**
 
-- Monorepo armado en la rama `orquestador/bootstrap` (pnpm + Turborepo, uv, config compartida, marca provisoria, tokens, Docker Compose, CI). Falta subirlo a GitHub y que una persona apruebe el PR.
-- Plan de trabajo listo en `.github/planning/issues.yaml`: 190 tareas en 5 fases, pendientes de crear como issues en GitHub.
+- Repositorio público creado: `UriZaltzman/padel-camaras-ia`.
+- PR #1 (bootstrap del monorepo) abierto, esperando aprobación.
+- 190 issues creados para las 5 fases, con etiquetas de agente, fase y tipo (plan en `.github/planning/issues.yaml`, PR #7).
+- Primeros PR de los agentes, abiertos y en revisión:
+
+| PR | Agente | Issue | Qué trae |
+| --- | --- | --- | --- |
+| #191 | club-devops | #5 | Base del agente del club: configuración validada, logs JSON, SQLite, imagen Docker |
+| #197 | vision-ia | #11 | Base de `ml/`: todos los umbrales iniciales en `thresholds.yaml`, esquemas y Parquet |
+| #199 | arquitecto | #20 | Contrato OpenAPI base: formato de error, 33 códigos de error, paginación, límites |
+| #200 | qa-seguridad | #111 | Chequeo de licencias en CI (nada AGPL/GPL, registro de modelos) |
 
 **Resumen por fase**
 
-| Fase | Qué entrega | Tareas | Estado |
-| --- | --- | --- | --- |
-| 0. Grabar partidos reales | Equipo del club mínimo, simulador de cámaras, herramienta de etiquetado, 100 partidos | 17 | Lista para arrancar |
-| 1. Grabación y plataforma | Contratos y base (primero), API, agente del club, app, web y paneles, pagos, WhatsApp | 99 | Arranca por los contratos del Arquitecto |
-| 2. IA y marcador | Las 9 etapas del pipeline, marcador con 3 capas de corrección, métricas | 22 | Espera la fase 0 (datos etiquetados) |
-| 3. Estadísticas y entrenador | Estadísticas, insights, reel, modo clase, cobros de clases, abono, liquidaciones | 41 | Espera fases 1 y 2 |
-| 4. Piloto pago | Monitoreo, backups, despliegue a producción, 3 a 5 clubes | 11 | Espera fase 3 |
+| Fase | Issues | Estado |
+| --- | --- | --- |
+| 0. Grabar partidos reales | 17 | En curso: agente del club y base de IA en revisión |
+| 1. Grabación y plataforma | 99 | En curso: contrato base y chequeo de licencias en revisión |
+| 2. IA y marcador | 22 | Espera la fase 0 |
+| 3. Estadísticas y entrenador | 41 | Espera fases 1 y 2 |
+| 4. Piloto pago | 11 | Espera fase 3 |
 
 **Qué está trabado**
 
-- Nada del código. Todo lo que necesita GitHub (repo, PR, issues, tablero) espera tu OK para crear el repositorio.
+- Mientras el PR #1 no entre, `main` está vacío: los PR de los agentes apuntan a la rama del bootstrap y **el CI no corre en ellos** (se probaron en local).
+- El tablero de GitHub Projects necesita que una persona corra `gh auth refresh -s project`.
 
 **Qué necesita decisión de una persona**
 
-1. Crear el repositorio en GitHub (privado) y subir el bootstrap.
-2. Club amigo para grabar los 100 partidos de la fase 0.
-3. Compra del equipo de la fase 0 (precios estimados, `TODO_COTIZAR`).
-4. Cuentas de nube para desarrollo (Vercel, Fly.io, Neon, Upstash, Cloudflare, Expo, Mercado Pago, WhatsApp Business, Sentry, Grafana).
-5. Proveedor de GPU por hora para entrenar (Modal o RunPod), antes de la fase 2.
-6. Rangos del modo clase y catálogo de consejos con 2 o 3 entrenadores, en la fase 3.
-7. Música del reel y proveedor de factura electrónica, en la fase 3.
-8. Nombre definitivo de la marca, INPI y dominio, antes del piloto.
-9. Clubes del piloto, precios de lista y cotización real del hardware.
+1. Aprobar el PR #1 (y después #7, #191, #197, #199, #200 con su revisión).
+2. Club amigo para la fase 0 (#2) y compra del equipo de la fase 0 (#3).
+3. Cuentas de nube para desarrollo (#80).
+4. Licencia de FFmpeg en la imagen del club (#196).
+5. Dos umbrales que la especificación no define (#198).
+6. Revisar las 7 decisiones del contrato base en el PR #199 (códigos de error, estados HTTP, límites).
+7. Licencias: si se permite LGPL y si se aceptan las librerías CUDA de NVIDIA en el equipo del club (PR #200).
