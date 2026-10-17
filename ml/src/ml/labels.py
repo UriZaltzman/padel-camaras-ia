@@ -42,14 +42,13 @@ from ml.schemas import (
     Surface,
 )
 
-LABEL_SCHEMA_VERSION = "1.0.0"
+LABEL_SCHEMA_VERSION = "2.0.0"
 """Version of the label models below. Bump it whenever a field is added, removed or changes
 meaning, so old label sets are never read with the wrong interpretation."""
 
 VERSION_DIR_PREFIX = "v"
 
 PositiveInt = Annotated[int, Field(ge=1)]
-NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 SemVer = Annotated[str, StringConstraints(pattern=r"^\d+\.\d+\.\d+$")]
 
 
@@ -140,11 +139,16 @@ class PointLabel(StageRecord):
 
 
 class LabelSetInfo(StageRecord):
-    """Who labeled which match, when, and with which version of the label models."""
+    """Who labeled which match, when, and with which version of the label models.
+
+    ``labeler`` is the opaque user id (UUID v7) of the labeling console account. It never
+    holds personal data: no names, emails or any other free text that identifies a person,
+    because label sets end up in training datasets (CLAUDE.md, "Datos y privacidad").
+    """
 
     match_id: UUID7
     version: PositiveInt
-    labeler: NonEmptyStr
+    labeler: UUID7
     labeled_at: AwareDatetime
     schema_version: SemVer = LABEL_SCHEMA_VERSION
 

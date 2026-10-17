@@ -41,6 +41,7 @@ def _uuid7() -> uuid.UUID:
     return uuid.UUID(int=raw | (0x7 << 76) | (0x2 << 62))
 
 
+LABELER_ID = _uuid7()
 LABELED_AT = datetime(2026, 10, 17, 15, 30, tzinfo=UTC)
 
 
@@ -48,7 +49,7 @@ def _info(match_id: uuid.UUID | None = None, version: int = 1) -> LabelSetInfo:
     return LabelSetInfo(
         match_id=match_id or _uuid7(),
         version=version,
-        labeler="labeler-01",
+        labeler=LABELER_ID,
         labeled_at=LABELED_AT,
     )
 
@@ -305,7 +306,7 @@ def test_point_label_rejects_invalid_values(override: dict[str, Any]) -> None:
 INFO = {
     "match_id": _uuid7(),
     "version": 1,
-    "labeler": "labeler-01",
+    "labeler": LABELER_ID,
     "labeled_at": LABELED_AT,
 }
 
@@ -316,6 +317,9 @@ INFO = {
         {"version": 0},
         {"labeler": ""},
         {"labeler": "   "},
+        {"labeler": "Juan Pérez"},
+        {"labeler": "juan.perez@example.com"},
+        {"labeler": str(uuid.uuid4())},
         {"labeled_at": datetime(2026, 10, 17, 15, 30)},  # noqa: DTZ001
         {"labeled_at": datetime(2026, 10, 17, 12, 30, tzinfo=timezone(-timedelta(hours=3)))},
         {"schema_version": "v1"},
@@ -324,6 +328,12 @@ INFO = {
 )
 def test_label_set_info_rejects_invalid_values(override: dict[str, Any]) -> None:
     _rejects(LabelSetInfo, **{**INFO, **override})
+
+
+def test_label_set_info_accepts_a_uuid7_labeler() -> None:
+    labeler = _uuid7()
+    assert LabelSetInfo.model_validate({**INFO, "labeler": labeler}).labeler == labeler
+    assert LabelSetInfo.model_validate({**INFO, "labeler": str(labeler)}).labeler == labeler
 
 
 def test_labels_are_immutable() -> None:
