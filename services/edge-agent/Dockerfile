@@ -18,6 +18,7 @@ ENV UV_COMPILE_BYTECODE=1 \
 WORKDIR /src
 COPY pyproject.toml uv.lock ./
 COPY packages/config/pyproject.toml packages/config/brand.py packages/config/
+COPY packages/contracts/pyproject.toml packages/contracts/
 COPY ml/pyproject.toml ml/
 COPY services/edge-agent services/edge-agent
 RUN uv sync --locked --no-dev --no-editable --package edge-agent
