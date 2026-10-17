@@ -14,7 +14,12 @@ ignore = [
 ]
 
 [lint.per-file-ignores]
-"**/tests/**" = ["S101", "PLR2004", "ANN"]
+# Ruff resolves patterns that contain a "/" relative to the file that defines them
+# (this one, in packages/config), even when a project pulls it in with `extend`.
+# "../../" anchors the glob at the repository root, so it reaches the tests of every
+# project that extends this config (services/*, ml, packages/*). Projects do not need
+# to repeat it in their own pyproject.toml.
+"../../**/tests/**" = ["S101", "PLR2004", "ANN"]
 
 [format]
 quote-style = "double"
