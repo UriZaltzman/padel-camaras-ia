@@ -3,10 +3,21 @@ name = "ml"
 version = "0.0.0"
 description = "Computer vision pipeline, training and evaluation."
 requires-python = ">=3.12,<3.13"
-dependencies = ["app-config", "pydantic>=2.9"]
+dependencies = [
+    "app-config",
+    "pyarrow>=17",
+    "pydantic>=2.9",
+    "pyyaml>=6.0",
+]
 
 [dependency-groups]
-dev = ["mypy>=1.13", "pytest>=8.3", "ruff>=0.8"]
+dev = [
+    "mypy>=1.13",
+    "pyarrow-stubs>=20.0.0.20260819",
+    "pytest>=8.3",
+    "ruff>=0.8",
+    "types-pyyaml>=6.0.12.20260906",
+]
 
 [tool.uv.sources]
 app-config = { workspace = true }
@@ -20,6 +31,11 @@ packages = ["src/ml"]
 
 [tool.ruff]
 extend = "../packages/config/ruff.toml"
+
+[tool.ruff.lint.extend-per-file-ignores]
+# The shared "**/tests/**" pattern resolves relative to packages/config, so it does not
+# reach ml/tests; repeat it here.
+"tests/**" = ["S101", "PLR2004", "ANN"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
