@@ -1,0 +1,25 @@
+# Registry of AI models whose weights we distribute or run (owner of entries:
+# vision-ia; validated by tests/licenses/check_licenses.py in the licenses workflow).
+#
+# Every model used in ml/ or services/edge-agent must have an entry BEFORE its
+# weights are downloaded or committed. Any committed weights file (.pt, .onnx,
+# .engine, .safetensors, ...) that is not listed under some entry's `files`
+# fails the check. AGPL/GPL/SSPL in `weights_license` or `code_license` fails
+# (that rules out Ultralytics YOLOv5/v8/v11 weights, for example).
+#
+# Fields:
+#   name             unique id, e.g. ball-detector
+#   source           where the weights come from (URL, or "trained in-house on <dataset>")
+#   weights_license  SPDX id of the weights' license, e.g. Apache-2.0
+#   code_license     SPDX id of the architecture / training code the weights depend on
+#   files            optional: repo paths of committed weights (must be tracked in git)
+#   notes            optional: dataset licenses, attribution duties, etc.
+#
+# Example:
+# - name: ball-detector
+#   source: https://github.com/example/detector/releases/tag/v1.0
+#   weights_license: Apache-2.0
+#   code_license: Apache-2.0
+#   files: [ml/models/ball-detector.onnx]
+#   notes: Fine-tuned on our own footage (no third-party dataset).
+models: []
