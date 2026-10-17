@@ -1,0 +1,77 @@
+name: edge-image
+
+# Builds the club box image (services/edge-agent/Dockerfile) without publishing it,
+# so a PR that breaks the image fails here. Publishing belongs to the deploy
+# workflow (club-devops).
+#
+# The workflow always runs and the build job is skipped when nothing relevant changed,
+# so it can be a required check without blocking unrelated PRs.
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: edge-image-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect edge-agent image changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      edge-agent: ${{ steps.filter.outputs.edge-agent }}
+    steps:
+      # On pull_request the filter reads the changed files from the API: no checkout needed.
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          # Everything the Dockerfile copies into the build context
+          # (see services/edge-agent/Dockerfile.dockerignore), plus this workflow.
+          filters: |
+            edge-agent:
+              - 'services/edge-agent/**'
+              - 'packages/config/**'
+              - 'uv.lock'
+              - 'pyproject.toml'
+              - 'ml/pyproject.toml'
+              - '.github/workflows/edge-image.yml'
+
+  build:
+    name: Build edge-agent image (no push)
+    needs: changes
+    if: needs.changes.outputs.edge-agent == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # Built from the repo root because the agent is a member of the uv workspace.
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: services/edge-agent/Dockerfile
+          push: false
+          load: true
+          tags: edge-agent:ci
+          cache-from: type=gha,scope=edge-agent
+          cache-to: type=gha,scope=edge-agent,mode=max
+      # Smoke test: with no EDGE_* variables the agent must refuse to start with
+      # exit code 2 (config validation). Any other code means the image is broken.
+      - name: Smoke test (missing config exits with code 2)
+        run: |
+          set +e
+          docker run --rm edge-agent:ci
+          code=$?
+          set -e
+          echo "edge-agent exited with code $code"
+          test "$code" -eq 2
