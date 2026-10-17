@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import email.parser
 import enum
+import http
 import json
 import re
 import shutil
@@ -46,6 +47,8 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent.parent
 PYPI_SIMPLE = "https://pypi.org/simple"
 PYPI_JSON = "https://pypi.org/pypi/{name}/{version}/json"
+# A "License" metadata field longer than this is treated as a full license text.
+MAX_LICENSE_NAME_LEN = 120
 
 WEIGHT_EXTENSIONS = frozenset(
     {
@@ -253,7 +256,7 @@ def classify_python(info: dict[str, Any], allowed: frozenset[str]) -> tuple[str,
         # Several classifiers: be conservative and require all of them to pass.
         return " + ".join(classifiers), max(classify_token(c, allowed) for c in classifiers)
     text = (info.get("license") or "").strip()
-    if "\n" in text or len(text) > 120:
+    if "\n" in text or len(text) > MAX_LICENSE_NAME_LEN:
         upper = _norm(text)
         first_line = text.splitlines()[0][:80]
         for pattern, category in _COPYLEFT_PATTERNS:
@@ -348,7 +351,7 @@ def _http_get(url: str, retries: int = 3) -> bytes | None:
                 body: bytes = resp.read()
                 return body
         except urllib.error.HTTPError as exc:
-            if exc.code == 404:
+            if exc.code == http.HTTPStatus.NOT_FOUND:
                 return None
             last_error = exc
         except (urllib.error.URLError, TimeoutError) as exc:
