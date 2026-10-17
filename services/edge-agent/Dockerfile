@@ -19,6 +19,7 @@ WORKDIR /src
 COPY pyproject.toml uv.lock ./
 COPY packages/config/pyproject.toml packages/config/brand.py packages/config/
 COPY ml/pyproject.toml ml/
+COPY infra/hardware/pyproject.toml infra/hardware/
 COPY services/edge-agent services/edge-agent
 RUN uv sync --locked --no-dev --no-editable --package edge-agent
 
