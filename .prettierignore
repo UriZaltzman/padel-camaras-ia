@@ -1,0 +1,11 @@
+# Source-of-truth documents are kept exactly as approved.
+docs/
+CLAUDE.md
+.claude/
+pnpm-lock.yaml
+uv.lock
+**/generated/
+**/.next/
+**/dist/
+**/coverage/
+infra/hardware/bom.yaml

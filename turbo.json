@@ -1,0 +1,33 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "stream",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "lint": {},
+    "typecheck": {
+      "dependsOn": ["^contracts:generate"]
+    },
+    "test": {
+      "dependsOn": ["^contracts:generate"],
+      "outputs": []
+    },
+    "format:check": {},
+    "contracts:generate": {
+      "outputs": ["generated/**"]
+    },
+    "db:migrate": {
+      "cache": false
+    },
+    "db:seed": {
+      "cache": false,
+      "dependsOn": ["db:migrate"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}
