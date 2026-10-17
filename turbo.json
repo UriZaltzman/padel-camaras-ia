@@ -7,11 +7,8 @@
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "lint": {},
-    "typecheck": {
-      "dependsOn": ["^contracts:generate"]
-    },
+    "typecheck": {},
     "test": {
-      "dependsOn": ["^contracts:generate"],
       "outputs": []
     },
     "format:check": {},

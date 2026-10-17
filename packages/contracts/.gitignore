@@ -1,0 +1,4 @@
+# The root .gitignore drops every generated/ folder. The contract types are the exception:
+# they are committed so Python consumers need no Node toolchain and every contract PR shows
+# its effect on the types. CI regenerates them and fails on any difference.
+!generated/

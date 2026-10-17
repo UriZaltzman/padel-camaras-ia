@@ -1,0 +1,4 @@
+# Python code generator for the Pydantic v2 models (pnpm contracts:generate).
+# Pinned: a new version can change the output, so upgrades regenerate and commit the models.
+# Compile with: uv pip compile python/requirements-codegen.in --python-version 3.12 --generate-hashes --universal -o python/requirements-codegen.txt
+datamodel-code-generator[ruff]==0.85.0

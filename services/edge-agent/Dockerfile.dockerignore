@@ -5,6 +5,7 @@
 !uv.lock
 !packages/config/pyproject.toml
 !packages/config/brand.py
+!packages/contracts/pyproject.toml
 !ml/pyproject.toml
 !infra/hardware/pyproject.toml
 !services/edge-agent/
