@@ -1,0 +1,2009 @@
+# Issue plan for the 5 phases of docs/estructura.md ("Hoja de ruta de desarrollo").
+# Owned by the orquestador. create_issues.py turns each entry into a GitHub issue, in this order,
+# replacing the ids in `deps` with the real issue numbers.
+#
+# Fields: id, phase, agent, type (feat|chore|test), title (English, area prefix),
+# what / spec / done (Spanish), deps (ids). Optional: labels (extra labels).
+
+# ───────────────────────────── PHASE 0 · Grabar partidos reales ─────────────────────────────
+
+- id: D01
+  phase: 0
+  agent: orquestador
+  type: chore
+  labels: [decision-needed]
+  title: '[decision] Friendly club and court for recording 100 phase-0 matches'
+  what: 'Elegir el club amigo y la cancha donde se instala el equipo final para grabar y etiquetar 100 partidos. Ningún agente contacta al club: lo hace una persona.'
+  spec: 'estructura.md › Hoja de ruta (fase 0); pendientes.md › Otros pendientes'
+  deps: []
+  done: 'Club y cancha confirmados por una persona y anotados en este issue (sin datos personales). Fecha estimada de instalación.'
+
+- id: D02
+  phase: 0
+  agent: orquestador
+  type: chore
+  labels: [decision-needed]
+  title: '[decision] Approve purchase of the phase-0 kit (1 court + club box)'
+  what: 'Aprobar la compra del equipo para la cancha de la fase 0 (2 cámaras, soportes, botón, cableado, computadora con GPU, switch, UPS, router 4G, gabinete). Precios estimados en infra/hardware/bom.yaml con status TODO_COTIZAR.'
+  spec: 'estructura.md › Hardware y presupuesto del combo; pendientes.md › Hardware'
+  deps: []
+  done: 'Una persona aprueba proveedor y monto; la compra la hace una persona.'
+
+- id: P001
+  phase: 0
+  agent: club-devops
+  type: test
+  title: '[infra] Validate bom.yaml schema and totals in CI'
+  what: 'Esquema (Pydantic) para infra/hardware/bom.yaml y prueba que verifica tipos, que todo precio tenga status y que el total de control (4 canchas = US$4.320) cuadre. Es la base del cotizador de la consola.'
+  spec: 'pendientes.md › Hardware; estructura.md › Hardware y presupuesto del combo'
+  deps: []
+  done: 'La prueba corre en CI y falla si se rompe el formato o el total de control.'
+
+- id: P002
+  phase: 0
+  agent: club-devops
+  type: chore
+  title: '[edge] Edge agent scaffold: settings, JSON logs and Docker image'
+  what: 'Estructura de services/edge-agent: configuración con Pydantic Settings validada al arrancar, logs JSON con club_id/match_id sin datos personales, SQLite local, imagen Docker base (Ubuntu + FFmpeg).'
+  spec: 'especificación §1, §4; CLAUDE.md › Convenciones'
+  deps: []
+  done: 'uv run pytest, ruff y mypy --strict pasan; la imagen se construye en CI; arrancar sin una variable obligatoria falla con mensaje claro.'
+
+- id: P003
+  phase: 0
+  agent: club-devops
+  type: feat
+  title: '[edge] Camera simulator that replays recorded videos as RTSP'
+  what: 'Simulador de cámaras: publica videos grabados como streams RTSP (2 por cancha, A y B) para que todos los agentes prueben sin hardware. Configurable por cantidad de canchas, con opción de cortar un stream para simular una cámara caída.'
+  spec: 'especificación §14 (Equipo del club: simulador de cámaras); club-devops.md › Fase 0'
+  deps: [P002]
+  done: 'docker compose levanta N canchas simuladas; ffprobe lee cada stream; se puede apagar y prender una cámara desde la línea de comandos.'
+
+- id: P004
+  phase: 0
+  agent: club-devops
+  type: feat
+  title: '[edge] Minimal recorder: 10 s segments without re-encoding'
+  what: 'Proceso recorder mínimo: FFmpeg lee el RTSP de cada cámara y guarda segmentos de 10 s sin recomprimir, 2560x1440 a 25 fps. En fase 0 arranca y para por línea de comandos o por un horario local, con 2 minutos de margen.'
+  spec: 'especificación §4 (recorder)'
+  deps: [P003]
+  done: 'Con el simulador: 10 turnos seguidos de 90 min con 2 cámaras sin segmentos faltantes (verificado por prueba automática de continuidad).'
+
+- id: P005
+  phase: 0
+  agent: club-devops
+  type: feat
+  title: '[edge] Minimal uploader: resumable multipart upload with bandwidth limit'
+  what: 'Proceso uploader mínimo: sube los partidos grabados a almacenamiento compatible con S3 por partes, retomando si se corta, con límite de velocidad configurable. En local se prueba con MinIO; el bucket real (Cloudflare R2) espera a que una persona cree la cuenta.'
+  spec: 'especificación §4 (uploader); §13'
+  deps: [P004]
+  done: 'Prueba con MinIO: cortar la red a mitad de una subida y volver la retoma sin re-subir lo ya confirmado; el límite de velocidad se respeta con ±10%.'
+
+- id: P006
+  phase: 0
+  agent: club-devops
+  type: chore
+  title: '[infra] Phase-0 club box image and installation guide'
+  what: 'Imagen y docker compose del equipo del club para la fase 0 (recorder + uploader), con guía de instalación paso a paso para la cancha del club amigo y chequeo de grabación de día y de noche.'
+  spec: 'estructura.md › Hoja de ruta (fase 0); especificación §15'
+  deps: [P004, P005]
+  done: 'Un técnico sigue la guía en una máquina limpia y graba con el simulador sin ayuda; la guía incluye la prueba de día y de noche.'
+
+- id: P007
+  phase: 0
+  agent: vision-ia
+  type: chore
+  title: '[ml] ML project scaffold: thresholds loader, typed schemas and Parquet IO'
+  what: 'Estructura de ml/: carga validada de ml/config/thresholds.yaml (con los valores iniciales de las secciones 5 a 7), modelos Pydantic base, y helpers para que cada etapa guarde y lea su salida en Parquet.'
+  spec: 'especificación §1 (Python), §5'
+  deps: []
+  done: 'ruff, mypy --strict y pytest pasan; ningún umbral numérico fuera de thresholds.yaml (prueba que lo verifica).'
+
+- id: P008
+  phase: 0
+  agent: vision-ia
+  type: feat
+  title: '[ml] Labeling data model for shots, bounces, shot types and point winners'
+  what: 'Modelo de datos de etiquetas: golpes (tiempo, jugador), botes con superficie (floor, back_glass, side_glass, fence, net), tipo de golpe (10 clases) y ganador de cada punto. Guardado en Parquet, versionado por partido.'
+  spec: 'especificación §8 (Qué se etiqueta), §5'
+  deps: [P007]
+  done: 'Pruebas de ida y vuelta (guardar y leer) y de validación de cada tipo de etiqueta.'
+
+- id: P009
+  phase: 0
+  agent: vision-ia
+  type: feat
+  title: '[ml] Timeline labeling tool: shots and bounces with surface'
+  what: 'Herramienta propia de etiquetado sobre la línea de tiempo del partido para marcar golpes y botes con su superficie. Corre local en ml/labeling; después web-paneles la integra en la consola interna.'
+  spec: 'especificación §8; estructura.md › Nosotros (herramienta de etiquetado)'
+  deps: [P008]
+  done: 'Se etiqueta un partido de prueba completo con atajos de teclado y el Parquet resultante valida contra el modelo de P008.'
+
+- id: P010
+  phase: 0
+  agent: vision-ia
+  type: feat
+  title: '[ml] Labeling tool: shot type on 1-second clips'
+  what: 'Modo de la herramienta para clasificar el tipo de golpe sobre clips de 1 segundo alrededor de cada golpe etiquetado.'
+  spec: 'especificación §8 (Tipo de golpe: 3.000 golpes, 150 por tipo)'
+  deps: [P009]
+  done: 'Se clasifican 50 golpes de prueba y la herramienta muestra el conteo por tipo contra la meta de 150.'
+
+- id: P011
+  phase: 0
+  agent: vision-ia
+  type: feat
+  title: '[ml] Labeling tool: point winner per point'
+  what: 'Modo de la herramienta para marcar dónde empieza y termina cada punto y quién lo ganó.'
+  spec: 'especificación §8 (Ganador de cada punto: 100 partidos)'
+  deps: [P009]
+  done: 'Se etiqueta un partido completo y el marcador reconstruido desde las etiquetas coincide con el marcador real.'
+
+- id: P012
+  phase: 0
+  agent: vision-ia
+  type: chore
+  title: '[ml] CVAT setup and converters for player boxes and ball points'
+  what: 'Configuración de CVAT (local) con pre-etiquetado del detector genérico de licencia Apache 2.0, y conversores de la exportación de CVAT a los Parquet del pipeline.'
+  spec: 'especificación §8 (recuadros de jugadores y posición de la pelota)'
+  deps: [P007]
+  done: 'Una exportación de prueba de CVAT se convierte sin pérdida; el pre-etiquetado no usa Ultralytics.'
+
+- id: P013
+  phase: 0
+  agent: vision-ia
+  type: chore
+  title: '[ml] Labeling plan and fixed 15-match evaluation holdout'
+  what: 'Plan de etiquetado con cantidades por tipo de dato (día y noche) y definición de los 15 partidos que nunca entran al entrenamiento.'
+  spec: 'especificación §8 (Reglas de entrenamiento)'
+  deps: [P008]
+  done: 'Documento en ml/ con el plan y archivo versionado con la lista fija del holdout; prueba que impide usarlos en entrenamiento.'
+
+- id: P014
+  phase: 0
+  agent: vision-ia
+  type: test
+  title: '[ml] Pipeline speed benchmark harness for the club GPU'
+  what: 'Herramienta que mide cuántas veces más rápido que el tiempo real corre el pipeline por cámara, para medirlo en la GPU del club (meta 6x en clase RTX 4060).'
+  spec: 'especificación §4 (Dimensionamiento), §17'
+  deps: [P007]
+  done: 'El benchmark corre con el simulador y deja el resultado en un reporte; la medición real en la GPU del club se anota en este issue.'
+
+- id: Q0
+  phase: 0
+  agent: qa-seguridad
+  type: test
+  labels: [phase-close]
+  title: '[qa] Phase 0 closed: real matches recorded and labeled'
+  what: 'Verificar los criterios de aceptación de la fase 0, uno por uno.'
+  spec: 'estructura.md › Hoja de ruta (fase 0)'
+  deps:
+    [D01, D02, P001, P002, P003, P004, P005, P006, P007, P008, P009, P010, P011, P012, P013, P014]
+  done: "- [ ] El hardware graba bien de día y de noche en la cancha del club amigo\n- [ ] 100 partidos grabados\n- [ ] Partidos etiquetados según el plan de P013\n- [ ] Velocidad del pipeline medida en la GPU del club (P014)"
+
+# ───────────────────────────── PHASE 1 · Grabación y plataforma ─────────────────────────────
+# Arquitecto first: everything else depends on contracts and schema.
+
+- id: A01
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[contracts] OpenAPI base: /v1, error format, cursor pagination and error codes'
+  what: 'Esqueleto OpenAPI 3.1 de /v1 con el formato de error {code, message, details}, paginación por cursor (máximo 50), límite de 60 pedidos por minuto documentado, catálogo de códigos de error estables y lint con Spectral en CI.'
+  spec: 'especificación §11 (Paginación y límites), §1 (Errores)'
+  deps: []
+  done: 'Spectral sin errores en CI; el catálogo incluye BOOKING_SLOT_TAKEN y los demás códigos de la sección 11.'
+
+- id: A02
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[contracts] State machines as enums with allowed-transition tables'
+  what: 'Enums y tablas de transiciones permitidas para matches, bookings, processing_jobs, payments y settlements, exportadas para que el backend las importe.'
+  spec: 'especificación §3'
+  deps: [A01]
+  done: 'Las transiciones coinciden una por una con las tablas de la sección 3 (prueba que lo verifica).'
+
+- id: A03
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[contracts] OpenAPI: auth and users endpoints'
+  what: 'Endpoints de Auth (OTP por WhatsApp, verificación, OAuth Google y Apple, refresh) y Usuarios (/me, /me/matches, /me/stats, DELETE /me).'
+  spec: 'especificación §11, §12 (Medidas técnicas)'
+  deps: [A01]
+  done: 'Spectral sin errores; ejemplos de request y respuesta en cada endpoint.'
+
+- id: A04
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[contracts] OpenAPI: clubs, courts and club settings'
+  what: 'Endpoints de clubes (listado, detalle, PATCH settings) con la configuración de cobros, reglas de reserva por cancha y planes.'
+  spec: 'especificación §11, §9 (Reglas del club), §10'
+  deps: [A01]
+  done: 'Spectral sin errores; settings solo para owner (documentado en seguridad del endpoint).'
+
+- id: A05
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[contracts] OpenAPI: bookings and availability'
+  what: 'Endpoints de reservas: disponibilidad por cancha, crear (held), invitar, aceptar, cancelar; turnos fijos semanales.'
+  spec: 'especificación §9, §11'
+  deps: [A01, A02]
+  done: 'Spectral sin errores; BOOKING_SLOT_TAKEN documentado en POST /bookings.'
+
+- id: A06
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[contracts] OpenAPI: matches and media'
+  what: 'Endpoints de partidos (detalle, claim-player, score-correction, clips desde la app) y media (link firmado de 1 hora, descarga).'
+  spec: 'especificación §11, §5 (Identidad), §6 (capas de corrección)'
+  deps: [A01, A02]
+  done: 'Spectral sin errores; ningún esquema devuelve URLs permanentes de video.'
+
+- id: A07
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[contracts] OpenAPI: lessons, coach and payments'
+  what: 'Endpoints de clases y entrenador (lessons, notas, alumnos) y pagos (checkout, webhook de Mercado Pago).'
+  spec: 'especificación §10, §11'
+  deps: [A01, A02]
+  done: 'Spectral sin errores; el webhook documenta la verificación de x-signature.'
+
+- id: A08
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[contracts] OpenAPI: club admin panel endpoints'
+  what: 'Endpoints del panel del club: dashboard, reservas (listar y carga rápida), cortar grabación de una cancha, liquidaciones.'
+  spec: 'especificación §11, §12 (permisos de staff y dueño)'
+  deps: [A04, A05]
+  done: 'Spectral sin errores; ningún endpoint de staff expone estadísticas personales.'
+
+- id: A09
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[contracts] Device API and pipeline results format'
+  what: 'Endpoints /device/* (agenda de 48 h, heartbeat, resultados, links de subida) con autenticación mTLS, y formato de resultados del pipeline (puntos, golpes, botes, stats) compartido con vision-ia y club-devops.'
+  spec: 'especificación §11, §4, §5, §6'
+  deps: [A01, A02]
+  done: 'Spectral sin errores; el formato de resultados tiene ejemplo completo de un partido; revisado por vision-ia y club-devops en el PR.'
+
+- id: A10
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[contracts] OpenAPI: internal console /admin endpoints'
+  what: 'Endpoints /admin/* para clubes y contratos, equipos y cámaras, calibraciones, reprocesos, etiquetado y liquidaciones.'
+  spec: 'especificación §11, §15, §16 (Consola interna)'
+  deps: [A04, A06, A09]
+  done: 'Spectral sin errores; el acceso de soporte a un video exige permiso registrado en audit_log.'
+
+- id: A11
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[contracts] Event JSON schemas with event_id, occurred_at and schema_version'
+  what: 'Esquemas JSON de los 12 eventos: booking.confirmed, booking.cancelled, match.recording_started, match.recorded, match.processed, match.published, match.score_corrected, clip.created, payment.approved, payment.refunded, device.offline, settlement.ready.'
+  spec: 'especificación §11 (Eventos)'
+  deps: [A02]
+  done: 'Los 12 esquemas validan; cada uno lleva event_id, occurred_at y schema_version.'
+
+- id: A12
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[contracts] WebSocket channel per court: clip tap and recording status'
+  what: 'Contrato del canal en tiempo real por cancha: toque de clip desde la app hacia el equipo del club y estado de grabación hacia la app.'
+  spec: 'especificación §11 (Tiempo real)'
+  deps: [A01]
+  done: 'Mensajes con esquema JSON y ejemplos; el equipo del club se autentica con mTLS.'
+
+- id: A13
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[contracts] Type generation for TypeScript and Pydantic with CI drift check'
+  what: 'pnpm contracts:generate genera tipos y cliente TypeScript (api, web, mobile) y modelos Pydantic (edge-agent, ml). CI falla si lo generado difiere de lo commiteado o del contrato.'
+  spec: 'especificación §1 (Contratos); arquitecto.md › Terminado cuando'
+  deps: [A01]
+  done: 'Los tipos se generan sin diferencias en CI; un cambio incompatible en el contrato rompe la compilación de un consumidor de prueba.'
+
+- id: A14
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[db] Prisma schema: people and clubs tables'
+  what: 'Tablas users, auth_identities, memberships, clubs, courts y contracts. UUID v7, created_at, updated_at, club_id donde haya dueño, plata en amount_cents.'
+  spec: 'especificación §2'
+  deps: [A02]
+  done: 'La migración corre de cero sobre una base vacía (PostgreSQL 16 de docker-compose).'
+
+- id: A15
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[db] Prisma schema: devices, cameras and calibrations'
+  what: 'Tablas devices, cameras (RTSP cifrada, extremo A o B) y calibrations (12 puntos, homografía 3x3, error en cm); courts marca la calibración vigente.'
+  spec: 'especificación §2, §12 (cifrado de claves de cámaras)'
+  deps: [A14]
+  done: 'Migración de cero sin errores; la dirección RTSP nunca se guarda en texto plano.'
+
+- id: A16
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[db] Prisma schema: booking rules, bookings and booking players'
+  what: 'Tablas booking_slots_rules (días, horario, duraciones 60/90/120, precio por franja, seña), bookings y booking_players (posición 1 a 4).'
+  spec: 'especificación §2, §9'
+  deps: [A14]
+  done: 'Migración de cero sin errores.'
+
+- id: A17
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[db] Prisma schema: matches, players, points, shots, stats and insights'
+  what: 'Tablas matches, match_players, points, shots, match_stats (JSON + formula_version) e insights.'
+  spec: 'especificación §2'
+  deps: [A14, A16]
+  done: 'Migración de cero sin errores.'
+
+- id: A18
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[db] Prisma schema: media assets, clips, payments and settlements'
+  what: 'Tablas media_assets (tipo, ruta, vence el), clips (origen button/app/auto, puntaje), payments (concepto, monto, comisión, id de Mercado Pago) y settlements.'
+  spec: 'especificación §2, §10'
+  deps: [A17]
+  done: 'Migración de cero sin errores.'
+
+- id: A19
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[db] Prisma schema: ratings, lessons, notifications, audit_log and processing_jobs'
+  what: 'Tablas técnicas: ratings, lessons, notifications, audit_log y processing_jobs (estado y etapa del pipeline para retomar). Con esto quedan las 22 tablas más las 5 técnicas.'
+  spec: 'especificación §2, §3'
+  deps: [A14, A17]
+  done: 'Migración de cero sin errores; prueba que cuenta las 27 tablas esperadas.'
+
+- id: A20
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[db] Database-enforced rules: booking exclusion constraint and unique keys'
+  what: "Migración SQL con btree_gist y EXCLUDE USING gist (court_id WITH =, tstzrange(starts_at, ends_at) WITH &&) WHERE (status IN ('held','confirmed')); índice único sobre el id de pago de Mercado Pago; único (match_id, user_id) en match_players."
+  spec: 'especificación §2 (Reglas que garantiza la base), §9'
+  deps: [A16, A17, A18]
+  done: 'Pruebas de integración: dos reservas superpuestas en la misma cancha fallan; el mismo pago no entra dos veces; el mismo jugador no entra dos veces al partido.'
+
+- id: A21
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[db] Row-level security policies by club_id and role'
+  what: 'Políticas de seguridad por fila de PostgreSQL en toda tabla con club_id, según los permisos por rol (jugador, entrenador, staff, dueño, soporte, equipo del club).'
+  spec: 'especificación §12; CLAUDE.md › Datos y privacidad'
+  deps: [A15, A18, A19]
+  done: 'Pruebas: un club nunca lee datos de otro; staff no ve estadísticas personales; un jugador solo ve partidos donde jugó.'
+
+- id: A22
+  phase: 1
+  agent: arquitecto
+  type: feat
+  title: '[db] Seed with the three test clubs'
+  what: 'Seed con Club Demo Palermo, Club Demo Quilmes y Club Demo Pilar: dueño, staff, 2 entrenadores, 24 jugadores de 8va a 3ra, reglas de 60/90/120 min y 30 partidos sintéticos coherentes con el marcador. Junto con backend.'
+  spec: 'pendientes.md › Clubes de prueba (seed)'
+  deps: [A20, A21]
+  done: 'pnpm db:migrate && pnpm db:seed carga los 3 clubes sobre una base vacía; ningún dato real de personas.'
+
+# Backend
+
+- id: B01
+  phase: 1
+  agent: backend
+  type: chore
+  title: '[api] NestJS scaffold: env validation, JSON logs, error filter and es-AR messages'
+  what: 'Estructura de services/api: variables de entorno validadas con Zod al arrancar, logs JSON con request_id/club_id/match_id sin datos personales, filtro de errores {code, message, details}, mensajes de usuario en es-AR con {brand}, endpoint de salud.'
+  spec: 'especificación §1, §11; CLAUDE.md › Convenciones'
+  deps: [A01]
+  done: 'Lint, tipos y tests pasan; arrancar sin una variable obligatoria falla; ningún texto de usuario en el código.'
+
+- id: B02
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Prisma integration, repositories and RLS session context'
+  what: 'Integración con Prisma, patrón repository por módulo y contexto de seguridad por fila (club_id y rol) seteado en cada pedido.'
+  spec: 'especificación §1 (NestJS), §12'
+  deps: [A21, B01]
+  done: 'Prueba de integración (Testcontainers) que demuestra que un pedido de un club no lee datos de otro.'
+
+- id: B03
+  phase: 1
+  agent: backend
+  type: test
+  title: '[api] Contract tests generated from OpenAPI'
+  what: 'Pruebas de contrato generadas desde OpenAPI que verifican que cada endpoint responde exactamente lo que dice el contrato.'
+  spec: 'especificación §14 (Contrato)'
+  deps: [A13, B01]
+  done: 'Las pruebas de contrato corren en CI y fallan ante una respuesta fuera de contrato.'
+
+- id: B04
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] WhatsApp OTP login: 6 digits, 5 minutes, 5 attempts'
+  what: 'Ingreso con código por WhatsApp de 6 dígitos, válido 5 minutos, máximo 5 intentos. En desarrollo usa un proveedor simulado; la cuenta real de WhatsApp Business la crea una persona.'
+  spec: 'especificación §11 (Auth), §12 (Medidas técnicas)'
+  deps: [A03, B02]
+  done: 'Pruebas de vencimiento, de intentos y de reutilización del código.'
+
+- id: B05
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Google and Apple sign-in'
+  what: 'Ingreso con Google y Apple, vinculando auth_identities a un user existente o nuevo, con aceptación de términos y privacidad.'
+  spec: 'especificación §11, §12 (Privacidad)'
+  deps: [A03, B02]
+  done: 'Pruebas con tokens de prueba de cada proveedor; sin aceptación de términos no se crea la cuenta.'
+
+- id: B06
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Session tokens: 15-minute access and rotating 30-day refresh'
+  what: 'Token de acceso de 15 minutos y de renovación de 30 días que se rota en cada uso, con detección de reutilización.'
+  spec: 'especificación §12 (Medidas técnicas)'
+  deps: [B04]
+  done: 'Pruebas: un refresh usado dos veces invalida la sesión; el access vence a los 15 minutos.'
+
+- id: B07
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Users: /me endpoints and 30-day account deletion'
+  what: 'GET/PATCH /me, /me/matches, /me/stats y DELETE /me, que borra perfil, estadísticas y clips propios en 30 días. Incluye la preferencia "no usar mis videos para entrenar".'
+  spec: 'especificación §11, §12 (Privacidad); CLAUDE.md › Ley 25.326'
+  deps: [A03, B06]
+  done: 'Prueba de borrado: a los 30 días no queda dato del usuario; /me/matches solo devuelve partidos donde jugó.'
+
+- id: B08
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Clubs, courts and memberships with role permissions'
+  what: 'Módulos de clubes, canchas y membresías (owner, staff, coach, player) con los permisos de la sección 12.'
+  spec: 'especificación §11, §12'
+  deps: [A04, B06]
+  done: 'Pruebas por rol: settings solo para owner; staff no ve ingresos.'
+
+- id: B09
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Booking availability under 300 ms with 30 s cache'
+  what: 'Disponibilidad por cancha, día y duración según las reglas del club, descartando reservas held o confirmed. Caché de 30 segundos por cancha.'
+  spec: 'especificación §9 (Disponibilidad)'
+  deps: [A05, B08]
+  done: 'Pruebas unitarias de generación de inicios (cobertura 80%); p95 < 300 ms en prueba de integración.'
+
+- id: B10
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Booking holds with 10 min expiration'
+  what: 'Crear reserva en estado held con vencimiento de 10 minutos dentro de una transacción; proceso cada minuto que pasa a expired los bloqueos sin pagar. Sin seña se confirma en el momento.'
+  spec: 'especificación §9 (Bloqueo, Seña), §3 (Reserva)'
+  deps: [A05, A20, B09]
+  done: '1.000 intentos simultáneos sobre el mismo turno dan exactamente una reserva (los demás reciben BOOKING_SLOT_TAKEN); un hold vencido libera el turno.'
+
+- id: B11
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Booking invitations by link and acceptance'
+  what: 'El que reserva ocupa el lugar 1 e invita a los otros 3 con un link; cada invitado acepta con su cuenta y queda vinculado al partido.'
+  spec: 'especificación §9 (Jugadores)'
+  deps: [B10]
+  done: 'Pruebas: no se aceptan más de 4 jugadores; un link vencido o ajeno se rechaza.'
+
+- id: B12
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Recurring weekly bookings generated 8 weeks ahead'
+  what: 'Turno fijo semanal guardado como regla de repetición que genera las reservas de las próximas 8 semanas y se renueva cada semana.'
+  spec: 'especificación §9 (Turnos fijos)'
+  deps: [B10]
+  done: 'Pruebas con cambio de horario y con un turno ya ocupado en alguna semana.'
+
+- id: B13
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Front-desk quick booking with pending accounts'
+  what: 'Carga rápida desde recepción con teléfono y turno; si el teléfono no tiene cuenta se crea una pendiente y se avisa por WhatsApp para activarla.'
+  spec: 'especificación §9 (Carga desde la recepción)'
+  deps: [B10]
+  done: 'Pruebas de cuenta nueva y existente; respuesta en menos de 300 ms.'
+
+- id: B14
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Booking cancellation, no-show and deposit refund'
+  what: 'Cancelación con devolución de seña según las horas de anticipación del club (24 por defecto) vía API de Mercado Pago; no_show sin devolución.'
+  spec: 'especificación §9 (Cancelación)'
+  deps: [B10, B21]
+  done: 'Pruebas de cancelación dentro y fuera del plazo y de no_show.'
+
+- id: B15
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Match state machine and match endpoints'
+  what: 'Ciclo de vida del partido con la tabla de transiciones del contrato; GET /matches/{id}, claim-player ("este soy yo") y score-correction.'
+  spec: 'especificación §3 (Partido), §5 (Identidad), §11'
+  deps: [A06, B08]
+  done: 'Pruebas: toda transición fuera de la tabla se rechaza; un jugador solo ve partidos donde jugó.'
+
+- id: B16
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Media signed URLs valid for 1 hour and downloads'
+  what: 'GET /media/{id}/url con link firmado que vence en 1 hora y POST /media/{id}/download. Almacenamiento compatible con S3 (MinIO en local, R2 cuando exista la cuenta).'
+  spec: 'especificación §11 (Media), §12'
+  deps: [A06, B15]
+  done: 'Pruebas: el link vence a la hora; un usuario ajeno al partido recibe error.'
+
+- id: B17
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] App clip requests and per-court WebSocket channel'
+  what: 'POST /matches/{id}/clips y canal WebSocket por cancha que lleva el toque de clip al equipo del club y el estado de grabación a la app.'
+  spec: 'especificación §11 (Tiempo real), §4 (clipper)'
+  deps: [A12, B15]
+  done: 'Prueba de integración: el toque llega al equipo del club simulado en menos de 1 segundo.'
+
+- id: B18
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Device API with mTLS: schedule, heartbeat, results and upload links'
+  what: 'Endpoints /device/*: agenda de 48 horas, heartbeat, recepción de resultados y links firmados de subida, con autenticación mTLS por equipo.'
+  spec: 'especificación §11 (Equipo del club), §12'
+  deps: [A09, B15]
+  done: 'Pruebas: un equipo solo ve su club; un certificado inválido se rechaza; resultados repetidos no duplican datos.'
+
+- id: B19
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Event bus on BullMQ with idempotent consumers'
+  what: 'Publicación y consumo de los eventos del contrato sobre BullMQ/Redis; todo consumidor tolera recibir el mismo evento dos veces.'
+  spec: 'especificación §11 (Eventos)'
+  deps: [A11, B01]
+  done: 'Prueba de integración: el mismo event_id procesado dos veces produce un solo efecto.'
+
+- id: B20
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Mercado Pago checkout with 10% marketplace fee'
+  what: 'POST /payments/checkout con el modelo marketplace (OAuth del club) y marketplace_fee del 10%; seña sin comisión durante el piloto. Solo con credenciales de prueba del gestor de secretos.'
+  spec: 'especificación §10'
+  deps: [A07, B08]
+  done: 'Pruebas de cálculo de comisión en centavos (cobertura 80%); checkout en el sandbox de Mercado Pago.'
+
+- id: B21
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Mercado Pago webhook with x-signature verification and idempotency'
+  what: 'Webhook verificado con x-signature, procesado una sola vez por id de pago; solo el webhook cambia el estado del pago.'
+  spec: 'especificación §10 (Reglas técnicas), §3 (Pago)'
+  deps: [B20]
+  done: 'Pruebas: webhook repetido no duplica el pago; firma inválida se rechaza.'
+
+- id: B22
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Deposit payment confirms a held booking'
+  what: 'Si el club pide seña, el pago aprobado por webhook pasa la reserva de held a confirmed.'
+  spec: 'especificación §9 (Seña)'
+  deps: [B10, B21]
+  done: 'Prueba de punta a punta en sandbox; un pago aprobado después del vencimiento se devuelve.'
+
+- id: B23
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Player extra payment unlocks the full analysis'
+  what: 'Si el club activó el cobro a jugadores, el análisis completo del partido se desbloquea al pagar el extra.'
+  spec: 'estructura.md › Flujo de un partido (paso 6); especificación §10'
+  deps: [B15, B21]
+  done: 'Pruebas: sin pago se ve lo gratuito; con pago aprobado se desbloquea; con el club en modo gratis no se pide pago.'
+
+- id: B24
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Nightly Mercado Pago reconciliation'
+  what: 'Proceso nocturno que compara los pagos de Mercado Pago con los de la base y avisa cualquier diferencia.'
+  spec: 'especificación §10 (Reglas técnicas), §13'
+  deps: [B21]
+  done: 'Prueba con diferencias simuladas: se detectan todas y se genera la alerta.'
+
+- id: B25
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] WhatsApp notifications: booking confirmed, 3 h reminder, match published'
+  what: 'Avisos por WhatsApp al confirmar la reserva, 3 horas antes del turno y al publicarse el partido, con textos es-AR y {brand}. Proveedor simulado hasta que exista la cuenta.'
+  spec: 'especificación §9 (Avisos); estructura.md › Flujo de un partido (paso 5)'
+  deps: [B19]
+  done: 'Pruebas de cada disparador; un evento repetido no manda dos mensajes.'
+
+- id: B26
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Club admin endpoints: dashboard, bookings and stop recording'
+  what: 'Endpoints /club-admin/*: dashboard, listado y carga de reservas, cortar grabación de una cancha.'
+  spec: 'especificación §11 (Panel del club), §12'
+  deps: [A08, B10, B18]
+  done: 'Pruebas por rol; cortar grabación pasa el partido a recorded.'
+
+- id: B27
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Internal console endpoints: clubs, devices, calibrations and reprocessing'
+  what: 'Endpoints /admin/* para alta de clubes, canchas y equipos, calibraciones y reproceso de partidos; acceso de soporte a videos con audit_log.'
+  spec: 'especificación §11 (Consola interna), §12, §15'
+  deps: [A10, B18]
+  done: 'Pruebas: reproceso pasa failed a processing; ver un video sin permiso registrado se rechaza.'
+
+- id: B39
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Minors recording consent and no-record bookings'
+  what: 'No se graban turnos con menores sin permiso del adulto responsable cargado en la reserva; las escuelitas se marcan "no grabar" por defecto; el scheduler del club recibe esos turnos como no grabables.'
+  spec: 'especificación §12 (Privacidad); CLAUDE.md › Datos y privacidad'
+  deps: [B10, B18]
+  done: 'Pruebas: un turno con menor sin permiso nunca aparece como grabable en /device/schedule; escuelita nueva queda en no grabar.'
+
+- id: B40
+  phase: 1
+  agent: backend
+  type: feat
+  title: '[api] Delete full match videos after 30 days and archive the match'
+  what: 'Proceso diario que borra el video completo a los 30 días (media_assets.expires_at) y pasa el partido a archived; clips y estadísticas se conservan.'
+  spec: 'especificación §3 (Partido), §12 (Privacidad); estructura.md › Decisiones (Videos)'
+  deps: [B15, B16]
+  done: 'Prueba con reloj simulado: a los 30 días no queda el video completo y los clips siguen disponibles.'
+
+# Club & DevOps
+
+- id: C01
+  phase: 1
+  agent: club-devops
+  type: feat
+  title: '[edge] Scheduler: sync 48 h of bookings with offline fallback'
+  what: 'Proceso scheduler: cada minuto baja la agenda de 48 horas de /device/schedule y la guarda en SQLite; sin internet sigue con lo guardado; inicio manual desde el panel.'
+  spec: 'especificación §4 (scheduler)'
+  deps: [A09, P002]
+  done: 'Con el simulador: 48 horas sin internet sigue grabando según lo guardado.'
+
+- id: C02
+  phase: 1
+  agent: club-devops
+  type: feat
+  title: '[edge] Recorder driven by the schedule with 2-minute margins'
+  what: 'El recorder graba solo durante turnos según el scheduler, con 2 minutos de margen antes y después, y responde al corte de grabación del panel.'
+  spec: 'especificación §4 (recorder), §3 (Partido)'
+  deps: [C01, P004]
+  done: '50 turnos seguidos grabados sin perder ninguno con 2 cámaras por cancha (simulador).'
+
+- id: C03
+  phase: 1
+  agent: club-devops
+  type: feat
+  title: '[edge] Clipper: MQTT button and app tap, last 30 s plus 5 s in under 10 s'
+  what: 'Proceso clipper: recibe el botón físico por MQTT o el toque de la app por WebSocket y arma el clip con los últimos 30 segundos más 5 posteriores.'
+  spec: 'especificación §4 (clipper), §14 (Clips)'
+  deps: [A12, C02]
+  done: 'El clip se arma en menos de 10 s y aparece en la app en menos de 30 s después de apretar el botón (simulador).'
+
+- id: C04
+  phase: 1
+  agent: club-devops
+  type: feat
+  title: '[edge] Priority uploader: stats, clips, thumbnails, then 720p full video'
+  what: 'Cola de subida con prioridades (marcador y estadísticas, clips, miniaturas, video completo en 720p a 1,5 Mbps recomprimido con la GPU), reanudable y con límite de velocidad; video completo a pedido si el club no llega a 11 Mbps.'
+  spec: 'especificación §4 (uploader, Video que sube a la nube)'
+  deps: [A09, P005]
+  done: 'Con el simulador: el orden de prioridad se respeta y un corte de red no pierde datos.'
+
+- id: C05
+  phase: 1
+  agent: club-devops
+  type: feat
+  title: '[edge] Health heartbeat every 60 s and camera-down alerts'
+  what: 'Proceso health: cada 60 s manda disco, temperatura, estado de cámaras y largo de la cola; si una cámara cae más de 5 minutos en un turno, avisa.'
+  spec: 'especificación §4 (health), §13'
+  deps: [A09, P002]
+  done: 'Apagar una cámara simulada 5 minutos en un turno genera device.offline / alerta.'
+
+- id: C06
+  phase: 1
+  agent: club-devops
+  type: feat
+  title: '[edge] mTLS device identity and outbound-only networking'
+  what: 'Certificado propio por equipo para mTLS, solo conexiones salientes más la VPN de soporte, cámaras en red separada sin salida a internet.'
+  spec: 'especificación §11, §12 (Medidas técnicas)'
+  deps: [A09, P002]
+  done: 'Prueba: el equipo no expone puertos entrantes; con certificado revocado la API lo rechaza.'
+
+- id: C07
+  phase: 1
+  agent: club-devops
+  type: feat
+  title: '[edge] Disk management: delete confirmed originals, 85% threshold'
+  what: 'Borrar el original cuando la nube confirma la subida y el análisis terminó; si el disco pasa el 85%, borrar lo más viejo ya subido.'
+  spec: 'especificación §4 (Disco)'
+  deps: [C04]
+  done: 'Prueba de disco lleno con el simulador: libera solo lo ya subido.'
+
+- id: C08
+  phase: 1
+  agent: club-devops
+  type: feat
+  title: '[edge] Processor queue with stage resume and cloud fallback'
+  what: 'Proceso processor: cola local de partidos, clips antes que estadísticas, retoma desde la etapa en curso tras un corte, envío a GPU de la nube si el atraso supera 6 horas o falla 2 veces. Importa el pipeline de ml como librería cuando esté (fase 2).'
+  spec: 'especificación §4 (processor, Dimensionamiento), §3'
+  deps: [A09, C02]
+  done: 'Corte de luz simulado a mitad de un análisis: retoma desde la etapa en curso.'
+
+- id: C09
+  phase: 1
+  agent: club-devops
+  type: feat
+  title: '[edge] Updater: signed images between 4 and 6 am with automatic rollback'
+  what: 'Proceso updater: baja imágenes firmadas entre las 4 y las 6; si health falla después de actualizar, vuelve a la versión anterior.'
+  spec: 'especificación §4 (updater), §13 (Despliegue)'
+  deps: [C05]
+  done: 'Prueba: una imagen sin firma se rechaza; una imagen que rompe health se revierte sola.'
+
+- id: C10
+  phase: 1
+  agent: club-devops
+  type: chore
+  title: '[infra] Dockerfiles and staging deploy pipeline for api and web'
+  what: 'Dockerfiles de api y web y workflow que despliega a staging al entrar a main (Fly.io São Paulo, Vercel, Neon, Upstash). Necesita que una persona cree las cuentas (ver D03).'
+  spec: 'especificación §13 (Entornos, Despliegue)'
+  deps: [D03, B01]
+  done: 'Un merge a main despliega solo a staging; production no se toca.'
+
+- id: D03
+  phase: 1
+  agent: orquestador
+  type: chore
+  labels: [decision-needed]
+  title: '[decision] Create development cloud accounts'
+  what: 'Crear las cuentas que pide la especificación (Vercel, Fly.io, Neon, Upstash, Cloudflare R2/Stream, Expo, Mercado Pago de prueba, WhatsApp Business, Sentry, Grafana Cloud) y cargar los secretos en el gestor de secretos. Ningún agente las crea ni las paga.'
+  spec: 'especificación §13; README de prompt-desarrollo'
+  deps: []
+  done: 'Cuentas creadas por una persona y secretos cargados (no en el repo).'
+
+# App móvil
+
+- id: M01
+  phase: 1
+  agent: app-movil
+  type: chore
+  title: '[mobile] Expo scaffold: router, brand config, fonts, i18n and generated client'
+  what: 'Estructura de apps/mobile: Expo Router, app.config.ts que lee nombre, bundle id e ícono de brand.ts, expo-font (Archivo, IBM Plex Sans, IBM Plex Mono), i18n es-AR con {brand}, TanStack Query y cliente generado con mock del contrato.'
+  spec: 'app-movil.md › Stack; marca.md'
+  deps: [A13]
+  done: 'La app compila para iOS y Android; ningún texto de usuario ni nombre de marca en el código.'
+
+- id: M02
+  phase: 1
+  agent: app-movil
+  type: feat
+  title: '[mobile] Sign-in with WhatsApp, Google and Apple plus terms acceptance'
+  what: 'Pantalla de ingreso con WhatsApp (OTP), Google y Apple, y aceptación de términos y privacidad.'
+  spec: 'especificación §16, §12'
+  deps: [A03, M01]
+  done: 'Flujo de Maestro de ingreso en verde contra el mock.'
+
+- id: M03
+  phase: 1
+  agent: app-movil
+  type: feat
+  title: '[mobile] Profile with category, dominant hand and playing side'
+  what: 'Perfil con categoría (8va a 1ra), mano hábil y lado de juego.'
+  spec: 'estructura.md › Jugador; especificación §16'
+  deps: [M02]
+  done: 'Maestro: editar y guardar perfil.'
+
+- id: M04
+  phase: 1
+  agent: app-movil
+  type: feat
+  title: '[mobile] Home: next booking and last match'
+  what: 'Inicio con el próximo turno y el último partido.'
+  spec: 'especificación §16'
+  deps: [M02]
+  done: 'Maestro: el inicio muestra ambos datos del mock.'
+
+- id: M05
+  phase: 1
+  agent: app-movil
+  type: feat
+  title: '[mobile] Find a club and an available slot'
+  what: 'Buscar club, cancha y turno libre de 60, 90 o 120 minutos.'
+  spec: 'especificación §16, §9'
+  deps: [A05, M01]
+  done: 'Maestro: elegir turno libre.'
+
+- id: M06
+  phase: 1
+  agent: app-movil
+  type: feat
+  title: '[mobile] Confirm booking and pay the deposit with Mercado Pago'
+  what: 'Confirmar la reserva (hold de 10 minutos visible) y pagar la seña si el club la pide.'
+  spec: 'especificación §9, §16'
+  deps: [A07, M05]
+  done: 'Maestro: reserva confirmada con y sin seña; BOOKING_SLOT_TAKEN muestra el mensaje es-AR.'
+
+- id: M07
+  phase: 1
+  agent: app-movil
+  type: feat
+  title: '[mobile] Invite players and my bookings'
+  what: 'Invitar a los otros 3 jugadores por WhatsApp y pantalla de mis reservas con cancelación.'
+  spec: 'especificación §9 (Jugadores, Cancelación), §16'
+  deps: [M06]
+  done: 'Maestro: invitar, aceptar invitación y cancelar.'
+
+- id: M08
+  phase: 1
+  agent: app-movil
+  type: feat
+  title: '[mobile] Match screen: video with point timeline and score'
+  what: 'Partido con video (link firmado, expo-video), línea de tiempo por punto, saltos a puntos ganados o perdidos, marcador y descarga.'
+  spec: 'especificación §16; estructura.md › Jugador'
+  deps: [A06, M01]
+  done: 'Abre un partido en menos de 3 segundos con 4G simulado; nunca guarda URLs permanentes.'
+
+- id: M09
+  phase: 1
+  agent: app-movil
+  type: feat
+  title: '[mobile] "This is me" player claim'
+  what: 'Mostrar las 4 miniaturas y tocar "este soy yo"; sugerencia por QR. Sin reconocimiento facial.'
+  spec: 'especificación §5 (Identidad), §16'
+  deps: [M08]
+  done: 'Maestro: reclamar lugar; cada confirmación reduce las opciones de los demás.'
+
+- id: M10
+  phase: 1
+  agent: app-movil
+  type: feat
+  title: '[mobile] Clips list and live clip button over WebSocket'
+  what: 'Lista de clips descargables y botón de clip en vivo que manda el toque por el canal WebSocket de la cancha.'
+  spec: 'especificación §11 (Tiempo real), §16'
+  deps: [A12, M08]
+  done: 'Con el simulador: el clip aparece en la app en menos de 30 s.'
+
+- id: M11
+  phase: 1
+  agent: app-movil
+  type: feat
+  title: '[mobile] Court QR deep link to the current match'
+  what: 'El QR de la cancha abre la app (o la web si no está instalada) en el partido de ese turno, con aceptación de términos.'
+  spec: 'app-movil.md › Entrada por QR; especificación §12'
+  deps: [M08]
+  done: 'Maestro: abrir el link del QR lleva al partido correcto.'
+
+- id: M12
+  phase: 1
+  agent: app-movil
+  type: feat
+  title: '[mobile] Notifications and privacy settings'
+  what: 'Notificaciones (expo-notifications) y ajustes de privacidad: borrar cuenta y no usar mis videos para entrenar.'
+  spec: 'especificación §12 (Privacidad), §16'
+  deps: [M02]
+  done: 'Maestro: borrar cuenta y optar por no usar videos.'
+
+- id: M13
+  phase: 1
+  agent: app-movil
+  type: feat
+  title: '[mobile] Player extra payment to unlock the full analysis'
+  what: 'Si el club cobra el extra, pantalla de pago con Mercado Pago que desbloquea el análisis completo.'
+  spec: 'estructura.md › Flujo de un partido (paso 6)'
+  deps: [A07, M08]
+  done: 'Maestro: pagar el extra en sandbox y ver el análisis desbloqueado.'
+
+# Web y paneles
+
+- id: W01
+  phase: 1
+  agent: web-paneles
+  type: chore
+  title: '[web] Next.js scaffold: fonts, Tailwind tokens, i18n and generated client'
+  what: 'Estructura de apps/web: App Router, next/font (Archivo, IBM Plex Sans, IBM Plex Mono), Tailwind con los tokens de packages/ui, i18n es-AR con {brand}, TanStack Query y cliente generado con mock.'
+  spec: 'web-paneles.md › Stack; marca.md'
+  deps: [A13]
+  done: 'Compila y pasa lint; ningún texto de usuario ni nombre de marca en el código.'
+
+- id: W02
+  phase: 1
+  agent: web-paneles
+  type: feat
+  title: '[ui] Shared base components in packages/ui'
+  what: 'Componentes base compartidos (botón, tarjeta, etiqueta de datos mono, pastilla de marcador) con los tokens de marca y contraste AA. Revisión de app-movil.'
+  spec: 'marca.md; CLAUDE.md › Carpetas y dueños'
+  deps: [W01]
+  done: 'Pruebas de render y de contraste; app-movil aprueba el PR.'
+
+- id: W03
+  phase: 1
+  agent: web-paneles
+  type: feat
+  title: '[web] Public match page without an account and WhatsApp preview'
+  what: 'Link de WhatsApp que muestra el partido sin cuenta y pide ingresar para ver estadísticas o descargar, con vista previa (Open Graph) correcta.'
+  spec: 'especificación §16 (Web del partido sin cuenta)'
+  deps: [A06, W01]
+  done: 'Playwright: el link abre sin cuenta; la vista previa de WhatsApp muestra título e imagen.'
+
+- id: W04
+  phase: 1
+  agent: web-paneles
+  type: feat
+  title: '[web] Player web: sign-in, profile and bookings'
+  what: 'Versión web del ingreso, perfil, búsqueda de turno, reserva con seña, invitaciones y mis reservas.'
+  spec: 'especificación §16 (App y web del jugador)'
+  deps: [A03, A05, W01]
+  done: 'Playwright: reservar un turno de punta a punta contra el mock.'
+
+- id: W05
+  phase: 1
+  agent: web-paneles
+  type: feat
+  title: '[web] Player web: match video, timeline, clips and claim'
+  what: 'Versión web del partido: video con línea de tiempo por punto, marcador, "este soy yo" y clips.'
+  spec: 'especificación §16'
+  deps: [A06, W01]
+  done: 'Playwright: ver partido y clips; un usuario ajeno no lo ve.'
+
+- id: W06
+  phase: 1
+  agent: web-paneles
+  type: feat
+  title: "[web] Club panel home: live courts, today's bookings and alerts"
+  what: 'Inicio del panel del club con estado en vivo de cada cámara y del equipo, turnos del día y alertas.'
+  spec: 'especificación §16 (Panel del club); estructura.md › Club'
+  deps: [A08, W01]
+  done: 'Funciona en un celular y en una PC vieja (Playwright con viewport chico y CPU limitada).'
+
+- id: W07
+  phase: 1
+  agent: web-paneles
+  type: feat
+  title: '[web] Club panel: booking calendar'
+  what: 'Calendario de reservas por cancha con turnos de 60, 90 y 120 minutos.'
+  spec: 'especificación §16, §9'
+  deps: [A08, W01]
+  done: 'Playwright: ver y cancelar turnos del calendario.'
+
+- id: W08
+  phase: 1
+  agent: web-paneles
+  type: feat
+  title: '[web] Club panel: quick booking from WhatsApp in under 20 seconds'
+  what: 'Formulario rápido de carga de turno (teléfono + turno) para los turnos que llegan por WhatsApp.'
+  spec: 'especificación §9 (Carga desde la recepción), §14 (Panel del club)'
+  deps: [A08, W07]
+  done: 'El dueño carga un turno en menos de 20 segundos, medido en Playwright.'
+
+- id: W09
+  phase: 1
+  agent: web-paneles
+  type: feat
+  title: '[web] Club panel: courts, hours, durations and prices'
+  what: 'Configuración de canchas, horarios, duraciones permitidas, intervalo de inicio, precios por franja y seña.'
+  spec: 'especificación §9 (Reglas del club), §16'
+  deps: [A04, W01]
+  done: 'Playwright: cambiar el precio de hora pico se refleja en la disponibilidad del mock.'
+
+- id: W10
+  phase: 1
+  agent: web-paneles
+  type: feat
+  title: '[web] Club panel: charges and plans, connect Mercado Pago'
+  what: 'Configuración del cobro: todo gratis o extra por jugador, seña, plan de entrenadores y conexión de la cuenta de Mercado Pago del club (OAuth).'
+  spec: 'estructura.md › Lo que decide cada club; especificación §10'
+  deps: [A04, A07, W01]
+  done: 'Playwright: activar y desactivar el extra; solo el dueño accede.'
+
+- id: W11
+  phase: 1
+  agent: web-paneles
+  type: feat
+  title: '[web] Club panel: staff users and stop recording'
+  what: 'Usuarios del staff y botón para apagar la grabación de un turno cuando el cliente lo pide; permisos de canchas y horarios que graban.'
+  spec: 'especificación §12, §16; estructura.md › Club'
+  deps: [A08, W01]
+  done: 'Playwright: cortar grabación desde el panel; staff no ve estadísticas personales.'
+
+- id: W12
+  phase: 1
+  agent: web-paneles
+  type: feat
+  title: '[web] Internal console: clubs, contracts and hardware quote tool'
+  what: 'Consola interna: clubes y contratos (comodato o compra) y cotizador que lee infra/hardware/bom.yaml (costo + 25% en plan compra).'
+  spec: 'especificación §16 (Consola interna); pendientes.md › Hardware'
+  deps: [A10, P001, W01]
+  done: 'Cambiar un precio en bom.yaml cambia la cotización sin tocar código (prueba).'
+
+- id: W13
+  phase: 1
+  agent: web-paneles
+  type: feat
+  title: '[web] Internal console: devices and camera health'
+  what: 'Equipos y cámaras de toda la flota con su salud (grabando, sin internet, sin disco).'
+  spec: 'especificación §16, §13'
+  deps: [A10, W01]
+  done: 'Playwright con el simulador: una cámara caída se ve en rojo.'
+
+- id: W14
+  phase: 1
+  agent: web-paneles
+  type: feat
+  title: '[web] Internal console: 12-point camera calibration'
+  what: 'Calibración: marcar los 12 puntos por cámara con sugerencia automática; rechazo si el error supera 5 cm.'
+  spec: 'especificación §5 (Calibración), §15'
+  deps: [A10, W01]
+  done: 'Playwright con el simulador: calibración válida se guarda; error > 5 cm se rechaza.'
+
+- id: W15
+  phase: 1
+  agent: web-paneles
+  type: feat
+  title: '[web] Internal console: processing queue and reprocessing'
+  what: 'Cola de análisis por club con su atraso y botón de reproceso.'
+  spec: 'especificación §16, §3'
+  deps: [A10, W01]
+  done: 'Playwright: reprocesar un partido fallido con el simulador.'
+
+- id: W16
+  phase: 1
+  agent: web-paneles
+  type: feat
+  title: '[web] Public landing with tagline and club contact form'
+  what: 'Landing pública con el tagline de brand.ts y formulario de contacto para clubes. Sin envíos automáticos a clubes reales.'
+  spec: 'web-paneles.md › Landing pública; marca.md'
+  deps: [W01]
+  done: 'Playwright: el formulario guarda el contacto; no se envía nada a terceros.'
+
+# QA y seguridad
+
+- id: Q101
+  phase: 1
+  agent: qa-seguridad
+  type: test
+  title: '[qa] License check workflow: no AGPL/GPL in distributed code or model weights'
+  what: 'Workflow que revisa licencias de dependencias de Node y Python (y de modelos registrados) y falla ante AGPL o GPL en lo que se distribuye.'
+  spec: 'CLAUDE.md › Antes de abrir un PR; qa-seguridad.md'
+  deps: []
+  done: 'Agregar una dependencia AGPL de prueba hace fallar el workflow.'
+
+- id: Q102
+  phase: 1
+  agent: qa-seguridad
+  type: test
+  title: '[qa] Cross-club data leak tests for row-level security'
+  what: 'Pruebas en tests/ que intentan leer datos de otro club con cada rol y verifican que la base lo impide.'
+  spec: 'especificación §12'
+  deps: [A21, B02]
+  done: 'Pruebas en verde en CI con los 3 clubes de prueba.'
+
+- id: Q103
+  phase: 1
+  agent: qa-seguridad
+  type: test
+  title: '[qa] Concurrency test: 1,000 simultaneous bookings on the same slot'
+  what: 'Prueba de integración que lanza 1.000 intentos simultáneos sobre el mismo turno.'
+  spec: 'especificación §14 (Reservas)'
+  deps: [B10]
+  done: 'Exactamente una reserva creada en cada corrida.'
+
+- id: Q104
+  phase: 1
+  agent: qa-seguridad
+  type: test
+  title: '[qa] k6 load test: 2,000 availability queries under 500 ms'
+  what: 'Prueba de carga con k6 de 2.000 jugadores consultando disponibilidad a la vez.'
+  spec: 'especificación §14 (Carga)'
+  deps: [B09]
+  done: 'p95 menor a 500 ms.'
+
+- id: Q105
+  phase: 1
+  agent: qa-seguridad
+  type: test
+  title: '[qa] Edge agent resilience tests: 48 h offline, power cut, disk full'
+  what: 'Pruebas con el simulador de cámaras: corte de internet de 48 horas, corte de luz a mitad de un análisis y disco lleno.'
+  spec: 'especificación §14 (Equipo del club)'
+  deps: [C01, C07, C08]
+  done: 'Ningún partido perdido; el análisis retoma desde la etapa; se libera solo lo ya subido.'
+
+- id: Q106
+  phase: 1
+  agent: qa-seguridad
+  type: test
+  title: '[qa] Playwright e2e: book, play on the simulator, get WhatsApp, watch video'
+  what: 'Recorrido web de punta a punta: reservar, jugar con el simulador, recibir el WhatsApp (proveedor simulado), ver video y clips.'
+  spec: 'especificación §14 (De punta a punta)'
+  deps: [W04, W05, B25, C04]
+  done: 'Recorrido en verde en CI.'
+
+- id: Q107
+  phase: 1
+  agent: qa-seguridad
+  type: test
+  title: '[qa] Maestro e2e for the mobile app'
+  what: 'Flujo de Maestro: reservar, jugar, recibir el WhatsApp, ver video y clips, pagar el extra.'
+  spec: 'especificación §14; app-movil.md › Terminado cuando'
+  deps: [M07, M10, M13]
+  done: 'Flujo en verde en iPhone y Android de prueba.'
+
+- id: Q1
+  phase: 1
+  agent: qa-seguridad
+  type: test
+  labels: [phase-close]
+  title: '[qa] Phase 1 closed: a player gets their video and clips unaided'
+  what: 'Verificar los criterios de aceptación de la fase 1, uno por uno.'
+  spec: 'estructura.md › Hoja de ruta (fase 1); especificación §14'
+  deps:
+    [
+      A22,
+      B03,
+      B07,
+      B39,
+      B40,
+      B11,
+      B12,
+      B13,
+      B14,
+      B16,
+      B17,
+      B22,
+      B23,
+      B24,
+      B26,
+      B27,
+      C03,
+      C05,
+      C06,
+      C09,
+      C10,
+      M03,
+      M04,
+      M09,
+      M11,
+      M12,
+      W02,
+      W03,
+      W06,
+      W08,
+      W09,
+      W10,
+      W11,
+      W12,
+      W13,
+      W14,
+      W15,
+      W16,
+      Q101,
+      Q102,
+      Q103,
+      Q104,
+      Q105,
+      Q106,
+      Q107,
+    ]
+  done: "- [ ] Un jugador recibe su video y sus clips sin ayuda\n- [ ] Grabación: 50 turnos seguidos sin perder ninguno, 2 cámaras por cancha\n- [ ] Clips: aparecen en la app en menos de 30 s\n- [ ] Publicación: video y clips en 15 minutos en el 95% de los partidos\n- [ ] Reservas: 1.000 intentos simultáneos dan exactamente una reserva\n- [ ] Panel del club: turno de WhatsApp cargado en menos de 20 s\n- [ ] App: iPhone y Android de los últimos 5 años, partido en menos de 3 s con 4G"
+
+# ───────────────────────────── PHASE 2 · IA y marcador ─────────────────────────────
+
+- id: D04
+  phase: 2
+  agent: orquestador
+  type: chore
+  labels: [decision-needed]
+  title: '[decision] Pick the hourly GPU cloud provider for training (Modal or RunPod)'
+  what: 'Elegir y crear la cuenta de GPU por hora para entrenar y para el respaldo del procesamiento. Ningún agente la crea ni la paga.'
+  spec: 'especificación §8, §13'
+  deps: []
+  done: 'Proveedor elegido y cuenta creada por una persona; presupuesto mensual tope anotado.'
+
+- id: V01
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Stage 1: court calibration with homography, PnP and court mask'
+  what: 'Calibración con cv2.findHomography + RANSAC sobre 12 puntos (rechazo si el error supera 5 cm), cv2.solvePnP para 3D, chequeo diario de movimiento a las 7 y máscara con 1,5 m de margen.'
+  spec: 'especificación §5 (1. Calibración)'
+  deps: [Q0]
+  done: 'Pruebas con calibraciones sintéticas y reales; error medio < 5 cm en la cancha de la fase 0.'
+
+- id: V02
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Stage 2: Apache-2.0 player detector fine-tuned on our matches'
+  what: 'Detector YOLOX-m o RT-DETR ajustado con nuestros partidos, confianza mínima 0,5, punto de apoyo en metros, descarte fuera de la máscara. Licencia revisada por qa-seguridad.'
+  spec: 'especificación §5 (2. Detección), §8'
+  deps: [V01, D04]
+  done: 'mAP@0.5 ≥ 0,95 sobre el holdout de 15 partidos.'
+
+- id: V03
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Stage 3: ByteTrack plus Hungarian merge into exactly 4 tracks'
+  what: 'ByteTrack (0,5, memoria 2 s) y algoritmo húngaro a exactamente 4 pistas con posición y apariencia OSNet; parejas por lado en el primer saque.'
+  spec: 'especificación §5 (3. Seguimiento)'
+  deps: [V02]
+  done: 'Menos de 2 cambios de identidad por partido en el holdout.'
+
+- id: V04
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Stage 4: player thumbnails for "this is me" without face recognition'
+  what: 'Miniaturas de las 4 pistas para que cada jugador toque "este soy yo"; sugerencia por QR según cercanía a la cámara. Sin reconocimiento facial.'
+  spec: 'especificación §5 (4. Identidad)'
+  deps: [V03]
+  done: 'Miniaturas en el formato de resultados del contrato; prueba que verifica que no hay modelos faciales.'
+
+- id: V05
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Stage 5: TrackNetV3 ball detection with Kalman smoothing'
+  what: 'Modelo tipo TrackNetV3 sobre 3 cuadros a 512x288, pico > 0,5; Kalman de aceleración constante que completa huecos de hasta 10 cuadros y descarta saltos imposibles.'
+  spec: 'especificación §5 (5. Pelota)'
+  deps: [V01, D04]
+  done: 'F1 ≥ 0,85 a menos de 5 píxeles en el holdout.'
+
+- id: V06
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Two-camera sync and 3D ball triangulation'
+  what: 'Sincronía fina entre cámaras A y B alineando trayectorias, triangulación 3D cuando ambas ven la pelota con confianza, 2D si no.'
+  spec: 'especificación §5 (Geometría, 5. Pelota)'
+  deps: [V05]
+  done: 'Pruebas con trayectorias sintéticas; altura estimada dentro de la tolerancia definida en thresholds.yaml.'
+
+- id: V07
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Stage 6: RTMPose only around candidate shots'
+  what: 'RTMPose (Apache 2.0) con 17 puntos del cuerpo solo en ±0,25 s de cada golpe candidato.'
+  spec: 'especificación §5 (6. Pose)'
+  deps: [V03]
+  done: 'Reduce más del 90% del cálculo frente a pose en todos los cuadros (benchmark).'
+
+- id: V08
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Stage 7: shot detection'
+  what: 'Golpe cuando la pelota cambia de dirección más de 35° o de velocidad bruscamente, a menos de 1,2 m de una muñeca; atribuido al jugador más cercano.'
+  spec: 'especificación §5 (7. Golpes)'
+  deps: [V05, V07]
+  done: 'F1 ≥ 0,90 con 100 ms de tolerancia en el holdout.'
+
+- id: V09
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Stage 8: bounce detection with surface classification'
+  what: 'Botes clasificados en floor, back_glass, side_glass, fence o net según el plano de vidrios y rejas de la cancha.'
+  spec: 'especificación §5 (8. Botes)'
+  deps: [V06]
+  done: 'Precisión ≥ 0,85 en el holdout.'
+
+- id: V10
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Stage 9: shot type classifier with unknown below 0.6'
+  what: 'Clasificador temporal de 10 tipos de golpe sobre pose ±15 cuadros más datos de pelota; unknown si la confianza es menor a 0,6.'
+  spec: 'especificación §5 (9. Tipo de golpe)'
+  deps: [V07, V08]
+  done: 'Precisión promedio ≥ 0,80 en el holdout.'
+
+- id: V11
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Point state machine with the 7 rules in order'
+  what: 'Máquina de estados del punto con las 7 reglas en orden, primera y segunda falta y contrapared válida.'
+  spec: 'especificación §6 (Reglas que cierran un punto)'
+  deps: [V08, V09]
+  done: 'Pasan los 60 casos de reglas de Q201.'
+
+- id: V12
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Scoring: games, sets, golden point, tie-breaks, serve rotation, side changes'
+  what: 'Marcador: 15/30/40, punto de oro o ventaja, set a 6 con diferencia de 2, tie-break a 7, super tie-break a 10 opcional, rotación de saque y cambios de lado en games impares.'
+  spec: 'especificación §6 (Marcador)'
+  deps: [V11]
+  done: 'Pruebas unitarias con cobertura ≥ 80%, incluidos los casos de tie-break de Q201.'
+
+- id: V13
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Correction layer 1: serve coherence'
+  what: 'Si el que saca no es el esperado, buscar el punto dudoso más probable y corregirlo.'
+  spec: 'especificación §6 (capa 1)'
+  deps: [V12]
+  done: 'Pruebas con puntos faltantes simulados: el marcador se recupera.'
+
+- id: V14
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Correction layer 2: per-point confidence and review flags below 0.7'
+  what: 'Confianza por punto como producto de los eventos que lo deciden; los puntos por debajo de 0,7 se marcan para revisión.'
+  spec: 'especificación §6 (capa 2)'
+  deps: [V12]
+  done: 'Los puntos marcados salen en el formato de resultados del contrato.'
+
+- id: V15
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Correction layer 3: Viterbi alignment to the entered final score'
+  what: 'Alineamiento por programación dinámica que elige la secuencia de ganadores más probable que termina en el resultado cargado; cada corrección se guarda para reentrenar.'
+  spec: 'especificación §6 (capa 3)'
+  deps: [V13, V14]
+  done: 'Pruebas con resultados cargados; las correcciones quedan registradas.'
+
+- id: V16
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Evaluation harness, MLflow registry and publish gate'
+  what: 'Evaluación de todas las métricas de la sección 8 sobre el holdout de 15 partidos, registro en MLflow (versión, datos, métricas) y regla de publicación: solo si iguala o mejora todas. Excluye siempre los videos de jugadores que pidieron no usarse.'
+  spec: 'especificación §8 (Métricas, Reglas de entrenamiento)'
+  deps: [V02, V05, P013]
+  done: 'Un modelo que baja una métrica no se puede publicar (prueba).'
+
+- id: V17
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] TensorRT FP16 export and 6x real-time benchmark'
+  what: 'Exportar los modelos a TensorRT FP16 y medir la velocidad por cámara con el benchmark de P014.'
+  spec: 'especificación §4 (Dimensionamiento)'
+  deps: [V10, P014]
+  done: '6x tiempo real por cámara en la GPU del club, o issue decision-needed con la diferencia medida.'
+
+- id: V18
+  phase: 2
+  agent: vision-ia
+  type: feat
+  title: '[ml] Package the pipeline as a library for the edge processor'
+  what: 'Empaquetar el pipeline como librería que importa el processor del equipo del club, con salida en el formato de resultados del contrato y retomable por etapa (Parquet).'
+  spec: 'especificación §4 (processor), §5'
+  deps: [V15, C08, A09]
+  done: 'El processor corre un partido del simulador de punta a punta y los resultados validan contra el contrato.'
+
+- id: Q201
+  phase: 2
+  agent: qa-seguridad
+  type: test
+  title: '[qa] At least 60 hand-written padel rule cases with expected results'
+  what: 'Casos de reglas del pádel en tests/rules (contrapared, doble pique, reja en el saque, punto de oro, tie-break, etc.) con el resultado esperado, junto con vision-ia.'
+  spec: 'especificación §14 (Reglas del pádel)'
+  deps: [A09]
+  done: '60 casos o más, versionados, que corre la suite de vision-ia.'
+
+- id: Q202
+  phase: 2
+  agent: qa-seguridad
+  type: test
+  title: '[qa] CI gate: a pipeline change that lowers any metric cannot merge'
+  what: 'Workflow que corre la evaluación del pipeline sobre los partidos de referencia y bloquea el PR si baja una métrica.'
+  spec: 'especificación §14 (Pipeline de IA)'
+  deps: [V16]
+  done: 'Un PR de prueba que empeora una métrica queda bloqueado.'
+
+- id: Q2
+  phase: 2
+  agent: qa-seguridad
+  type: test
+  labels: [phase-close]
+  title: '[qa] Phase 2 closed: automatic score measured against phase-0 labels'
+  what: 'Verificar los criterios de aceptación de la fase 2, uno por uno.'
+  spec: 'estructura.md › Hoja de ruta (fase 2); especificación §8, §14'
+  deps: [V04, V17, V18, Q201, Q202]
+  done: "- [ ] Jugadores mAP@0.5 ≥ 0,95\n- [ ] Menos de 2 cambios de identidad por partido\n- [ ] Pelota F1 ≥ 0,85\n- [ ] Golpes F1 ≥ 0,90\n- [ ] Botes y superficie ≥ 0,85\n- [ ] Tipo de golpe ≥ 0,80\n- [ ] Marcador: 9 de cada 10 puntos correctos sin corrección en los 15 partidos de referencia\n- [ ] Velocidad 6x tiempo real en la GPU del club"
+
+# ───────────────────────────── PHASE 3 · Estadísticas y entrenador ─────────────────────────────
+
+- id: D05
+  phase: 3
+  agent: orquestador
+  type: chore
+  labels: [decision-needed]
+  title: '[decision] Lesson-mode reference ranges and tips catalog with pilot coaches'
+  what: 'Definir con 2 o 3 entrenadores del piloto los rangos de referencia por tipo de golpe y el catálogo de consejos para insights.'
+  spec: 'especificación §7 (Modo clase, Insights), §17; pendientes.md'
+  deps: []
+  done: 'Rangos y catálogo entregados por una persona y cargados en ml/config/thresholds.yaml y en el catálogo es-AR.'
+
+- id: D06
+  phase: 3
+  agent: orquestador
+  type: chore
+  labels: [decision-needed]
+  title: '[decision] Reel music and electronic invoicing provider'
+  what: 'Confirmar si el reel lleva música (y cuál, sin derechos) y elegir el proveedor de factura electrónica de ARCA; el tipo de factura lo define el contador.'
+  spec: 'estructura.md › Lo que queda abierto; especificación §10 (Facturación)'
+  deps: []
+  done: 'Decisiones anotadas por una persona en este issue.'
+
+- id: V19
+  phase: 3
+  agent: vision-ia
+  type: feat
+  title: '[ml] Stats: lost points by zone, coverage, uncovered net and same side'
+  what: 'Estadísticas con formula_version: 9 zonas por mitad, dónde se fue el partido, cobertura a 3 m, la red que nadie cubrió y el mismo lado.'
+  spec: 'especificación §7 (Zonas, tabla de estadísticas)'
+  deps: [V15]
+  done: 'Pruebas unitarias con partidos sintéticos (cobertura ≥ 80%).'
+
+- id: V20
+  phase: 3
+  agent: vision-ia
+  type: feat
+  title: '[ml] Stats: winners, errors, net time, distance, heatmap, rallies, serve, shot types, speed'
+  what: 'Winners, errores forzados y no forzados, tiempo y subidas a la red, distancia (Savitzky-Golay), mapa de calor, rallies, saque, por tipo de golpe y velocidad estimada (solo 3D).'
+  spec: 'especificación §7'
+  deps: [V15]
+  done: 'Pruebas unitarias con partidos sintéticos (cobertura ≥ 80%).'
+
+- id: V21
+  phase: 3
+  agent: vision-ia
+  type: feat
+  title: '[ml] Automatic highlights scoring and top-5 cuts'
+  what: 'Puntaje por punto 0,4 rally + 0,3 winner de smash/víbora + 0,2 velocidad + 0,1 punto clave; los 5 mejores desde el saque hasta 2 s después.'
+  spec: 'especificación §7 (Highlights automáticos)'
+  deps: [V20]
+  done: 'Pruebas de puntaje y de corte.'
+
+- id: V22
+  phase: 3
+  agent: vision-ia
+  type: feat
+  title: '[ml] Insight fact engine with about 20 rules'
+  what: 'Motor de unas 20 reglas que produce hechos {tipo, métrica, valor, comparación, puntos_involucrados} y elige los 3 con más puntos involucrados. La IA de lenguaje nunca calcula.'
+  spec: 'especificación §7 (Insights en frases)'
+  deps: [V19, V20]
+  done: 'Pruebas de cada regla; hechos en el formato del contrato.'
+
+- id: V23
+  phase: 3
+  agent: vision-ia
+  type: feat
+  title: '[ml] Vertical reel 1080x1920 with FFmpeg templates'
+  what: 'Reel de 20 a 30 s: logo del club 1,5 s, 3 mejores highlights con recorte que sigue la acción, marcador e insight grande, cierre con logo; estilo de marca.md; codificado con la GPU del club.'
+  spec: 'especificación §7 (Reel vertical); marca.md › Reel vertical'
+  deps: [V21, V22]
+  done: 'Reel generado desde un partido del simulador; nombre de marca solo vía brand.py.'
+
+- id: V24
+  phase: 3
+  agent: vision-ia
+  type: feat
+  title: '[ml] Lesson mode: per-shot metrics and top-3 improvements'
+  what: 'Para cada golpe: altura de contacto, distancia a la pelota, flexión de rodillas, giro de hombros, tiempo de preparación y vuelta; mejora si sale de rango en el 40% o más de las repeticiones; top 3 con clips.'
+  spec: 'especificación §7 (Modo clase)'
+  deps: [V10, D05]
+  done: 'Pruebas con rangos de ejemplo; los rangos reales vienen de D05.'
+
+- id: B28
+  phase: 3
+  agent: backend
+  type: feat
+  title: '[api] Insight wording with Claude Haiku, number validator and template fallback'
+  what: 'Recibir los hechos del pipeline, redactarlos con claude-haiku-5-5 en frases de 15 palabras como máximo en es-AR, validar que cada número esté en el hecho y si no usar plantilla; asociar un consejo del catálogo.'
+  spec: 'especificación §7 (Insights en frases)'
+  deps: [V22, B19]
+  done: 'Pruebas: una frase con un número inventado cae a plantilla; máximo 15 palabras.'
+
+- id: B29
+  phase: 3
+  agent: backend
+  type: feat
+  title: '[api] Score correction recomputes stats via needs_review'
+  what: 'La corrección de marcador de un jugador pasa el partido a needs_review, emite match.score_corrected y vuelve a published con las estadísticas recalculadas.'
+  spec: 'especificación §3 (Partido), §6 (capa 3)'
+  deps: [B15, V15]
+  done: 'Prueba de punta a punta con el simulador.'
+
+- id: B30
+  phase: 3
+  agent: backend
+  type: feat
+  title: '[api] Player rating with Glicko-2 and category mapping after 5 matches'
+  what: 'Nivel con Glicko-2, pareja como promedio, peso por diferencia de games, punto de partida en la categoría declarada y traducción a 8va–1ra visible después de 5 partidos.'
+  spec: 'especificación §7 (Nivel del jugador)'
+  deps: [B15]
+  done: 'Pruebas unitarias con cobertura ≥ 80%.'
+
+- id: B31
+  phase: 3
+  agent: backend
+  type: feat
+  title: '[api] Club ranking endpoint'
+  what: 'Ranking del club basado en estadísticas y nivel, respetando la privacidad entre jugadores.'
+  spec: 'estructura.md › Club, Jugador'
+  deps: [B30]
+  done: 'Pruebas de orden y de privacidad.'
+
+- id: B32
+  phase: 3
+  agent: backend
+  type: feat
+  title: '[api] Lessons: schedule, notes and coach students with consent'
+  what: 'Clases (lessons) con entrenador y alumnos, notas, y acceso del entrenador a partidos y clases solo de alumnos que dieron permiso.'
+  spec: 'especificación §11 (Entrenadores), §12'
+  deps: [A07, B08]
+  done: 'Pruebas: sin permiso del alumno el entrenador no ve sus partidos.'
+
+- id: B33
+  phase: 3
+  agent: backend
+  type: feat
+  title: '[api] Lesson payments to the coach account with 10% fee'
+  what: 'Cobro de clases con Mercado Pago a la cuenta del entrenador con 10% para nosotros.'
+  spec: 'especificación §10 (Clase)'
+  deps: [B32, B21]
+  done: 'Prueba en sandbox; comisión en centavos correcta.'
+
+- id: B34
+  phase: 3
+  agent: backend
+  type: feat
+  title: '[api] Coach plan: included in the club fee or monthly coach payment'
+  what: 'Plan entrenador configurable por el club: incluido en su abono o pago mensual del entrenador (ARS 25.000 de lista).'
+  spec: 'estructura.md › Lo que decide cada club'
+  deps: [B32, B21]
+  done: 'Pruebas de ambos modos.'
+
+- id: B35
+  phase: 3
+  agent: backend
+  type: feat
+  title: '[api] Club subscription per court with quarterly index and debt cutoffs'
+  what: 'Suscripción de Mercado Pago por cantidad de canchas, ajuste cada 3 meses por índice; si falla, aviso, deuda visible a los 15 días y corte a los 30.'
+  spec: 'especificación §10 (Abono mensual)'
+  deps: [B21]
+  done: 'Pruebas de los cortes a 15 y 30 días con reloj simulado.'
+
+- id: B36
+  phase: 3
+  agent: backend
+  type: feat
+  title: '[api] Equipment purchase in up to 6 installments'
+  what: 'Pago único o hasta 6 cuotas de Mercado Pago para el plan compra.'
+  spec: 'especificación §10 (Compra del equipo)'
+  deps: [B21]
+  done: 'Prueba en sandbox.'
+
+- id: B37
+  phase: 3
+  agent: backend
+  type: feat
+  title: '[api] Monthly settlements: draft on day 1 and console approval'
+  what: 'El día 1 se arma el resumen por club (abono, cobros a jugadores, clases, comisiones), incluido lo cobrado por nosotros a clubes sin cuenta conectada; se aprueba en la consola.'
+  spec: 'especificación §10 (Liquidación), §3 (Liquidación)'
+  deps: [B35, B33]
+  done: 'Pruebas de cálculo en centavos y del ciclo draft → approved → invoiced → paid.'
+
+- id: B38
+  phase: 3
+  agent: backend
+  type: feat
+  title: '[api] Electronic invoicing through the ARCA provider API'
+  what: 'Emitir la factura electrónica de cada liquidación aprobada a través del proveedor elegido en D06.'
+  spec: 'especificación §10 (Facturación)'
+  deps: [B37, D06]
+  done: 'Factura emitida en el entorno de prueba del proveedor.'
+
+- id: B41
+  phase: 3
+  agent: backend
+  type: feat
+  title: '[api] Level-1 WhatsApp support agent'
+  what: 'Agente de IA de soporte por WhatsApp que responde preguntas de jugadores y del club, reenvía links y hace correcciones simples; lo demás lo deriva a soporte nivel 2.'
+  spec: 'especificación §15 (Soporte, nivel 1)'
+  deps: [B25, B16]
+  done: 'Pruebas con conversaciones simuladas: reenvío de link y derivación a nivel 2; nunca expone datos de otro jugador.'
+
+- id: M14
+  phase: 3
+  agent: app-movil
+  type: feat
+  title: '[mobile] Stats and insights screen'
+  what: 'Estadísticas del partido, mapas de calor e insights en frases, entendibles en 10 segundos.'
+  spec: 'especificación §16; estructura.md › Jugador'
+  deps: [B28, M08]
+  done: 'Maestro en verde; solo partidos donde el jugador estuvo.'
+
+- id: M15
+  phase: 3
+  agent: app-movil
+  type: feat
+  title: '[mobile] Reel screen and share to Instagram'
+  what: 'Ver y descargar el reel vertical y compartirlo a Instagram.'
+  spec: 'especificación §16; estructura.md › Jugador'
+  deps: [V23, M08]
+  done: 'Maestro: compartir abre Instagram con el reel.'
+
+- id: M16
+  phase: 3
+  agent: app-movil
+  type: feat
+  title: '[mobile] History, evolution and estimated level'
+  what: 'Historial y evolución de números partido a partido y nivel estimado (después de 5 partidos).'
+  spec: 'especificación §16, §7 (Nivel)'
+  deps: [B30, M01]
+  done: 'Maestro en verde.'
+
+- id: M17
+  phase: 3
+  agent: app-movil
+  type: feat
+  title: '[mobile] Club ranking and partner comparison'
+  what: 'Ranking del club y comparación con el compañero.'
+  spec: 'estructura.md › Jugador; especificación §16'
+  deps: [B31, M01]
+  done: 'Maestro en verde.'
+
+- id: M18
+  phase: 3
+  agent: app-movil
+  type: feat
+  title: '[mobile] Book and pay lessons'
+  what: 'Reservar y pagar clases con los entrenadores del club.'
+  spec: 'especificación §16'
+  deps: [B33, M01]
+  done: 'Maestro: pagar una clase en sandbox.'
+
+- id: M19
+  phase: 3
+  agent: app-movil
+  type: feat
+  title: '[mobile] Score correction and doubtful point confirmation'
+  what: 'Corregir el marcador y confirmar los puntos con confianza baja viendo su clip.'
+  spec: 'especificación §6 (capas 2 y 3), §16'
+  deps: [B29, M08]
+  done: 'Maestro: confirmar un punto dudoso actualiza el marcador.'
+
+- id: M20
+  phase: 3
+  agent: app-movil
+  type: feat
+  title: '[mobile] Coach: lesson agenda and students'
+  what: 'App del entrenador: agenda de clases y lista de alumnos con permiso.'
+  spec: 'especificación §16 (App del entrenador)'
+  deps: [B32, M01]
+  done: 'Maestro en verde.'
+
+- id: M21
+  phase: 3
+  agent: app-movil
+  type: feat
+  title: '[mobile] Coach: recorded lesson with improvements per shot'
+  what: 'Clase grabada con las 3 mejoras principales por golpe y clips de ejemplo.'
+  spec: 'especificación §7 (Modo clase), §16'
+  deps: [V24, M20]
+  done: 'Maestro en verde con datos del simulador.'
+
+- id: M22
+  phase: 3
+  agent: app-movil
+  type: feat
+  title: '[mobile] Coach: clip editor with slow motion, drawing and notes'
+  what: 'Editor de clip: cámara lenta, dibujo sobre el video, notas de voz y de texto.'
+  spec: 'estructura.md › Entrenador; especificación §16'
+  deps: [M20]
+  done: 'Maestro: guardar un clip con dibujo y nota.'
+
+- id: M23
+  phase: 3
+  agent: app-movil
+  type: feat
+  title: '[mobile] Coach: exercise plan and payments'
+  what: 'Plan de ejercicios sugerido según las debilidades de las estadísticas y pantalla de cobros del entrenador.'
+  spec: 'estructura.md › Entrenador; especificación §16'
+  deps: [M20, B33]
+  done: 'Maestro en verde.'
+
+- id: W17
+  phase: 3
+  agent: web-paneles
+  type: feat
+  title: '[web] Player web: stats, insights, reel, history and ranking'
+  what: 'Versión web de estadísticas e insights, reel, historial y ranking del club.'
+  spec: 'especificación §16'
+  deps: [B28, B31, W05]
+  done: 'Playwright en verde; staff no ve estas pantallas.'
+
+- id: W18
+  phase: 3
+  agent: web-paneles
+  type: feat
+  title: '[web] Club panel: coaches and ranking'
+  what: 'Entrenadores del club (plan y cobro de clases) y ranking del club.'
+  spec: 'especificación §16 (Panel del club)'
+  deps: [B34, B31, W01]
+  done: 'Playwright en verde.'
+
+- id: W19
+  phase: 3
+  agent: web-paneles
+  type: feat
+  title: '[web] Club panel: brand, sponsors and YouTube tournament streaming'
+  what: 'Logo del club y sponsors en videos y reels, y configuración del streaming de torneos a YouTube.'
+  spec: 'estructura.md › Club; especificación §16'
+  deps: [A04, W01]
+  done: 'Playwright: subir logo y sponsor; configurar streaming.'
+
+- id: W20
+  phase: 3
+  agent: web-paneles
+  type: feat
+  title: '[web] Club panel: revenue and settlements'
+  what: 'Ventas e ingresos (partidos, reservas, cobros a jugadores, clases) y liquidaciones; solo para el dueño.'
+  spec: 'especificación §16, §12'
+  deps: [B37, W01]
+  done: 'Playwright: staff no accede; los montos coinciden con la liquidación.'
+
+- id: W21
+  phase: 3
+  agent: web-paneles
+  type: feat
+  title: '[web] Internal console: points to review and labeling tool'
+  what: 'Puntos para revisar y la herramienta de etiquetado definida por vision-ia integrada en la consola.'
+  spec: 'especificación §16 (Consola interna), §8'
+  deps: [P009, P010, P011, V14, W01]
+  done: 'Playwright: etiquetar y revisar un punto; el resultado valida contra el modelo de etiquetas.'
+
+- id: W22
+  phase: 3
+  agent: web-paneles
+  type: feat
+  title: '[web] Internal console: settlements and invoices'
+  what: 'Revisión y aprobación de liquidaciones y emisión de facturas.'
+  spec: 'especificación §10, §16'
+  deps: [B37, B38, W01]
+  done: 'Playwright: aprobar una liquidación y ver su factura de prueba.'
+
+- id: W23
+  phase: 3
+  agent: web-paneles
+  type: feat
+  title: '[web] Internal console: alerts and failure runbooks with action buttons'
+  what: 'Alertas y manuales de fallas frecuentes (cámara sin imagen, sin internet, disco lleno, calibración movida, muchos puntos dudosos, pago no acreditado) con su botón de acción.'
+  spec: 'especificación §15 (Manuales), §16'
+  deps: [A10, W01]
+  done: 'Playwright: cada manual tiene diagnóstico y acción que funciona con el simulador.'
+
+- id: W24
+  phase: 3
+  agent: web-paneles
+  type: feat
+  title: '[web] Internal console: 5-step installation checklist'
+  what: 'Checklist de instalación de un club nuevo en 5 pasos: relevamiento, instalación, calibración, partido de prueba y alta.'
+  spec: 'especificación §15'
+  deps: [W14, W01]
+  done: 'Playwright: completar el checklist de un club de prueba.'
+
+- id: Q301
+  phase: 3
+  agent: qa-seguridad
+  type: test
+  title: '[qa] Full e2e journey including stats and player extra payment'
+  what: 'Recorrido completo web y app: reservar, jugar con el simulador, recibir el WhatsApp, ver estadísticas, pagar el extra.'
+  spec: 'especificación §14 (De punta a punta)'
+  deps: [Q106, Q107, M14, W17]
+  done: 'Recorrido en verde en CI.'
+
+- id: Q302
+  phase: 3
+  agent: qa-seguridad
+  type: test
+  title: '[qa] Coach review protocol for stats acceptance'
+  what: 'Protocolo manual (con nota de por qué no se automatiza) para que un entrenador revise 5 partidos y diga si está de acuerdo con las 3 conclusiones principales de cada uno.'
+  spec: 'especificación §14 (Estadísticas)'
+  deps: [V22]
+  done: 'Protocolo escrito y resultado anotado en el issue de cierre de fase.'
+
+- id: Q3
+  phase: 3
+  agent: qa-seguridad
+  type: test
+  labels: [phase-close]
+  title: '[qa] Phase 3 closed: pilot players understand and use the stats'
+  what: 'Verificar los criterios de aceptación de la fase 3, uno por uno.'
+  spec: 'estructura.md › Hoja de ruta (fase 3); especificación §14'
+  deps:
+    [
+      B36,
+      B41,
+      M15,
+      M16,
+      M17,
+      M18,
+      M19,
+      M21,
+      M22,
+      M23,
+      W18,
+      W19,
+      W20,
+      W21,
+      W22,
+      W23,
+      W24,
+      Q301,
+      Q302,
+    ]
+  done: "- [ ] Los jugadores del club piloto entienden y usan las estadísticas\n- [ ] Publicación: estadísticas en 2 horas en el 95% de los partidos\n- [ ] Estadísticas: un entrenador revisa 5 partidos y coincide con las 3 conclusiones principales\n- [ ] Modo clase y cobro de clases funcionando con un entrenador del piloto"
+
+# ───────────────────────────── PHASE 4 · Piloto pago ─────────────────────────────
+
+- id: D07
+  phase: 4
+  agent: orquestador
+  type: chore
+  labels: [decision-needed]
+  title: '[decision] Final brand name, INPI search and domain'
+  what: 'Definir el nombre definitivo (hoy rebote, provisorio), buscar en INPI (clases 9 y 41) y comprar el dominio. Después se cambia brand.ts, brand.py, app.json y el logo.'
+  spec: 'marca.md › Nombre; pendientes.md'
+  deps: []
+  done: 'Nombre definitivo decidido por una persona; dominio comprado por una persona.'
+
+- id: D08
+  phase: 4
+  agent: orquestador
+  type: chore
+  labels: [decision-needed]
+  title: '[decision] Pilot clubs, list prices and real hardware quotes'
+  what: 'Elegir 3 a 5 clubes con 10 a 20 canchas en comodato, validar precios de lista (abono, compra, 10%) y conseguir cotizaciones reales con 2 o 3 proveedores locales. Los clubes se cargan desde la consola, nunca en código.'
+  spec: 'estructura.md › Hoja de ruta (fase 4), Lo que queda abierto; pendientes.md'
+  deps: []
+  done: 'Clubes firmados y cotizaciones con proveedor, fecha y validez (por una persona).'
+
+- id: C11
+  phase: 4
+  agent: club-devops
+  type: feat
+  title: '[infra] Monitoring and WhatsApp alerts for support'
+  what: 'Monitoreo y alertas de la sección 13: cámara caída > 5 min, cola > 6 h, partido sin publicar en 3 h, > 15% de puntos en revisión, errores de API > 1% en 5 min, pagos sin conciliar.'
+  spec: 'especificación §13 (Monitoreo y alertas)'
+  deps: [C05, B24, D03]
+  done: 'Cada alerta se dispara en staging con una falla simulada.'
+
+- id: C12
+  phase: 4
+  agent: club-devops
+  type: chore
+  title: '[infra] Backups with 7-day point-in-time recovery and R2 clip versioning'
+  what: 'Recuperación de la base a cualquier momento de los últimos 7 días y versionado de clips en R2.'
+  spec: 'especificación §13'
+  deps: [D03]
+  done: 'Restauración de prueba en staging documentada.'
+
+- id: C13
+  phase: 4
+  agent: club-devops
+  type: feat
+  title: '[infra] Staged edge rollout: test club for 48 h, then all clubs'
+  what: 'Publicación del software del club como imágenes firmadas: primero a un club de prueba durante 48 horas y después a todos.'
+  spec: 'especificación §13 (Despliegue)'
+  deps: [C09]
+  done: 'Prueba con dos equipos simulados: el segundo recibe la versión recién a las 48 h.'
+
+- id: C14
+  phase: 4
+  agent: club-devops
+  type: chore
+  title: '[infra] Production deploy workflow behind human approval'
+  what: 'Workflow de pase a production que requiere un clic de aprobación de una persona y verifica que grep -rn "TODO_" . dé vacío y que brand.name sea definitivo.'
+  spec: 'especificación §13 (Despliegue); PROMPT_MAESTRO'
+  deps: [C10, D07]
+  done: 'Sin aprobación no despliega; con un TODO_ en el repo falla.'
+
+- id: C15
+  phase: 4
+  agent: club-devops
+  type: feat
+  title: '[edge] Tournament streaming from the club box to YouTube'
+  what: 'Transmisión de torneos a YouTube desde el equipo del club, configurada en el panel (W19).'
+  spec: 'estructura.md › Club (streaming de torneos)'
+  deps: [W19, C02]
+  done: 'Transmisión de prueba desde el simulador a una transmisión privada.'
+
+- id: C16
+  phase: 4
+  agent: club-devops
+  type: chore
+  title: '[infra] Load real hardware quotes into bom.yaml'
+  what: 'Cargar los precios reales de D08 en infra/hardware/bom.yaml con proveedor, fecha y validez, y sacar los TODO_COTIZAR.'
+  spec: 'pendientes.md › Hardware'
+  deps: [D08, P001]
+  done: 'bom.yaml sin TODO_COTIZAR; el cotizador muestra los precios nuevos.'
+
+- id: O01
+  phase: 4
+  agent: orquestador
+  type: chore
+  title: '[orq] Pre-production checklist: no TODO_ markers and final brand'
+  what: 'Checklist previo al pase a producción: grep -rn "TODO_" . vacío, brand.name definitivo, app.json y logo actualizados, todas las fases cerradas.'
+  spec: 'pendientes.md; PROMPT_MAESTRO'
+  deps: [D07, C16]
+  done: 'Checklist completo y aprobado por una persona.'
+
+- id: Q401
+  phase: 4
+  agent: qa-seguridad
+  type: test
+  title: '[qa] Two weeks of zero-difference payment reconciliation'
+  what: 'Seguimiento de la conciliación nocturna durante 2 semanas del piloto.'
+  spec: 'especificación §14 (Pagos)'
+  deps: [B24]
+  done: '14 noches seguidas con cero diferencias; cada pago aprobado aparece una sola vez.'
+
+- id: Q4
+  phase: 4
+  agent: qa-seguridad
+  type: test
+  labels: [phase-close]
+  title: '[qa] Phase 4 closed: paid pilot confirms the business numbers'
+  what: 'Verificar los criterios de aceptación de la fase 4, uno por uno.'
+  spec: 'estructura.md › Hoja de ruta (fase 4), Modelo de negocio'
+  deps: [C11, C12, C13, C14, C15, O01, Q401, D08]
+  done: "- [ ] 3 a 5 clubes con 10 a 20 canchas en comodato funcionando\n- [ ] Precios reales aplicados\n- [ ] Los números del modelo de negocio se confirman\n- [ ] Pagos: conciliación con cero diferencias durante 2 semanas"
