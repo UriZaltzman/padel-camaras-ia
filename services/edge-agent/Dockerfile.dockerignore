@@ -7,6 +7,7 @@
 !packages/config/brand.py
 !packages/contracts/pyproject.toml
 !ml/pyproject.toml
+!infra/hardware/pyproject.toml
 !services/edge-agent/
 services/edge-agent/tests/
 services/edge-agent/.env*

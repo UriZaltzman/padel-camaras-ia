@@ -44,14 +44,17 @@ class EdgeSettings(BaseSettings):
         return self.data_dir / DB_FILENAME
 
 
-def _describe(error: ValidationError) -> str:
+def describe_validation_error(
+    error: ValidationError, prefix: str = ENV_PREFIX, what: str = "edge-agent"
+) -> str:
+    """Name each bad environment variable and why, without echoing its value."""
     lines = []
     for item in error.errors(include_input=False):
         field = ".".join(str(part) for part in item["loc"])
-        env_var = f"{ENV_PREFIX}{field}".upper()
+        env_var = f"{prefix}{field}".upper()
         reason = "missing" if item["type"] == "missing" else item["msg"]
         lines.append(f"  - {env_var}: {reason}")
-    return "Invalid edge-agent configuration:\n" + "\n".join(lines)
+    return f"Invalid {what} configuration:\n" + "\n".join(lines)
 
 
 def load_settings() -> EdgeSettings:
@@ -62,4 +65,4 @@ def load_settings() -> EdgeSettings:
     try:
         return EdgeSettings()
     except ValidationError as error:
-        raise SettingsError(_describe(error)) from None
+        raise SettingsError(describe_validation_error(error)) from None

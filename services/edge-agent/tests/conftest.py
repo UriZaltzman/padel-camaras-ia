@@ -11,9 +11,9 @@ API_BASE_URL = "http://api.test"
 
 @pytest.fixture(autouse=True)
 def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Make sure no EDGE_* variable from the developer's shell leaks into a test."""
+    """Make sure no EDGE_* / CAMSIM_* variable from the developer's shell leaks into a test."""
     for key in list(os.environ):
-        if key.startswith("EDGE_"):
+        if key.startswith(("EDGE_", "CAMSIM_")):
             monkeypatch.delenv(key)
 
 
