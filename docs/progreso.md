@@ -8,8 +8,9 @@ Lo actualiza el orquestador cada viernes o cuando se lo piden. Corto y en españ
 
 - Repositorio público creado: `UriZaltzman/padel-camaras-ia`.
 - PR #1 (bootstrap del monorepo) abierto, esperando aprobación.
+- Tablero: https://github.com/users/UriZaltzman/projects/1 (Pendiente, En curso, En revisión, Esperando aprobación, Listo).
 - 190 issues creados para las 5 fases, con etiquetas de agente, fase y tipo (plan en `.github/planning/issues.yaml`, PR #7).
-- Primeros PR de los agentes, abiertos y en revisión:
+- Primeros PR de los agentes, abiertos y revisados (todos aprobados por qa-seguridad o arquitecto, esperan tu OK):
 
 | PR | Agente | Issue | Qué trae |
 | --- | --- | --- | --- |
@@ -31,7 +32,6 @@ Lo actualiza el orquestador cada viernes o cuando se lo piden. Corto y en españ
 **Qué está trabado**
 
 - Mientras el PR #1 no entre, `main` está vacío: los PR de los agentes apuntan a la rama del bootstrap y **el CI no corre en ellos** (se probaron en local).
-- El tablero de GitHub Projects necesita que una persona corra `gh auth refresh -s project`.
 
 **Qué necesita decisión de una persona**
 
