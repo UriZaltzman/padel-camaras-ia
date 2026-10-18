@@ -33,6 +33,7 @@ from edge_agent.camsim.settings import SimulatorSettings, load_simulator_setting
 from edge_agent.camsim.state import StateFileError, read_stopped, set_running
 from edge_agent.camsim.supervisor import Supervisor
 from edge_agent.logs import configure_logging
+from edge_agent.redact import redact_credentials
 from edge_agent.settings import SettingsError
 
 EXIT_OK: Final = 0
@@ -95,7 +96,7 @@ def _run(settings: SimulatorSettings) -> int:
             extra={
                 "camera": camera.name,
                 "video": str(videos[camera]),
-                "url": stream_url(settings.reader_rtsp_url, camera),
+                "url": redact_credentials(stream_url(settings.reader_rtsp_url, camera)),
             },
         )
     supervisor.run(stop)
@@ -107,7 +108,8 @@ def _list(settings: SimulatorSettings, out: TextIO) -> int:
     stopped = read_stopped(settings.state_path)
     for camera in cameras_for(settings.courts):
         state = "stopped" if camera in stopped else "running"
-        out.write(f"{camera.name}\t{state}\t{stream_url(settings.reader_rtsp_url, camera)}\n")
+        url = redact_credentials(stream_url(settings.reader_rtsp_url, camera))
+        out.write(f"{camera.name}\t{state}\t{url}\n")
     return EXIT_OK
 
 
@@ -195,7 +197,7 @@ def main(argv: Sequence[str] | None = None, out: TextIO | None = None) -> int:
         FfmpegNotFoundError,
         subprocess.CalledProcessError,
     ) as error:
-        sys.stderr.write(f"{error}\n")
+        sys.stderr.write(f"{redact_credentials(str(error))}\n")
         return EXIT_ERROR
 
 

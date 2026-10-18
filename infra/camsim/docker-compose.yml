@@ -28,11 +28,13 @@ services:
     restart: unless-stopped
 
   camsim:
-    # Same image as the club agent (it already has FFmpeg), running the simulator instead.
+    # "camsim" target of the agent Dockerfile: same base (it already has FFmpeg) plus the
+    # simulator, which the club image (default target) does not include.
     build:
       context: ../..
       dockerfile: services/edge-agent/Dockerfile
-    image: edge-agent:local
+      target: camsim
+    image: edge-camsim:local
     entrypoint: ['/usr/bin/tini', '--', 'edge-camsim']
     command: ['run']
     depends_on:
