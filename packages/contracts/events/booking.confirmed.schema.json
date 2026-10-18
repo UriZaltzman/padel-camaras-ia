@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/UriZaltzman/padel-camaras-ia/packages/contracts/events/booking.confirmed.schema.json",
+  "title": "BookingConfirmedEvent",
+  "description": "`booking.confirmed`: A held booking was paid (or confirmed by the club) and moved `held` -> `confirmed`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "occurred_at", "schema_version", "payload"],
+  "properties": {
+    "event_id": {
+      "$ref": "common.schema.json#/$defs/Uuid"
+    },
+    "event_type": {
+      "const": "booking.confirmed"
+    },
+    "occurred_at": {
+      "$ref": "common.schema.json#/$defs/Timestamp"
+    },
+    "schema_version": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/SchemaVersion"
+        }
+      ],
+      "const": 1
+    },
+    "payload": {
+      "title": "BookingConfirmedPayload",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "booking_id",
+        "club_id",
+        "court_id",
+        "organizer_user_id",
+        "status",
+        "starts_at",
+        "ends_at",
+        "payment_id"
+      ],
+      "properties": {
+        "booking_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "club_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "court_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "organizer_user_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "common.schema.json#/$defs/BookingStatus"
+            }
+          ],
+          "const": "confirmed"
+        },
+        "starts_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        },
+        "ends_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        },
+        "payment_id": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Deposit payment; null when the club loaded the booking by hand."
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "event_id": "0192a1b2-c3d4-7e5f-8a6b-7c8d9e0f1a2b",
+      "event_type": "booking.confirmed",
+      "occurred_at": "2026-10-20T23:30:00Z",
+      "schema_version": 1,
+      "payload": {
+        "booking_id": "0192bf6e-7c1a-7d4e-9b3a-2f6c8e1d4a51",
+        "club_id": "0192cf6e-7c1a-7d4e-9b3a-2f6c8e1d4a52",
+        "court_id": "0192df6e-7c1a-7d4e-9b3a-2f6c8e1d4a53",
+        "organizer_user_id": "0192ef6e-7c1a-7d4e-9b3a-2f6c8e1d4a54",
+        "status": "confirmed",
+        "starts_at": "2026-10-20T22:00:00Z",
+        "ends_at": "2026-10-20T23:30:00Z",
+        "payment_id": "0192ff6e-7c1a-7d4e-9b3a-2f6c8e1d4a55"
+      }
+    }
+  ]
+}

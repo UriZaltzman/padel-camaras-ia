@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/UriZaltzman/padel-camaras-ia/packages/contracts/events/match.recording_started.schema.json",
+  "title": "MatchRecordingStartedEvent",
+  "description": "`match.recording_started`: The club device started recording: `scheduled` -> `recording`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "occurred_at", "schema_version", "payload"],
+  "properties": {
+    "event_id": {
+      "$ref": "common.schema.json#/$defs/Uuid"
+    },
+    "event_type": {
+      "const": "match.recording_started"
+    },
+    "occurred_at": {
+      "$ref": "common.schema.json#/$defs/Timestamp"
+    },
+    "schema_version": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/SchemaVersion"
+        }
+      ],
+      "const": 1
+    },
+    "payload": {
+      "title": "MatchRecordingStartedPayload",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "match_id",
+        "club_id",
+        "court_id",
+        "device_id",
+        "booking_id",
+        "status",
+        "started_at"
+      ],
+      "properties": {
+        "match_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "club_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "court_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "device_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "booking_id": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "common.schema.json#/$defs/MatchStatus"
+            }
+          ],
+          "const": "recording"
+        },
+        "started_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "event_id": "0192a1b2-c3d4-7e5f-8a6b-7c8d9e0f1a2b",
+      "event_type": "match.recording_started",
+      "occurred_at": "2026-10-20T23:30:00Z",
+      "schema_version": 1,
+      "payload": {
+        "match_id": "01920f6e-7c1a-7d4e-9b3a-2f6c8e1d4a56",
+        "club_id": "0192cf6e-7c1a-7d4e-9b3a-2f6c8e1d4a52",
+        "court_id": "0192df6e-7c1a-7d4e-9b3a-2f6c8e1d4a53",
+        "device_id": "01921f6e-7c1a-7d4e-9b3a-2f6c8e1d4a57",
+        "booking_id": "0192bf6e-7c1a-7d4e-9b3a-2f6c8e1d4a51",
+        "status": "recording",
+        "started_at": "2026-10-20T22:00:05Z"
+      }
+    }
+  ]
+}

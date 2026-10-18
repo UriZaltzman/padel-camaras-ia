@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/UriZaltzman/padel-camaras-ia/packages/contracts/events/booking.cancelled.schema.json",
+  "title": "BookingCancelledEvent",
+  "description": "`booking.cancelled`: A confirmed booking moved `confirmed` -> `cancelled`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "occurred_at", "schema_version", "payload"],
+  "properties": {
+    "event_id": {
+      "$ref": "common.schema.json#/$defs/Uuid"
+    },
+    "event_type": {
+      "const": "booking.cancelled"
+    },
+    "occurred_at": {
+      "$ref": "common.schema.json#/$defs/Timestamp"
+    },
+    "schema_version": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/SchemaVersion"
+        }
+      ],
+      "const": 1
+    },
+    "payload": {
+      "title": "BookingCancelledPayload",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "booking_id",
+        "club_id",
+        "court_id",
+        "status",
+        "cancelled_by_user_id",
+        "starts_at",
+        "refund_due"
+      ],
+      "properties": {
+        "booking_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "club_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "court_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "common.schema.json#/$defs/BookingStatus"
+            }
+          ],
+          "const": "cancelled"
+        },
+        "cancelled_by_user_id": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null when the system cancelled it."
+        },
+        "starts_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        },
+        "refund_due": {
+          "type": "boolean",
+          "description": "Whether the cancellation policy returns the deposit."
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "event_id": "0192a1b2-c3d4-7e5f-8a6b-7c8d9e0f1a2b",
+      "event_type": "booking.cancelled",
+      "occurred_at": "2026-10-20T23:30:00Z",
+      "schema_version": 1,
+      "payload": {
+        "booking_id": "0192bf6e-7c1a-7d4e-9b3a-2f6c8e1d4a51",
+        "club_id": "0192cf6e-7c1a-7d4e-9b3a-2f6c8e1d4a52",
+        "court_id": "0192df6e-7c1a-7d4e-9b3a-2f6c8e1d4a53",
+        "status": "cancelled",
+        "cancelled_by_user_id": "0192ef6e-7c1a-7d4e-9b3a-2f6c8e1d4a54",
+        "starts_at": "2026-10-20T22:00:00Z",
+        "refund_due": true
+      }
+    }
+  ]
+}

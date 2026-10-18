@@ -23,8 +23,9 @@ extend-exclude = ["node_modules"]
 # Same as the shared config: its "**/tests/**" glob is resolved relative to
 # packages/config, so it does not reach this project's tests.
 "tests/**" = ["S101", "PLR2004", "ANN"]
-# Error codes such as ACCESS_TOKEN_EXPIRED are not passwords.
-"generated/**" = ["S105"]
+# Error codes such as ACCESS_TOKEN_EXPIRED are not passwords. Docstrings copy the schema
+# descriptions verbatim, so long ones are not wrapped.
+"generated/**" = ["S105", "E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app_contracts"]
