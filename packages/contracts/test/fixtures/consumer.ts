@@ -1,8 +1,8 @@
 // A minimal TypeScript consumer of the contract, standing in for api, web and mobile.
 // test/breaking-change.test.mjs compiles it against regenerated types: it must compile with the
 // current contract and stop compiling when the contract changes incompatibly.
-import { createApiClient } from '../../src/index';
-import type { ApiClient, Schema, SchemaErrorCode } from '../../src/index';
+import { canTransition, createApiClient, matchStatusMachine } from '../../src/index';
+import type { ApiClient, Schema, SchemaErrorCode, SchemaMatchStatus } from '../../src/index';
 
 export const slotTaken: Schema<'Error'> = {
   code: 'BOOKING_SLOT_TAKEN',
@@ -20,3 +20,7 @@ export function nextCursor(page: Schema<'Page'>): string | null {
 }
 
 export const client: ApiClient = createApiClient({ baseUrl: 'http://localhost/v1' });
+
+export function canStartRecording(status: SchemaMatchStatus): boolean {
+  return canTransition(matchStatusMachine, status, 'recording');
+}
