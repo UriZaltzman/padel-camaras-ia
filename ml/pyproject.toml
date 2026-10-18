@@ -8,6 +8,7 @@ dependencies = [
     "pyarrow>=17",
     "pydantic>=2.9",
     "pyyaml>=6.0",
+    "uuid6>=2025.0.1",
 ]
 
 [dependency-groups]
