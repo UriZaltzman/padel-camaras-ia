@@ -1,0 +1,23 @@
+# Holdout fijo de evaluación (especificación §8, ADR 0002, issue #17).
+#
+# Reglas:
+# - Son partidos propios, grabados con nuestras 2 cámaras. Nunca videos existentes de terceros.
+# - Una vez agregado, un partido no se quita ni se reemplaza: si hace falta cambiar uno, se sube
+#   `version` y se deja registrado el motivo en el PR (las métricas viejas dejan de compararse).
+# - Ningún partido de esta lista entra a un set de entrenamiento ni de ajuste fino. El código de
+#   entrenamiento llama a `ml.holdout.assert_no_holdout_in_training` antes de entrenar.
+# - Mezcla mínima: `min_day_matches` de día, `min_night_matches` de noche y al menos
+#   `min_distinct_courts` canchas distintas.
+# - Solo entran partidos sin jugadores que hayan elegido "no usar mis videos para entrenar"
+#   y sin menores sin permiso del adulto responsable.
+#
+# Cada entrada: match_id (id del partido en la plataforma), recorded_on (AAAA-MM-DD),
+# club_id, court_id, lighting (day | night).
+version: 1
+# Los ids son UUID de esta versión (CLAUDE.md: IDs UUID v7); se comparan en minúsculas y sin espacios.
+match_id_uuid_version: 7
+required_matches: 15
+min_day_matches: 5
+min_night_matches: 5
+min_distinct_courts: 2
+matches: []
