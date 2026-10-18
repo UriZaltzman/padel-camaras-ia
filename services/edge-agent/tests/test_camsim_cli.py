@@ -1,4 +1,5 @@
 import io
+import logging
 from pathlib import Path
 
 import pytest
@@ -164,3 +165,62 @@ def test_probe_checks_each_camera_against_desired_state(
     code, out = run("probe")
     assert code == EXIT_OK
     assert "court-1-b\tdown\tok" in out
+
+
+SECRET_URL = "rtsp://admin:s3cr3t@mediamtx:8554"  # noqa: S105 - fake test credential
+
+
+def test_list_never_prints_credentials(camsim_env: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CAMSIM_ADVERTISED_RTSP_URL", SECRET_URL)
+
+    code, out = run("list")
+
+    assert code == EXIT_OK
+    assert "s3cr3t" not in out
+    assert "admin" not in out
+    assert "court-1-a\trunning\trtsp://***@mediamtx:8554/court-1-a" in out
+
+
+def test_run_never_logs_credentials(
+    camsim_env: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("CAMSIM_COURTS", "1")
+    monkeypatch.setenv("CAMSIM_RTSP_URL", SECRET_URL)
+    monkeypatch.setenv("CAMSIM_ADVERTISED_RTSP_URL", "rtsp://viewer:hunter2@localhost:8554")
+    videos = camsim_env / "videos"
+    videos.mkdir()
+    (videos / "default.mp4").write_bytes(b"")
+    monkeypatch.setattr(cli, "find_binary", lambda name, env_var="": name)
+
+    class FakeSupervisor:
+        def __init__(self, commands: object, state_path: object) -> None:
+            pass
+
+        def run(self, stop: object) -> None:
+            logging.getLogger("edge_agent.camsim").info("fake_supervisor_done")
+
+    monkeypatch.setattr(cli, "Supervisor", FakeSupervisor)
+
+    code, _ = run("run")
+
+    captured = capsys.readouterr()
+    logs = captured.out + captured.err
+    assert code == EXIT_OK
+    assert "camsim_camera_configured" in logs
+    assert "s3cr3t" not in logs
+    assert "hunter2" not in logs
+
+
+def test_errors_never_print_credentials(
+    camsim_env: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def failing_list(_settings: SimulatorSettings, _out: object) -> int:
+        msg = f"cannot read {SECRET_URL}/court-1-a"
+        raise ValueError(msg)
+
+    monkeypatch.setattr(cli, "_list", failing_list)
+
+    assert run("list")[0] == EXIT_ERROR
+    err = capsys.readouterr().err
+    assert "s3cr3t" not in err
+    assert "rtsp://***@mediamtx:8554/court-1-a" in err

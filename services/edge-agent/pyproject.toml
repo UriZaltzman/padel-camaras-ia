@@ -6,8 +6,10 @@ requires-python = ">=3.12,<3.13"
 dependencies = ["app-config", "pydantic>=2.9", "pydantic-settings>=2.6"]
 
 [project.scripts]
+# No edge-camsim here: the camera simulator is a development tool and must not be
+# installed in the club image. Run it with `python -m edge_agent.camsim` (the camsim
+# target of the Dockerfile adds an `edge-camsim` wrapper).
 edge-agent = "edge_agent.__main__:main"
-edge-camsim = "edge_agent.camsim.cli:main"
 edge-recorder = "edge_agent.recorder.cli:main"
 
 [dependency-groups]

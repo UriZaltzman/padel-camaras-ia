@@ -37,6 +37,7 @@ docker compose -f infra/camsim/docker-compose.yml exec camsim edge-camsim start 
 - Streams en `rtsp://localhost:8554/court-<n>-<a|b>` desde la máquina, o `rtsp://mediamtx:8554/...` desde otro contenedor de la red `camsim_default`.
 - Videos: `infra/camsim/videos/<camara>.mp4` para una cámara o `default.mp4` para todas. Nunca se suben al repo. Si no hay, se genera uno sintético con `testsrc` de FFmpeg (2560x1440, 25 fps) la primera vez.
 - `edge-camsim stop` deja la cámara apagada hasta el `start`, aunque se reinicie el contenedor. Una cámara apagada desaparece del servidor RTSP, como una cámara sin luz.
+- El simulador no se instala en la imagen del club: vive en el target `camsim` del `Dockerfile` (el que usa el compose), que agrega el comando `edge-camsim`. Fuera de Docker: `uv run python -m edge_agent.camsim list`.
 - `edge-camsim generate-test-video salida.mp4 --size 1280x720 --seconds 10` genera un video sintético a mano.
 
 | Variable                     | Default                      | Para qué                                        |
