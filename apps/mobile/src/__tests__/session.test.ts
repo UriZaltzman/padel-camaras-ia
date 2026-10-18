@@ -52,8 +52,8 @@ describe('refresh token rotation', () => {
 
     const { response } = await client.GET('/me');
 
-    // The mock answers 404 for any valid authenticated request.
-    expect(response.status).toBe(404);
+    // The mock serves the profile to a valid authenticated request.
+    expect(response.status).toBe(200);
     expect(store.value?.refresh_token).not.toBe(before);
     expect(server.requests.filter((r) => r.path === '/auth/refresh')).toHaveLength(1);
     expect(onSessionLost).not.toHaveBeenCalled();
