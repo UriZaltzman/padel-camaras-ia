@@ -3,15 +3,26 @@ name = "edge-agent"
 version = "0.0.0"
 description = "Agent that runs on the club's GPU box: record, clip, process, upload."
 requires-python = ">=3.12,<3.13"
-dependencies = ["app-config", "pydantic>=2.9", "pydantic-settings>=2.6"]
+dependencies = [
+    "app-config",
+    "boto3>=1.35",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+]
 
 [project.scripts]
 edge-agent = "edge_agent.__main__:main"
 edge-camsim = "edge_agent.camsim.cli:main"
 edge-recorder = "edge_agent.recorder.cli:main"
+edge-uploader = "edge_agent.uploader.cli:main"
 
 [dependency-groups]
-dev = ["mypy>=1.13", "pytest>=8.3", "ruff>=0.8"]
+dev = [
+    "boto3-stubs[s3]>=1.35",
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
 
 [tool.uv.sources]
 app-config = { workspace = true }

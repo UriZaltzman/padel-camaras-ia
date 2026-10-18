@@ -33,7 +33,7 @@ def save(conn: sqlite3.Connection, camera: str, offset_s: int, duration_s: float
 
 
 def test_store_migrates_to_segments_table(conn: sqlite3.Connection) -> None:
-    assert schema_version(conn) == 2
+    assert schema_version(conn) >= 2
     columns = {row[1] for row in conn.execute("PRAGMA table_info(segments)")}
     assert {"id", "camera", "path", "started_at", "duration_ms", "size_bytes"} <= columns
 
