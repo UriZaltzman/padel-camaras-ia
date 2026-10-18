@@ -1,0 +1,29 @@
+# Sign-in with WhatsApp against the contract mock (issue #83).
+# Run with the app started with EXPO_PUBLIC_API_MOCK=true: `maestro test .maestro/sign-in.yaml`.
+# The mock accepts the code 123456 and treats every phone as a new account, so terms show up.
+appId: ${APP_ID}
+env:
+  APP_ID: ar.rebote.app
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: phone-input
+- inputText: '11 5555 0123'
+- tapOn:
+    id: send-code
+- assertVisible:
+    id: code-input
+- tapOn:
+    id: code-input
+- inputText: '123456'
+- tapOn:
+    id: verify-code
+- assertVisible:
+    id: accept-terms-checkbox
+- tapOn:
+    id: accept-terms-checkbox
+- tapOn:
+    id: accept-terms
+- assertVisible:
+    id: home-screen
