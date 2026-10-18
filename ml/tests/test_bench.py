@@ -20,7 +20,7 @@ from ml.bench.device import DeviceInfo
 from ml.thresholds import load_thresholds
 
 DEVICE = DeviceInfo(
-    hostname="club-box",
+    label="club-box",
     os="Linux",
     python="3.12",
     cpu="x86_64",
@@ -132,3 +132,14 @@ def test_cli_runs_with_dummy_stages(tmp_path: Path) -> None:
     data = json.loads((tmp_path / "bench.json").read_text())
     assert [c["camera_id"] for c in data["cameras"]] == ["cam-1", "cam-2"]
     assert code == (0 if data["passed"] else 1)
+
+
+def test_hostname_never_reaches_the_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    real_host = "notebook-de-juan-perez"
+    monkeypatch.setattr("platform.node", lambda: real_host)
+    monkeypatch.setattr("socket.gethostname", lambda: real_host)
+    main(["--out", str(tmp_path), "--label", "club-test"])
+    for name in ("bench.json", "bench.md"):
+        text = (tmp_path / name).read_text()
+        assert real_host not in text
+        assert "club-test" in text

@@ -13,7 +13,8 @@ from pydantic import BaseModel, ConfigDict
 class DeviceInfo(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    hostname: str
+    label: str
+    """Non-identifying name chosen by whoever runs the benchmark (never the hostname)."""
     os: str
     python: str
     cpu: str
@@ -22,7 +23,7 @@ class DeviceInfo(BaseModel):
     """GPU names reported by ``nvidia-smi``; empty when it is not installed."""
 
 
-def _nvidia_gpus() -> list[str]:
+def _nvidia_gpus(timeout_s: float) -> list[str]:
     binary = shutil.which("nvidia-smi")
     if binary is None:
         return []
@@ -32,19 +33,19 @@ def _nvidia_gpus() -> list[str]:
             capture_output=True,
             text=True,
             check=True,
-            timeout=float(os.cpu_count() or 1),
+            timeout=timeout_s,
         )
     except (OSError, subprocess.SubprocessError):
         return []
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
-def detect_device() -> DeviceInfo:
+def detect_device(*, label: str, gpu_probe_timeout_s: float) -> DeviceInfo:
     return DeviceInfo(
-        hostname=platform.node(),
+        label=label,
         os=platform.platform(),
         python=platform.python_version(),
         cpu=platform.processor() or platform.machine(),
         cpu_count=os.cpu_count() or 0,
-        gpus=_nvidia_gpus(),
+        gpus=_nvidia_gpus(gpu_probe_timeout_s),
     )

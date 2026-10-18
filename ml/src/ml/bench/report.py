@@ -25,7 +25,7 @@ def render_markdown(report: BenchReport) -> str:
         "",
         "## Device",
         "",
-        f"- Host: {device.hostname}",
+        f"- Machine: {device.label}",
         f"- OS: {device.os}",
         f"- Python: {device.python}",
         f"- CPU: {device.cpu} ({device.cpu_count} cores)",

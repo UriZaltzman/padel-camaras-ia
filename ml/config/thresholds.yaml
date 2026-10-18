@@ -127,3 +127,4 @@ performance:
   synthetic_width_px: 1280
   synthetic_height_px: 720
   synthetic_channels: 3
+  gpu_probe_timeout_s: 5.0

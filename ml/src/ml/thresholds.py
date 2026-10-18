@@ -168,6 +168,7 @@ class PerformanceThresholds(_Section):
     synthetic_width_px: PositiveInt
     synthetic_height_px: PositiveInt
     synthetic_channels: PositiveInt
+    gpu_probe_timeout_s: PositiveFloat
 
 
 class Thresholds(_Section):

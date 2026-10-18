@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel, ConfigDict
 
-from ml.bench.device import DeviceInfo, detect_device
+from ml.bench.device import DeviceInfo
 
 Clock = Callable[[], float]
 
@@ -138,7 +138,7 @@ def run_benchmark(
     fps: int,
     target_realtime_factor: float,
     clock: Clock = time.perf_counter,
-    device: DeviceInfo | None = None,
+    device: DeviceInfo,
 ) -> BenchReport:
     """Benchmark each camera in turn. ``cameras`` maps an id to a frame source factory."""
     results = [
@@ -155,6 +155,6 @@ def run_benchmark(
     return BenchReport(
         target_realtime_factor=target_realtime_factor,
         analysis_fps=fps,
-        device=device if device is not None else detect_device(),
+        device=device,
         cameras=results,
     )

@@ -10,6 +10,7 @@ import sys
 from functools import partial
 from pathlib import Path
 
+from ml.bench.device import detect_device
 from ml.bench.harness import run_benchmark, synthetic_frames
 from ml.bench.report import write_reports
 from ml.bench.stages import dummy_stages
@@ -21,6 +22,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cameras", type=int, default=1, help="synthetic cameras to run")
     parser.add_argument("--out", type=Path, default=Path("bench-report"))
     parser.add_argument("--thresholds", type=Path, default=DEFAULT_THRESHOLDS_PATH)
+    parser.add_argument(
+        "--label", default="unlabeled", help="non-identifying machine name for the report"
+    )
     args = parser.parse_args(argv)
 
     perf = load_thresholds(args.thresholds).performance
@@ -37,6 +41,7 @@ def main(argv: list[str] | None = None) -> int:
         dummy_stages(),
         fps=perf.analysis_fps,
         target_realtime_factor=perf.min_realtime_factor,
+        device=detect_device(label=args.label, gpu_probe_timeout_s=perf.gpu_probe_timeout_s),
     )
     json_path, md_path = write_reports(report, args.out)
     sys.stdout.write(f"{json_path}\n{md_path}\n")
