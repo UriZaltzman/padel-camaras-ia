@@ -5,15 +5,25 @@
 //                                       edge-agent and ml. Pinned in python/requirements-codegen.txt.
 // - state-machines.ts / state_machines.py  transition tables of section 3, from `x-state-machine`
 //                                       (scripts/state-machines.mjs).
+// - events.ts / events.py               domain events of section 11, from events/*.schema.json
+//                                       (scripts/events.mjs), with the same two generators.
 //
 // The output is committed. CI runs this script and fails if `git diff` shows any change.
 import { spawnSync } from 'node:child_process';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import YAML from 'yaml';
 
+import {
+  bundleEvents,
+  generateEventsTs,
+  loadEventSchemas,
+  PY_EVENTS_OUTPUT,
+  TS_EVENTS_OUTPUT,
+} from './events.mjs';
 import {
   generateStateMachinesPy,
   generateStateMachinesTs,
@@ -61,20 +71,21 @@ function uvRun(tool, toolArgs) {
   }
 }
 
-function python() {
+/** datamodel-codegen flags shared by the API models and the event models. */
+function datamodelCodegen(input, output, header, extra = []) {
   uvRun('datamodel-codegen', [
     '--input',
-    'openapi/openapi.yaml',
+    input,
     '--input-file-type',
     'openapi',
     '--output',
-    PY_OUTPUT,
+    output,
     '--output-model-type',
     'pydantic_v2.BaseModel',
     '--target-python-version',
     '3.12',
     '--custom-file-header',
-    PY_HEADER,
+    header,
     '--disable-timestamp',
     '--use-annotated',
     '--field-constraints',
@@ -89,8 +100,35 @@ function python() {
     '--formatters',
     'ruff-format',
     'ruff-check',
+    ...extra,
   ]);
+}
+
+function python() {
+  datamodelCodegen('openapi/openapi.yaml', PY_OUTPUT, PY_HEADER);
   console.warn(`contracts: wrote ${PY_OUTPUT}`);
+}
+
+const PY_EVENTS_HEADER = `# Generated from packages/contracts/events/*.schema.json by \`pnpm contracts:generate\`.
+# Do not edit: change the event schemas and regenerate.`;
+
+async function events() {
+  const loaded = await loadEventSchemas();
+
+  const tsOutput = fileURLToPath(TS_EVENTS_OUTPUT);
+  await writeFile(tsOutput, await generateEventsTs(loaded));
+  console.warn(`contracts: wrote ${tsOutput}`);
+
+  const dir = await mkdtemp(join(tmpdir(), 'contracts-events-'));
+  try {
+    const bundle = join(dir, 'events.json');
+    await writeFile(bundle, JSON.stringify(bundleEvents(loaded, 'python'), null, 2));
+    // Payload classes are named after their `title` (BookingConfirmedPayload), not Payload1.
+    datamodelCodegen(bundle, PY_EVENTS_OUTPUT, PY_EVENTS_HEADER, ['--use-title-as-name']);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+  console.warn(`contracts: wrote ${PY_EVENTS_OUTPUT}`);
 }
 
 async function stateMachines() {
@@ -112,3 +150,4 @@ async function stateMachines() {
 await typescript();
 python();
 await stateMachines();
+await events();

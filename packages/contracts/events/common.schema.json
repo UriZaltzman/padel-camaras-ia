@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/UriZaltzman/padel-camaras-ia/packages/contracts/events/common.schema.json",
+  "title": "EventCommon",
+  "description": "Shared definitions of every domain event (section 11). Every event carries a unique `event_id` (UUID v7), the UTC instant it happened (`occurred_at`) and the version of its schema (`schema_version`). Consumers must tolerate receiving the same `event_id` twice.",
+  "$defs": {
+    "Uuid": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "UUID v7, lowercase. Same as `Uuid` in openapi.yaml.",
+      "examples": ["01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b"]
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$",
+      "description": "RFC 3339 timestamp in UTC (ends in `Z`). Same as `Timestamp` in openapi.yaml.",
+      "examples": ["2026-10-17T21:30:00Z"]
+    },
+    "AmountCents": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Amount in ARS cents. Never decimals. Same as `AmountCents` in openapi.yaml."
+    },
+    "SchemaVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Version of the event schema. A breaking payload change bumps it."
+    },
+    "MatchStatus": {
+      "type": "string",
+      "enum": [
+        "scheduled",
+        "recording",
+        "recorded",
+        "processing",
+        "published",
+        "needs_review",
+        "archived",
+        "failed",
+        "cancelled"
+      ],
+      "description": "`MatchStatus` of openapi.yaml."
+    },
+    "BookingStatus": {
+      "type": "string",
+      "enum": ["held", "confirmed", "completed", "cancelled", "no_show", "expired"],
+      "description": "`BookingStatus` of openapi.yaml."
+    },
+    "ProcessingJobStatus": {
+      "type": "string",
+      "enum": ["queued", "running", "succeeded", "failed"],
+      "description": "`ProcessingJobStatus` of openapi.yaml."
+    },
+    "PaymentStatus": {
+      "type": "string",
+      "enum": ["pending", "approved", "rejected", "refunded"],
+      "description": "`PaymentStatus` of openapi.yaml."
+    },
+    "SettlementStatus": {
+      "type": "string",
+      "enum": ["draft", "approved", "invoiced", "paid"],
+      "description": "`SettlementStatus` of openapi.yaml."
+    }
+  }
+}

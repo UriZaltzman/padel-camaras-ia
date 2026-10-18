@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./openapi/*": "./openapi/*"
+    "./openapi/*": "./openapi/*",
+    "./events/*": "./events/*"
   },
   "files": [
     "openapi",
@@ -26,6 +27,8 @@
   "devDependencies": {
     "@app/config": "workspace:*",
     "@stoplight/spectral-cli": "^6.15.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "eslint": "^9.15.0",
     "openapi-typescript": "7.13.0",
     "prettier": "^3.3.3",

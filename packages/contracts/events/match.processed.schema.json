@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/UriZaltzman/padel-camaras-ia/packages/contracts/events/match.processed.schema.json",
+  "title": "MatchProcessedEvent",
+  "description": "`match.processed`: The analysis job of a match finished, successfully or not. The match leaves `processing` for `published` or `failed`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "occurred_at", "schema_version", "payload"],
+  "properties": {
+    "event_id": {
+      "$ref": "common.schema.json#/$defs/Uuid"
+    },
+    "event_type": {
+      "const": "match.processed"
+    },
+    "occurred_at": {
+      "$ref": "common.schema.json#/$defs/Timestamp"
+    },
+    "schema_version": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/SchemaVersion"
+        }
+      ],
+      "const": 1
+    },
+    "payload": {
+      "title": "MatchProcessedPayload",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "match_id",
+        "club_id",
+        "processing_job_id",
+        "job_status",
+        "match_status",
+        "failure_reason"
+      ],
+      "properties": {
+        "match_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "club_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "processing_job_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "job_status": {
+          "title": "ProcessingJobOutcome",
+          "type": "string",
+          "enum": ["succeeded", "failed"],
+          "description": "Final `ProcessingJobStatus` of the job."
+        },
+        "match_status": {
+          "title": "MatchProcessedStatus",
+          "type": "string",
+          "enum": ["published", "failed"],
+          "description": "`MatchStatus` the match moved to from `processing`."
+        },
+        "failure_reason": {
+          "type": ["string", "null"],
+          "description": "Null when the job succeeded."
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "event_id": "0192a1b2-c3d4-7e5f-8a6b-7c8d9e0f1a2b",
+      "event_type": "match.processed",
+      "occurred_at": "2026-10-20T23:30:00Z",
+      "schema_version": 1,
+      "payload": {
+        "match_id": "01920f6e-7c1a-7d4e-9b3a-2f6c8e1d4a56",
+        "club_id": "0192cf6e-7c1a-7d4e-9b3a-2f6c8e1d4a52",
+        "processing_job_id": "01922f6e-7c1a-7d4e-9b3a-2f6c8e1d4a58",
+        "job_status": "succeeded",
+        "match_status": "published",
+        "failure_reason": null
+      }
+    }
+  ]
+}

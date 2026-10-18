@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/UriZaltzman/padel-camaras-ia/packages/contracts/events/match.published.schema.json",
+  "title": "MatchPublishedEvent",
+  "description": "`match.published`: Video, score and stats are visible to the players: the match is `published` (after processing or after a review).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "occurred_at", "schema_version", "payload"],
+  "properties": {
+    "event_id": {
+      "$ref": "common.schema.json#/$defs/Uuid"
+    },
+    "event_type": {
+      "const": "match.published"
+    },
+    "occurred_at": {
+      "$ref": "common.schema.json#/$defs/Timestamp"
+    },
+    "schema_version": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/SchemaVersion"
+        }
+      ],
+      "const": 1
+    },
+    "payload": {
+      "title": "MatchPublishedPayload",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["match_id", "club_id", "status", "player_user_ids"],
+      "properties": {
+        "match_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "club_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "common.schema.json#/$defs/MatchStatus"
+            }
+          ],
+          "const": "published"
+        },
+        "player_user_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/Uuid"
+          },
+          "uniqueItems": true,
+          "description": "Players already linked to the match, to notify."
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "event_id": "0192a1b2-c3d4-7e5f-8a6b-7c8d9e0f1a2b",
+      "event_type": "match.published",
+      "occurred_at": "2026-10-20T23:30:00Z",
+      "schema_version": 1,
+      "payload": {
+        "match_id": "01920f6e-7c1a-7d4e-9b3a-2f6c8e1d4a56",
+        "club_id": "0192cf6e-7c1a-7d4e-9b3a-2f6c8e1d4a52",
+        "status": "published",
+        "player_user_ids": [
+          "0192ef6e-7c1a-7d4e-9b3a-2f6c8e1d4a54",
+          "01923f6e-7c1a-7d4e-9b3a-2f6c8e1d4a59"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/UriZaltzman/padel-camaras-ia/packages/contracts/events/clip.created.schema.json",
+  "title": "ClipCreatedEvent",
+  "description": "`clip.created`: A clip was cut from a match video (tap in the app, button on court or automatic highlight).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "occurred_at", "schema_version", "payload"],
+  "properties": {
+    "event_id": {
+      "$ref": "common.schema.json#/$defs/Uuid"
+    },
+    "event_type": {
+      "const": "clip.created"
+    },
+    "occurred_at": {
+      "$ref": "common.schema.json#/$defs/Timestamp"
+    },
+    "schema_version": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/SchemaVersion"
+        }
+      ],
+      "const": 1
+    },
+    "payload": {
+      "title": "ClipCreatedPayload",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clip_id",
+        "match_id",
+        "club_id",
+        "created_by_user_id",
+        "source",
+        "start_ms",
+        "end_ms"
+      ],
+      "properties": {
+        "clip_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "match_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "club_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "created_by_user_id": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null for automatic highlights."
+        },
+        "source": {
+          "title": "ClipSource",
+          "type": "string",
+          "enum": ["app_tap", "court_button", "auto_highlight"]
+        },
+        "start_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "event_id": "0192a1b2-c3d4-7e5f-8a6b-7c8d9e0f1a2b",
+      "event_type": "clip.created",
+      "occurred_at": "2026-10-20T23:30:00Z",
+      "schema_version": 1,
+      "payload": {
+        "clip_id": "0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a50",
+        "match_id": "01920f6e-7c1a-7d4e-9b3a-2f6c8e1d4a56",
+        "club_id": "0192cf6e-7c1a-7d4e-9b3a-2f6c8e1d4a52",
+        "created_by_user_id": "0192ef6e-7c1a-7d4e-9b3a-2f6c8e1d4a54",
+        "source": "app_tap",
+        "start_ms": 1835000,
+        "end_ms": 1850000
+      }
+    }
+  ]
+}

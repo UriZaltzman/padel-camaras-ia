@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/UriZaltzman/padel-camaras-ia/packages/contracts/events/payment.refunded.schema.json",
+  "title": "PaymentRefundedEvent",
+  "description": "`payment.refunded`: An approved payment was refunded: `approved` -> `refunded`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "occurred_at", "schema_version", "payload"],
+  "properties": {
+    "event_id": {
+      "$ref": "common.schema.json#/$defs/Uuid"
+    },
+    "event_type": {
+      "const": "payment.refunded"
+    },
+    "occurred_at": {
+      "$ref": "common.schema.json#/$defs/Timestamp"
+    },
+    "schema_version": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/SchemaVersion"
+        }
+      ],
+      "const": 1
+    },
+    "payload": {
+      "title": "PaymentRefundedPayload",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "payment_id",
+        "user_id",
+        "booking_id",
+        "status",
+        "amount_cents",
+        "currency",
+        "provider_payment_id"
+      ],
+      "properties": {
+        "payment_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "booking_id": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "common.schema.json#/$defs/PaymentStatus"
+            }
+          ],
+          "const": "refunded"
+        },
+        "amount_cents": {
+          "$ref": "common.schema.json#/$defs/AmountCents"
+        },
+        "currency": {
+          "const": "ARS"
+        },
+        "provider_payment_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "event_id": "0192a1b2-c3d4-7e5f-8a6b-7c8d9e0f1a2b",
+      "event_type": "payment.refunded",
+      "occurred_at": "2026-10-20T23:30:00Z",
+      "schema_version": 1,
+      "payload": {
+        "payment_id": "0192ff6e-7c1a-7d4e-9b3a-2f6c8e1d4a55",
+        "user_id": "0192ef6e-7c1a-7d4e-9b3a-2f6c8e1d4a54",
+        "booking_id": "0192bf6e-7c1a-7d4e-9b3a-2f6c8e1d4a51",
+        "status": "refunded",
+        "amount_cents": 1500000,
+        "currency": "ARS",
+        "provider_payment_id": "1234567890"
+      }
+    }
+  ]
+}

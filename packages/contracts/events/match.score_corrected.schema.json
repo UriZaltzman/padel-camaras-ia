@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/UriZaltzman/padel-camaras-ia/packages/contracts/events/match.score_corrected.schema.json",
+  "title": "MatchScoreCorrectedEvent",
+  "description": "`match.score_corrected`: A player corrected the score: `published` -> `needs_review`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "occurred_at", "schema_version", "payload"],
+  "properties": {
+    "event_id": {
+      "$ref": "common.schema.json#/$defs/Uuid"
+    },
+    "event_type": {
+      "const": "match.score_corrected"
+    },
+    "occurred_at": {
+      "$ref": "common.schema.json#/$defs/Timestamp"
+    },
+    "schema_version": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/SchemaVersion"
+        }
+      ],
+      "const": 1
+    },
+    "payload": {
+      "title": "MatchScoreCorrectedPayload",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["match_id", "club_id", "corrected_by_user_id", "status", "sets"],
+      "properties": {
+        "match_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "club_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "corrected_by_user_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "common.schema.json#/$defs/MatchStatus"
+            }
+          ],
+          "const": "needs_review"
+        },
+        "sets": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "title": "SetScore",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["team_1", "team_2"],
+            "properties": {
+              "team_1": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "team_2": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "description": "Corrected games per set."
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "event_id": "0192a1b2-c3d4-7e5f-8a6b-7c8d9e0f1a2b",
+      "event_type": "match.score_corrected",
+      "occurred_at": "2026-10-20T23:30:00Z",
+      "schema_version": 1,
+      "payload": {
+        "match_id": "01920f6e-7c1a-7d4e-9b3a-2f6c8e1d4a56",
+        "club_id": "0192cf6e-7c1a-7d4e-9b3a-2f6c8e1d4a52",
+        "corrected_by_user_id": "0192ef6e-7c1a-7d4e-9b3a-2f6c8e1d4a54",
+        "status": "needs_review",
+        "sets": [
+          {
+            "team_1": 6,
+            "team_2": 4
+          },
+          {
+            "team_1": 7,
+            "team_2": 6
+          }
+        ]
+      }
+    }
+  ]
+}
