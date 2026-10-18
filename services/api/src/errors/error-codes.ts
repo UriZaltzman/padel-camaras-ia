@@ -1,19 +1,69 @@
 // Single entry point for the contract's error catalog. The rest of the API imports from here,
-// never from `../generated` directly.
+// never from `@app/contracts` directly, so a change in how the catalog is generated stays here.
 //
-// TODO(#32): when `pnpm contracts:generate` produces the API types, take `ErrorCode` from them
-// and keep only the HTTP status map here (or from the generator if it covers `x-error-catalog`).
-// Then delete scripts/generate-error-codes.mjs. Nothing outside this file should change.
-import { ERROR_CATALOG, type ErrorCode } from '../generated/error-codes';
+// `ErrorCode` is the type generated from the contract (`pnpm contracts:generate`). The generated
+// types do not carry `x-error-catalog`, so the HTTP status of each code is listed below:
+// - `typecheck` fails if a contract code is missing here or if a code here is not in the contract;
+// - test/contract/error-catalog.test.ts fails if a status differs from `x-error-catalog`.
+import type { Schema } from '@app/contracts';
 
-export type { ErrorCode };
+export type ErrorCode = Schema<'ErrorCode'>;
 
-export const ERROR_CODES = Object.keys(ERROR_CATALOG) as ErrorCode[];
+const HTTP_STATUS = {
+  // Common
+  VALIDATION_FAILED: 400,
+  INVALID_CURSOR: 400,
+  UNAUTHENTICATED: 401,
+  ACCESS_TOKEN_EXPIRED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  INVALID_STATE_TRANSITION: 409,
+  RATE_LIMITED: 429,
+  INTERNAL_ERROR: 500,
+  SERVICE_UNAVAILABLE: 503,
+  // Auth and users
+  OTP_INVALID: 401,
+  OTP_EXPIRED: 401,
+  OTP_ATTEMPTS_EXCEEDED: 401,
+  REFRESH_TOKEN_INVALID: 401,
+  TERMS_NOT_ACCEPTED: 403,
+  // Clubs
+  CLUB_FEATURE_DISABLED: 403,
+  CLUB_SERVICE_SUSPENDED: 403,
+  // Bookings
+  BOOKING_SLOT_TAKEN: 409,
+  BOOKING_SLOT_INVALID: 422,
+  BOOKING_HOLD_EXPIRED: 409,
+  BOOKING_FULL: 409,
+  BOOKING_INVITE_INVALID: 422,
+  // Matches and media
+  MATCH_NOT_PUBLISHED: 409,
+  MATCH_PLAYER_SLOT_TAKEN: 409,
+  MATCH_ALREADY_JOINED: 409,
+  MEDIA_NOT_READY: 409,
+  MEDIA_EXPIRED: 410,
+  // Coaches
+  COACH_ACCESS_NOT_GRANTED: 403,
+  // Payments
+  PAYMENT_PROVIDER_ERROR: 502,
+  WEBHOOK_SIGNATURE_INVALID: 401,
+  // Club panel and device
+  RECORDING_NOT_ACTIVE: 409,
+  DEVICE_CERTIFICATE_INVALID: 401,
+  DEVICE_CLUB_MISMATCH: 403,
+} as const satisfies Record<ErrorCode, number>;
+
+// `satisfies` above rejects missing codes; this rejects codes the contract does not have.
+type Exact<T, U> = [T] extends [U] ? ([U] extends [T] ? true : never) : never;
+const exhaustive: Exact<keyof typeof HTTP_STATUS, ErrorCode> = true;
+void exhaustive;
+
+export const ERROR_CODES = Object.keys(HTTP_STATUS) as ErrorCode[];
 
 export function httpStatusFor(code: ErrorCode): number {
-  return ERROR_CATALOG[code].httpStatus;
+  return HTTP_STATUS[code];
 }
 
 export function isErrorCode(value: unknown): value is ErrorCode {
-  return typeof value === 'string' && Object.hasOwn(ERROR_CATALOG, value);
+  return typeof value === 'string' && Object.hasOwn(HTTP_STATUS, value);
 }
