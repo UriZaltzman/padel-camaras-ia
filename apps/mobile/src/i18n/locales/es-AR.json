@@ -49,5 +49,71 @@
       "network": "No hay conexión. Revisá tu internet y probá de nuevo.",
       "generic": "Algo salió mal. Probá de nuevo en un rato."
     }
+  },
+  "profile": {
+    "dataLabel": "Jugador · Perfil",
+    "title": "Tu perfil",
+    "loading": "Cargando tu perfil…",
+    "retry": "Probar de nuevo",
+    "photoPlaceholder": "Tu foto de perfil",
+    "photoSoon": "Pronto vas a poder subir tu foto.",
+    "name": {
+      "label": "Tu nombre",
+      "placeholder": "Cómo te llaman en la cancha"
+    },
+    "category": {
+      "label": "Tu categoría",
+      "options": {
+        "8": "8va",
+        "7": "7ma",
+        "6": "6ta",
+        "5": "5ta",
+        "4": "4ta",
+        "3": "3ra",
+        "2": "2da",
+        "1": "1ra"
+      }
+    },
+    "hand": {
+      "label": "Mano hábil",
+      "options": {
+        "right": "Derecha",
+        "left": "Izquierda"
+      }
+    },
+    "side": {
+      "label": "Lado de juego",
+      "options": {
+        "drive": "Drive",
+        "reves": "Revés",
+        "both": "Los dos"
+      }
+    },
+    "trainingOptOut": {
+      "label": "No usar mis videos para entrenar",
+      "body": "Si lo activás, tus videos no se usan para mejorar la IA de {brand}."
+    },
+    "save": "Guardar cambios",
+    "saving": "Guardando…",
+    "saved": "Listo, guardamos tu perfil.",
+    "delete": {
+      "entry": "Borrar mi cuenta",
+      "confirmTitle": "¿Seguro que querés borrar tu cuenta?",
+      "confirmBody": "Cerramos todas tus sesiones y borramos tu perfil, tus estadísticas y tus clips en 30 días. No se puede deshacer.",
+      "confirm": "Sí, borrar mi cuenta",
+      "cancel": "No, volver",
+      "doneTitle": "Tu cuenta se va a borrar",
+      "doneBody": "Borramos tus datos a más tardar el {date}.",
+      "exit": "Salir"
+    },
+    "errors": {
+      "nameRequired": "Poné tu nombre.",
+      "nameTooLong": "El nombre puede tener hasta 80 letras.",
+      "VALIDATION_FAILED": "Revisá los datos e intentá de nuevo.",
+      "RATE_LIMITED": "Hiciste muchos cambios seguidos. Esperá un momento y probá de nuevo.",
+      "UNAUTHENTICATED": "Tu sesión terminó. Entrá de nuevo.",
+      "network": "No hay conexión. Revisá tu internet y probá de nuevo.",
+      "generic": "Algo salió mal. Probá de nuevo en un rato."
+    }
   }
 }

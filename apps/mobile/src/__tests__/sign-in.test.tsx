@@ -151,6 +151,7 @@ describe('SignInScreen', () => {
     expect(status()).toBe('signedIn');
     expect(server.requests[0]).toEqual({
       path: '/auth/oauth/apple',
+      method: 'POST',
       body: {
         id_token: 'fake-apple-id-token',
         nonce: 'fake-nonce-apple',

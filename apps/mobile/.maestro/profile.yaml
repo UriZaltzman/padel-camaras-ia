@@ -1,0 +1,24 @@
+# Edit and save the profile against the contract mock (issue #84).
+# Run with the app started with EXPO_PUBLIC_API_MOCK=true: `maestro test .maestro/profile.yaml`.
+# Signs in first (see sign-in.yaml), then opens the profile by deep link until home links to it.
+appId: ${APP_ID}
+env:
+  APP_ID: ar.rebote.app
+  SCHEME: rebote
+---
+- runFlow: sign-in.yaml
+- openLink: ${SCHEME}://profile
+- assertVisible:
+    id: profile-screen
+- tapOn:
+    id: profile-category-6
+- tapOn:
+    id: profile-hand-left
+- tapOn:
+    id: profile-side-reves
+- tapOn:
+    id: profile-training-opt-out
+- tapOn:
+    id: profile-save
+- assertVisible:
+    id: profile-saved

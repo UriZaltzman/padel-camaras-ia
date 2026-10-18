@@ -2,7 +2,8 @@
 // dev (EXPO_PUBLIC_API_MOCK=true) and tests until the backend implements them. It follows the
 // contract: OtpChallenge on request, OTP_INVALID with attempts_remaining, OTP_EXPIRED,
 // OTP_ATTEMPTS_EXCEEDED, 403 TERMS_NOT_ACCEPTED for new accounts without consent, and refresh
-// token rotation with reuse detection.
+// token rotation with reuse detection. It also serves the signed-in profile: GET, PATCH and
+// DELETE /me (AccountDeletion 30 days ahead), with VALIDATION_FAILED on invalid updates.
 import type { Schema } from '@app/contracts';
 
 type ErrorCode = Schema<'ErrorCode'>;
@@ -22,9 +23,25 @@ export interface MockAuthServer {
   expireCode(): void;
   /** Make the next authenticated request fail with ACCESS_TOKEN_EXPIRED. */
   expireAccessToken(): void;
-  /** Bodies of every request received, by path. */
-  requests: { path: string; body: unknown }[];
+  /** Tokens of an already signed-in user (for tests that start inside the app). */
+  issueTokens(): { access_token: string; refresh_token: string };
+  /** Make the next request to `path` fail with this status and code. */
+  failNext(path: string, status: number, code: ErrorCode): void;
+  /** Bodies of every request received, by path and method. */
+  requests: { path: string; method: string; body: unknown }[];
 }
+
+const DELETION_DAYS = 30;
+const CATEGORIES = ['1', '2', '3', '4', '5', '6', '7', '8'];
+const UPDATE_FIELDS: Record<string, (v: unknown) => boolean> = {
+  display_name: (v) => typeof v === 'string' && v.trim().length >= 1 && v.length <= 80,
+  photo_url: (v) => v === null || typeof v === 'string',
+  declared_category: (v) => v === null || CATEGORIES.includes(String(v)),
+  dominant_hand: (v) => v === null || v === 'right' || v === 'left',
+  playing_side: (v) => v === null || v === 'drive' || v === 'reves' || v === 'both',
+  birth_date: (v) => v === null || typeof v === 'string',
+  training_opt_out: (v) => typeof v === 'boolean',
+};
 
 const MAX_ATTEMPTS = 5;
 
@@ -39,6 +56,26 @@ function error(status: number, code: ErrorCode, details?: Record<string, unknown
   return json(status, { code, message: code, ...(details ? { details } : {}) });
 }
 
+function buildUser(phone: string | null): Schema<'User'> {
+  const now = new Date().toISOString();
+  return {
+    id: '01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f',
+    display_name: 'Sofía Pérez',
+    phone,
+    email: null,
+    photo_url: null,
+    declared_category: null,
+    dominant_hand: null,
+    playing_side: null,
+    birth_date: null,
+    training_opt_out: false,
+    terms_version: '2026-10-01',
+    terms_accepted_at: now,
+    privacy_version: '2026-10-01',
+    created_at: now,
+  } as Schema<'User'>;
+}
+
 export function createMockAuthServer(options: MockAuthOptions = {}): MockAuthServer {
   const code = options.code ?? '123456';
   const accounts = new Set(options.existingPhones ?? []);
@@ -47,6 +84,9 @@ export function createMockAuthServer(options: MockAuthOptions = {}): MockAuthSer
   const validAccess = new Set<string>();
   let counter = 0;
   const requests: MockAuthServer['requests'] = [];
+  const failures = new Map<string, { status: number; code: ErrorCode }>();
+  let profile: Schema<'User'> | null = null;
+  let deletion: string | null = null;
 
   function session(phone: string | null, isNew: boolean): Response {
     counter += 1;
@@ -54,38 +94,51 @@ export function createMockAuthServer(options: MockAuthOptions = {}): MockAuthSer
     const refresh = `refresh-${counter}`;
     validAccess.add(access);
     validRefresh.add(refresh);
-    const now = new Date().toISOString();
-    const user: Schema<'User'> = {
-      id: '01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f',
-      display_name: 'Sofía Pérez',
-      phone,
-      email: null,
-      photo_url: null,
-      declared_category: null,
-      dominant_hand: null,
-      playing_side: null,
-      birth_date: null,
-      training_opt_out: false,
-      terms_version: '2026-10-01',
-      terms_accepted_at: now,
-      privacy_version: '2026-10-01',
-      created_at: now,
-    } as Schema<'User'>;
+    profile = buildUser(phone);
     return json(200, {
       access_token: access,
       refresh_token: refresh,
       token_type: 'Bearer',
       expires_in: 900,
       is_new_user: isNew,
-      user,
+      user: profile,
     });
+  }
+
+  function handleMe(method: string, body: Record<string, unknown>): Response {
+    profile ??= buildUser(null);
+    if (method === 'GET') return json(200, profile);
+    if (method === 'PATCH') {
+      const keys = Object.keys(body);
+      const invalid = keys.filter((k) => !UPDATE_FIELDS[k]?.(body[k]));
+      if (keys.length === 0 || invalid.length > 0) {
+        return error(400, 'VALIDATION_FAILED', { fields: invalid });
+      }
+      profile = { ...profile, ...body } as Schema<'User'>;
+      return json(200, profile);
+    }
+    if (method === 'DELETE') {
+      deletion ??= new Date(Date.now() + DELETION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+      validAccess.clear();
+      validRefresh.clear();
+      return json(202, { deletion_scheduled_for: deletion });
+    }
+    return error(404, 'NOT_FOUND');
   }
 
   async function handle(input: Request): Promise<Response> {
     const path = new URL(input.url).pathname.replace(/^.*\/v1/, '');
-    const body: Record<string, unknown> =
-      input.method === 'POST' ? ((await input.json()) as Record<string, unknown>) : {};
-    requests.push({ path, body });
+    const hasBody = input.method === 'POST' || input.method === 'PATCH';
+    const body: Record<string, unknown> = hasBody
+      ? ((await input.json()) as Record<string, unknown>)
+      : {};
+    requests.push({ path, method: input.method, body });
+
+    const failure = failures.get(path);
+    if (failure) {
+      failures.delete(path);
+      return error(failure.status, failure.code);
+    }
 
     switch (path) {
       case '/auth/otp/whatsapp': {
@@ -138,6 +191,7 @@ export function createMockAuthServer(options: MockAuthOptions = {}): MockAuthSer
         const auth = input.headers.get('Authorization')?.replace('Bearer ', '');
         if (!auth) return error(401, 'UNAUTHENTICATED');
         if (!validAccess.has(auth)) return error(401, 'ACCESS_TOKEN_EXPIRED');
+        if (path === '/me') return handleMe(input.method, body);
         return error(404, 'NOT_FOUND');
       }
     }
@@ -146,6 +200,16 @@ export function createMockAuthServer(options: MockAuthOptions = {}): MockAuthSer
   return {
     fetch: handle,
     requests,
+    failNext(path, status, failCode) {
+      failures.set(path, { status, code: failCode });
+    },
+    issueTokens() {
+      counter += 1;
+      const pair = { access_token: `access-${counter}`, refresh_token: `refresh-${counter}` };
+      validAccess.add(pair.access_token);
+      validRefresh.add(pair.refresh_token);
+      return pair;
+    },
     expireCode() {
       for (const c of challenges.values()) c.expired = true;
     },
