@@ -5,12 +5,8 @@ developer machines without them still run every other camsim test.
 """
 
 import functools
-import shutil
-import socket
 import subprocess
 import threading
-import time
-from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
@@ -19,38 +15,10 @@ from edge_agent.camsim.cameras import Camera, cameras_for, stream_url
 from edge_agent.camsim.ffmpeg import generate_testsrc, probe, publish_command
 from edge_agent.camsim.state import set_running
 from edge_agent.camsim.supervisor import Supervisor
+from tests.tooling import require, wait_until
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 COMPOSE_FILE = REPO_ROOT / "infra" / "camsim" / "docker-compose.yml"
-WAIT_S = 20.0
-
-
-def require(*tools: str) -> dict[str, str]:
-    found = {tool: shutil.which(tool) for tool in tools}
-    missing = [tool for tool, path in found.items() if path is None]
-    if missing:
-        pytest.skip(f"{', '.join(missing)} not installed: install it to run this test")
-    return {tool: path for tool, path in found.items() if path is not None}
-
-
-def free_port() -> int:
-    with socket.socket() as sock:
-        sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
-
-
-def port_open(port: int) -> bool:
-    with socket.socket() as sock:
-        return sock.connect_ex(("127.0.0.1", port)) == 0
-
-
-def wait_until(condition: Callable[[], bool], timeout: float = WAIT_S) -> bool:
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if condition():
-            return True
-        time.sleep(0.5)
-    return False
 
 
 def test_generates_synthetic_test_video(tmp_path: Path) -> None:
@@ -66,29 +34,6 @@ def test_generates_synthetic_test_video(tmp_path: Path) -> None:
     assert "codec_name=h264" in result.stdout
     assert "width=320" in result.stdout
     assert not list(tmp_path.glob(".partial-*"))
-
-
-@pytest.fixture
-def rtsp_server(tmp_path: Path) -> Iterator[str]:
-    tools = require("mediamtx")
-    port = free_port()
-    config = tmp_path / "mediamtx.yml"
-    config.write_text(
-        f"rtspAddress: 127.0.0.1:{port}\nrtmp: no\nhls: no\nwebrtc: no\nsrt: no\n"
-        "paths:\n  all_others:\n",
-        encoding="utf-8",
-    )
-    server = subprocess.Popen(  # noqa: S603 - fixed argument list
-        [tools["mediamtx"], str(config)],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    try:
-        assert wait_until(lambda: port_open(port)), "mediamtx did not start"
-        yield f"rtsp://127.0.0.1:{port}"
-    finally:
-        server.terminate()
-        server.wait(timeout=10)
 
 
 def test_publishes_every_camera_and_stops_one(tmp_path: Path, rtsp_server: str) -> None:

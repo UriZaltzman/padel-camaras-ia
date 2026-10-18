@@ -31,6 +31,79 @@ class AmountCents(RootModel[int]):
     """
 
 
+class MatchStatus(StrEnum):
+    """
+    Status of a match (`matches.status`). Recording and analysis move it forward; a score
+    correction sends it to `needs_review`, and after 30 days the full video is deleted and it
+    is `archived`.
+
+    """
+
+    scheduled = "scheduled"
+    recording = "recording"
+    recorded = "recorded"
+    processing = "processing"
+    published = "published"
+    needs_review = "needs_review"
+    archived = "archived"
+    failed = "failed"
+    cancelled = "cancelled"
+
+
+class BookingStatus(StrEnum):
+    """
+    Status of a booking (`bookings.status`). A new booking is `held` for 10 minutes while the
+    deposit is paid; if it is not paid in time it is `expired` and the slot is released.
+
+    """
+
+    held = "held"
+    confirmed = "confirmed"
+    completed = "completed"
+    cancelled = "cancelled"
+    no_show = "no_show"
+    expired = "expired"
+
+
+class ProcessingJobStatus(StrEnum):
+    """
+    Status of an analysis job (`processing_jobs.status`). The job also stores its pipeline
+    stage, so it resumes from there after a power cut.
+
+    """
+
+    queued = "queued"
+    running = "running"
+    succeeded = "succeeded"
+    failed = "failed"
+
+
+class PaymentStatus(StrEnum):
+    """
+    Status of a payment (`payments.status`). Only the Mercado Pago webhook changes it, never
+    the app.
+
+    """
+
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+    refunded = "refunded"
+
+
+class SettlementStatus(StrEnum):
+    """
+    Status of a monthly settlement (`settlements.status`). It is drafted on the 1st of each
+    month, approved by the team, invoiced and then paid.
+
+    """
+
+    draft = "draft"
+    approved = "approved"
+    invoiced = "invoiced"
+    paid = "paid"
+
+
 class Page(BaseModel):
     """
     Base of every paginated response. A list operation combines it with `allOf` and adds an
