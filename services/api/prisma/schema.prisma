@@ -189,6 +189,9 @@ model Club {
   bookingRulePriceBands BookingRulePriceBand[]
   bookings              Booking[]
   bookingPlayers        BookingPlayer[]
+  devices               Device[]
+  cameras               Camera[]
+  calibrations          Calibration[]
 
   @@map("clubs")
 }
@@ -199,14 +202,17 @@ model Court {
   name                 String
   covered              Boolean     @default(false)
   status               CourtStatus @default(active)
-  /// Current calibration. The FK to `calibrations` is added together with that table.
-  currentCalibrationId String?     @map("current_calibration_id") @db.Uuid
+  /// Current calibration (one of the calibrations of this court's cameras; the application
+  /// checks that the calibration's camera belongs to this court).
+  currentCalibrationId String?     @unique @map("current_calibration_id") @db.Uuid
   createdAt            DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  club              Club               @relation(fields: [clubId], references: [id], onDelete: Restrict)
-  bookingSlotsRules BookingSlotsRule[]
-  bookings          Booking[]
+  club               Club               @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  currentCalibration Calibration?       @relation("CourtCurrentCalibration", fields: [currentCalibrationId], references: [id], onDelete: SetNull)
+  bookingSlotsRules  BookingSlotsRule[]
+  bookings           Booking[]
+  cameras            Camera[]
 
   @@unique([clubId, name])
   @@map("courts")
@@ -230,6 +236,115 @@ model Contract {
 
   @@index([clubId, startsOn])
   @@map("contracts")
+}
+
+// ---------------------------------------------------------------- Equipment (§2, §4, §5)
+
+enum CameraEnd {
+  a
+  b
+
+  @@map("camera_end")
+}
+
+enum CameraStatus {
+  /// Installed and streaming.
+  active
+  /// Installed but the device cannot read the stream.
+  offline
+  /// Taken out of service (broken, being replaced).
+  disabled
+
+  @@map("camera_status")
+}
+
+/// The club's edge computer (Jetson). It authenticates with its own mTLS certificate (§11);
+/// heartbeat fields are updated by `POST /device/heartbeat`.
+model Device {
+  id              String    @id @db.Uuid
+  clubId          String    @map("club_id") @db.Uuid
+  serialNumber    String    @unique @map("serial_number")
+  softwareVersion String?   @map("software_version")
+  /// Last heartbeat; null until the first one.
+  lastSeenAt      DateTime? @map("last_seen_at") @db.Timestamptz(3)
+  /// Free disk reported in the last heartbeat, bytes.
+  freeDiskBytes   BigInt?   @map("free_disk_bytes")
+  /// GPU temperature reported in the last heartbeat, degrees Celsius.
+  gpuTemperatureC Decimal?  @map("gpu_temperature_c") @db.Decimal(5, 2)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club    Club     @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  cameras Camera[]
+
+  @@index([clubId])
+  @@map("devices")
+}
+
+/// One of the 2 cameras of a court (end A or B), read by a device over RTSP.
+///
+/// The RTSP address (it contains the camera password) is never stored in plain text (§12).
+/// The API encrypts it with envelope encryption before the INSERT:
+/// - Algorithm AES-256-GCM. A fresh random 12-byte nonce per write.
+/// - `rtsp_url_ciphertext` = nonce (12 bytes) || ciphertext || GCM tag (16 bytes).
+/// - Additional authenticated data = the camera `id` (UTF-8), so a ciphertext copied to another
+///   row fails to decrypt.
+/// - `rtsp_url_key_id` names the data key in the key manager (KMS / secret store) used for this
+///   row, e.g. `rtsp/2026-10`. Rotating = new key id for new writes plus a re-encryption job;
+///   old keys are kept until no row references them.
+/// The key never lives in the database. Only the API decrypts, to hand the address to the
+/// device of the same club over mTLS.
+model Camera {
+  id                String       @id @db.Uuid
+  clubId            String       @map("club_id") @db.Uuid
+  courtId           String       @map("court_id") @db.Uuid
+  deviceId          String       @map("device_id") @db.Uuid
+  end               CameraEnd
+  rtspUrlCiphertext Bytes        @map("rtsp_url_ciphertext")
+  rtspUrlKeyId      String       @map("rtsp_url_key_id")
+  /// Stream resolution in pixels (2560x1440 by default, §4).
+  resolutionWidth   Int          @map("resolution_width") @db.SmallInt
+  resolutionHeight  Int          @map("resolution_height") @db.SmallInt
+  status            CameraStatus @default(active)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club         Club          @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  court        Court         @relation(fields: [courtId], references: [id], onDelete: Restrict)
+  device       Device        @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  calibrations Calibration[]
+
+  @@unique([courtId, end])
+  @@index([deviceId])
+  @@index([clubId])
+  @@map("cameras")
+}
+
+/// A camera calibration (§5 step 1). Rows are immutable: recalibrating inserts a new row and
+/// moves `courts.current_calibration_id`.
+model Calibration {
+  id         String   @id @db.Uuid
+  clubId     String   @map("club_id") @db.Uuid
+  cameraId   String   @map("camera_id") @db.Uuid
+  /// The 12 reference points marked on the image, in pixels, flattened as
+  /// [x1, y1, x2, y2, ..., x12, y12] (24 numbers). Point i is the i-th known court point in the
+  /// fixed order defined by vision-ia (CHECK: exactly 24 non-null values).
+  pointsPx   Float[]  @map("points_px")
+  /// Homography image -> court plane in metres, 3x3 row-major [h11, h12, h13, h21, ..., h33]
+  /// (CHECK: exactly 9 non-null values).
+  homography Float[]
+  /// Mean reprojection error in centimetres (CHECK >= 0; the console rejects > 5 cm, §15).
+  errorCm    Decimal  @map("error_cm") @db.Decimal(6, 2)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club           Club   @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  camera         Camera @relation(fields: [cameraId], references: [id], onDelete: Restrict)
+  currentOfCourt Court? @relation("CourtCurrentCalibration")
+
+  @@index([cameraId, createdAt])
+  @@index([clubId])
+  @@map("calibrations")
 }
 
 // ---------------------------------------------------------------- Bookings (§9)
