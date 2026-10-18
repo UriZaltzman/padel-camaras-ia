@@ -50,6 +50,10 @@ jobs:
             packages/config:
               - 'packages/config/**'
               - 'uv.lock'
+            packages/contracts:
+              - 'packages/contracts/**'
+              - 'packages/config/**'
+              - 'uv.lock'
             services/edge-agent:
               - 'services/edge-agent/**'
               - 'packages/config/**'
@@ -62,6 +66,63 @@ jobs:
               - 'infra/hardware/**'
               - 'packages/config/**'
               - 'uv.lock'
+
+  contracts-changes:
+    name: Detect contract changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      contracts: ${{ steps.filter.outputs.contracts }}
+    steps:
+      # On pull_request the filter reads the changed files from the API: no checkout needed.
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          # The contract and its generators (TypeScript versions in pnpm-lock.yaml,
+          # Python ones hash-pinned inside packages/contracts), plus this workflow.
+          filters: |
+            contracts:
+              - 'packages/contracts/**'
+              - 'pnpm-lock.yaml'
+              - '.github/workflows/ci.yml'
+
+  contracts-drift:
+    name: Contracts (generated types up to date)
+    needs: contracts-changes
+    if: needs.contracts-changes.outputs.contracts == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # pnpm version comes from "packageManager" in package.json.
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      # The Pydantic generator runs with `uv run --isolated` over a hash-pinned lockfile.
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: '0.13.1'
+          python-version: '3.12'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm contracts:generate
+      # `git status --porcelain` (not just `git diff`) also catches new untracked files.
+      - name: Fail if generated code differs from the commit
+        run: |
+          changes="$(git status --porcelain -- packages/contracts/generated)"
+          if [ -n "$changes" ]; then
+            echo "$changes"
+            git diff -- packages/contracts/generated
+            echo "::error::Generated contract types are out of date. Run 'pnpm contracts:generate' and commit the result."
+            exit 1
+          fi
+          echo "Generated contract types are up to date."
 
   python:
     name: Python (${{ matrix.project }})

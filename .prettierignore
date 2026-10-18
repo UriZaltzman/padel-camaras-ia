@@ -9,3 +9,4 @@ uv.lock
 **/dist/
 **/coverage/
 infra/hardware/bom.yaml
+apps/web/next-env.d.ts

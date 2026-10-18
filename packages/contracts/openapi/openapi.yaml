@@ -150,6 +150,121 @@ components:
       examples:
         - 1500000
 
+    # State machines (section 3 of the specification). Each status schema carries its allowed
+    # transitions in `x-state-machine`: `transitions` lists, for every state, the states it may
+    # move to (an empty list is a final state). This is the single source of the transition
+    # tables; `pnpm contracts:generate` exports them to TypeScript and Python. The backend rejects
+    # any other change with `INVALID_STATE_TRANSITION`.
+    MatchStatus:
+      type: string
+      description: |
+        Status of a match (`matches.status`). Recording and analysis move it forward; a score
+        correction sends it to `needs_review`, and after 30 days the full video is deleted and it
+        is `archived`.
+      enum:
+        - scheduled
+        - recording
+        - recorded
+        - processing
+        - published
+        - needs_review
+        - archived
+        - failed
+        - cancelled
+      x-state-machine:
+        column: matches.status
+        initial: scheduled
+        transitions:
+          scheduled: [recording, cancelled]
+          recording: [recorded]
+          recorded: [processing]
+          processing: [published, failed]
+          published: [needs_review, archived]
+          needs_review: [published]
+          archived: []
+          failed: [processing]
+          cancelled: []
+
+    BookingStatus:
+      type: string
+      description: |
+        Status of a booking (`bookings.status`). A new booking is `held` for 10 minutes while the
+        deposit is paid; if it is not paid in time it is `expired` and the slot is released.
+      enum:
+        - held
+        - confirmed
+        - completed
+        - cancelled
+        - no_show
+        - expired
+      x-state-machine:
+        column: bookings.status
+        initial: held
+        transitions:
+          held: [confirmed, expired]
+          confirmed: [completed, cancelled, no_show]
+          completed: []
+          cancelled: []
+          no_show: []
+          expired: []
+
+    ProcessingJobStatus:
+      type: string
+      description: |
+        Status of an analysis job (`processing_jobs.status`). The job also stores its pipeline
+        stage, so it resumes from there after a power cut.
+      enum:
+        - queued
+        - running
+        - succeeded
+        - failed
+      x-state-machine:
+        column: processing_jobs.status
+        initial: queued
+        transitions:
+          queued: [running]
+          running: [succeeded, failed]
+          succeeded: []
+          failed: []
+
+    PaymentStatus:
+      type: string
+      description: |
+        Status of a payment (`payments.status`). Only the Mercado Pago webhook changes it, never
+        the app.
+      enum:
+        - pending
+        - approved
+        - rejected
+        - refunded
+      x-state-machine:
+        column: payments.status
+        initial: pending
+        transitions:
+          pending: [approved, rejected]
+          approved: [refunded]
+          rejected: []
+          refunded: []
+
+    SettlementStatus:
+      type: string
+      description: |
+        Status of a monthly settlement (`settlements.status`). It is drafted on the 1st of each
+        month, approved by the team, invoiced and then paid.
+      enum:
+        - draft
+        - approved
+        - invoiced
+        - paid
+      x-state-machine:
+        column: settlements.status
+        initial: draft
+        transitions:
+          draft: [approved]
+          approved: [invoiced]
+          invoiced: [paid]
+          paid: []
+
     Page:
       type: object
       description: |

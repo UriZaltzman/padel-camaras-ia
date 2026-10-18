@@ -1,0 +1,12 @@
+{
+  "meta.title": "{brand} · {tagline}",
+  "meta.description": "{brand} graba cada turno de pádel, arma el marcador solo y te deja tu video, tus clips y tu reel.",
+  "home.eyebrow": "● REC · CANCHA · JUGADORES · PELOTA",
+  "home.titleLine1": "Nadie lo vio entero.",
+  "home.titleLine2": "Ni vos.",
+  "home.lead": "{brand} graba cada turno, arma el marcador solo y te deja tu video, tus clips y tu reel. {tagline}",
+  "home.ctaClubs": "Quiero {brand} en mi club",
+  "home.ctaMatch": "Mirá tu partido",
+  "home.logoLabel": "Logo de {brand}",
+  "api.mockUnavailable": "Esta parte todavía no está lista. Probá de nuevo más tarde."
+}

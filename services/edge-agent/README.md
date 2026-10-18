@@ -53,6 +53,32 @@ docker compose -f infra/camsim/docker-compose.yml exec camsim edge-camsim start 
 
 Las pruebas de `tests/test_camsim_integration.py` usan FFmpeg, ffprobe, mediamtx y Docker de verdad; si alguno no está instalado se saltean diciendo cuál falta.
 
+## Grabador (`edge-recorder`)
+
+FFmpeg lee el RTSP de cada cámara y lo copia sin recomprimir (`-c copy`) en segmentos MPEG-TS de 10 s, cortados en múltiplos de 10 s del reloj (en el primer keyframe después de cada corte). La resolución y los cuadros por segundo (2560x1440 a 25) se configuran en la cámara; `edge-recorder probe` los verifica.
+
+```bash
+edge-recorder record --camera court-1-a --camera court-1-b --minutes 90   # arranca ya, para a los 90 + 2 min (o con Ctrl+C)
+edge-recorder run --schedule horario.json      # graba cada turno del archivo con 2 min de margen antes y después
+edge-recorder check --schedule horario.json    # continuidad de cada turno terminado (márgenes incluidos); sale con 1 si falta un segmento
+edge-recorder check --camera court-1-a --from 2026-10-17T20:00:00-03:00 --to 2026-10-17T21:30:00-03:00
+edge-recorder probe                            # cada cámara: arriba y en 2560x1440 a 25 fps
+```
+
+- Horario local (fase 0, a mano; después lo escribe el `scheduler`): `{"shifts": [{"id": "turno-1", "cameras": ["court-1-a", "court-1-b"], "start": "2026-10-17T20:00:00-03:00", "end": "2026-10-17T21:30:00-03:00"}]}`. Las horas llevan su desfase de UTC. `run` relee el archivo cuando cambia; si queda inválido, sigue con la última versión buena. Turnos pegados se graban como un solo tramo, sin cortar FFmpeg.
+- Segmentos en `<segments_dir>/<cámara>/<cámara>-<AAAAMMDDTHHMMSSZ>.ts` (hora UTC en que abrió). Cada segmento cerrado queda en la tabla `segments` de la base local (UUID v7, cámara, ruta, inicio, duración, tamaño).
+- Si FFmpeg se cae (cámara sin luz, 5 s sin datos), se reinicia con espera creciente de 1 a 10 s. `check` muestra el hueco que quedó.
+- Las URLs de las cámaras pueden llevar usuario y contraseña: nunca se escriben en el log, y la salida de FFmpeg pasa por `redact_credentials` antes de loguearse.
+
+| Variable                     | Obligatoria                    | Default                            |
+| ---------------------------- | ------------------------------ | ---------------------------------- |
+| `EDGE_RECORDER_CAMERAS`      | sí para `record`/`run`/`probe` | JSON `{"court-1-a": "rtsp://..."}` |
+| `EDGE_RECORDER_SEGMENTS_DIR` | no                             | `EDGE_DATA_DIR/segments`           |
+| `EDGE_RECORDER_FFMPEG_BIN`   | no                             | `ffmpeg`                           |
+| `EDGE_RECORDER_FFPROBE_BIN`  | no                             | `ffprobe`                          |
+
+También necesita las variables `EDGE_*` del agente. `tests/test_recorder_integration.py` graba el simulador con FFmpeg y mediamtx de verdad; si no están instalados se saltea diciendo cuál falta.
+
 ## Comandos
 
 ```bash
