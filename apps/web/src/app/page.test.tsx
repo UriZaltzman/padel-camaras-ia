@@ -21,6 +21,18 @@ describe('HomePage', () => {
     expect(screen.getByRole('img', { name: t('home.logoLabel') })).toBeInTheDocument();
   });
 
+  it('shows the tagline, what the product does and the club contact form', () => {
+    render(<HomePage />);
+
+    expect(screen.getByText(t('home.lead'))).toHaveTextContent(brand.tagline);
+    expect(screen.getByRole('heading', { name: t('features.title') })).toBeInTheDocument();
+    for (const key of ['cameras', 'stats', 'bookings', 'app'] as const) {
+      expect(screen.getByRole('heading', { name: t(`features.${key}.title`) })).toBeInTheDocument();
+    }
+    expect(screen.getByRole('heading', { name: t('contact.title') })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: t('contact.submit') })).toBeInTheDocument();
+  });
+
   it('fills the brand from @app/config/brand, not from the messages', () => {
     render(<HomePage />);
 
