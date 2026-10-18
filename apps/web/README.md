@@ -14,6 +14,15 @@ Next.js: web del partido, panel del club y consola interna. Ver `.claude/agents/
 | `src/lib/api`        | Cliente tipado de `@app/contracts` y un mock que responde con el `Error` del contrato                      |
 | `src/lib/env.ts`     | Variables públicas validadas con Zod                                                                       |
 
+## Formulario de contacto de la landing
+
+`src/components/contact-form.tsx` manda a la server action `src/app/actions.ts`, que valida con Zod (`src/lib/contact/schema.ts`) y guarda en un `ContactStore` (`src/lib/contact/store.ts`).
+
+- Hoy el store es `InMemoryContactStore`: vive en memoria del proceso y se pierde al reiniciar.
+- No se envía nada a terceros ni a clubes: ni email, ni WhatsApp, ni otra API.
+- Cuando el backend tenga el endpoint, se agrega un adaptador que implemente `ContactStore` y se devuelve desde `getContactStore()`. El formulario no cambia.
+- Los estilos de campos y botón están acá; pasan a `packages/ui` cuando estén los componentes compartidos.
+
 ## Variables
 
 | Variable               | Por defecto                | Para qué                                                           |
