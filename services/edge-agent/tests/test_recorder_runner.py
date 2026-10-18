@@ -265,3 +265,19 @@ def test_ffmpeg_output_is_logged_with_credentials_masked(captured_logs: io.Strin
     logs = captured_logs.getvalue()
     assert LEAK_MARKER not in logs
     assert "rtsp://***@10.0.0.11/stream1" in logs
+
+
+def test_store_errors_are_logged_and_raised(
+    harness: Harness, captured_logs: io.StringIO, conn: sqlite3.Connection
+) -> None:
+    harness.due = frozenset({"court-1-a"})
+    harness.recorder.tick()
+    process = harness.last("court-1-a")
+    process.write_segment("court-1-a", T0, 0.0, 10.0)
+    conn.close()  # any store failure, e.g. a connection from another thread
+
+    with pytest.raises(sqlite3.ProgrammingError):
+        harness.recorder.run(threading.Event(), interval=0)
+
+    assert "recorder_crashed" in captured_logs.getvalue()
+    assert process.code is not None  # FFmpeg was still stopped

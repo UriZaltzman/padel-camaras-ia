@@ -1,0 +1,81 @@
+{
+  "cli": {
+    "description": "Herramienta para etiquetar golpes y botes sobre la línea de tiempo de un video.",
+    "video": "Video a etiquetar (sirve cualquier archivo de una sola cámara).",
+    "labels_root": "Carpeta donde se guardan las etiquetas.",
+    "match_id": "Id del partido (UUID v7). Si no lo pasás, se asigna uno por video.",
+    "camera": "Cámara del video: A o B. Para un video suelto, dejá A.",
+    "labeler": "Tu id de etiquetador (UUID v7). Si no lo pasás, se usa el de esta compu.",
+    "video_missing": "No encontré el video {video}.",
+    "ready": "Abrí {url} en el navegador para etiquetar el partido {match_id}. Ctrl+C para cerrar.",
+    "unsaved": "Ojo: cerraste con cambios sin guardar."
+  },
+  "title": "Etiquetado de golpes y botes",
+  "status": {
+    "saved": "Guardado como versión {version}.",
+    "unsaved": "Hay cambios sin guardar.",
+    "clean": "Todo guardado.",
+    "side": "Lado de los botes: {side}",
+    "camera": "Cámara {camera}",
+    "rate": "Velocidad x{rate}"
+  },
+  "kinds": {
+    "shot": "Golpe",
+    "bounce": "Bote"
+  },
+  "player": "Jugador {n}",
+  "surfaces": {
+    "floor": "piso",
+    "back_glass": "vidrio de fondo",
+    "side_glass": "vidrio lateral",
+    "fence": "reja",
+    "net": "red"
+  },
+  "actions": {
+    "play_pause": "Reproducir o pausar",
+    "seek_back": "Retroceder",
+    "seek_forward": "Avanzar",
+    "seek_back_fine": "Retroceder un cuadro",
+    "seek_forward_fine": "Avanzar un cuadro",
+    "cycle_rate": "Cambiar velocidad",
+    "shot": "Golpe del jugador {n}",
+    "bounce": "Bote en {surface}",
+    "toggle_side": "Cambiar lado de la cancha",
+    "select_prev": "Seleccionar evento anterior",
+    "select_next": "Seleccionar evento siguiente",
+    "nudge_back": "Correr el evento un poco antes",
+    "nudge_forward": "Correr el evento un poco después",
+    "move_to_playhead": "Mover el evento al cuadro actual",
+    "delete_selected": "Borrar el evento seleccionado",
+    "undo": "Deshacer",
+    "save": "Guardar"
+  },
+  "headings": {
+    "events": "Eventos",
+    "shortcuts": "Atajos de teclado"
+  },
+  "empty": "Todavía no marcaste nada. Pausá en el golpe o bote y apretá su tecla.",
+  "key_names": {
+    " ": "Espacio",
+    "ArrowLeft": "←",
+    "ArrowRight": "→",
+    "ArrowUp": "↑",
+    "ArrowDown": "↓",
+    "Backspace": "Borrar",
+    "Enter": "Enter"
+  },
+  "unload_warning": "Tenés cambios sin guardar.",
+  "errors": {
+    "LABEL_TIME_NEGATIVE": "El momento no puede ser negativo.",
+    "LABEL_TIME_AFTER_END": "Ese momento queda después del final del video.",
+    "LABEL_EVENT_NOT_FOUND": "Ese evento ya no existe.",
+    "LABEL_NOTHING_TO_UNDO": "No hay nada para deshacer.",
+    "LABEL_NOTHING_TO_SAVE": "No hay cambios para guardar.",
+    "LABEL_SET_EXISTS": "Esa versión ya estaba guardada. Volvé a guardar para crear una nueva.",
+    "LABEL_FORBIDDEN_HOST": "La herramienta solo se abre desde esta compu.",
+    "LABEL_FORBIDDEN_ORIGIN": "Esa página no puede usar la herramienta.",
+    "LABEL_UNSUPPORTED_MEDIA_TYPE": "No pude leer el pedido.",
+    "LABEL_BAD_REQUEST": "No pude aplicar esa acción.",
+    "NETWORK": "Se cortó la conexión con la herramienta. ¿Sigue abierta la terminal?"
+  }
+}
