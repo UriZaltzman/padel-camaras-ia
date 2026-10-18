@@ -68,12 +68,455 @@ servers:
 security:
   - bearerAuth: []
 
-tags: []
+tags:
+  - name: System
+    description: Liveness and operational endpoints.
+  - name: Auth
+    description: Sign-in with a WhatsApp code, Google or Apple, and session renewal.
+  - name: Users
+    description: The signed-in user's profile, matches, stats and account deletion.
 
-# Module endpoints are added by their own issues (#22 onward). Every operation must:
+# Every operation must:
 # - document `429` and reference `components/responses` for every 4xx and 5xx response;
 # - reuse `Cursor` and `Limit` when it returns a list.
-paths: {}
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      tags: [System]
+      summary: Liveness probe
+      description: |
+        The process is up and serving. It does not check the database or Redis yet. No
+        credentials needed.
+      security: []
+      responses:
+        '200':
+          description: The API is up.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              example:
+                status: ok
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /auth/otp/whatsapp:
+    post:
+      operationId: requestWhatsappOtp
+      tags: [Auth]
+      summary: Send a sign-in code by WhatsApp
+      description: |
+        Sends a 6-digit code to the phone by WhatsApp. The code is valid for 5 minutes and allows
+        5 attempts. Asking again replaces the previous code. The response is the same whether or
+        not the phone has an account, so it does not reveal who is registered.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpRequest'
+            example:
+              phone: '+5491155550123'
+      responses:
+        '202':
+          description: The code was sent (or queued for sending).
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OtpChallenge'
+              example:
+                expires_in_seconds: 300
+                resend_after_seconds: 60
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /auth/otp/verify:
+    post:
+      operationId: verifyWhatsappOtp
+      tags: [Auth]
+      summary: Sign in with the WhatsApp code
+      description: |
+        Checks the code and returns a session. If the phone has no account yet, one is created;
+        `consent` is then required, otherwise the answer is `403 TERMS_NOT_ACCEPTED` and the
+        code stays valid so the app can retry with consent. For existing accounts `consent` is
+        ignored.
+
+        Errors: `OTP_INVALID` (with `attempts_remaining`), `OTP_EXPIRED`,
+        `OTP_ATTEMPTS_EXCEEDED`, `TERMS_NOT_ACCEPTED`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpVerifyRequest'
+            examples:
+              sign_up:
+                summary: New account, accepting terms and privacy
+                value:
+                  phone: '+5491155550123'
+                  code: '482913'
+                  consent:
+                    terms_version: '2026-10-01'
+                    privacy_version: '2026-10-01'
+              sign_in:
+                summary: Existing account
+                value:
+                  phone: '+5491155550123'
+                  code: '482913'
+      responses:
+        '200':
+          description: Signed in. `is_new_user` tells the app whether to show onboarding.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+              examples:
+                new_user:
+                  $ref: '#/components/examples/AuthSessionExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/oauth/google:
+    post:
+      operationId: signInWithGoogle
+      tags: [Auth]
+      summary: Sign in with Google
+      description: |
+        Exchanges a Google ID token (obtained by the app or web with the Google SDK) for a
+        session. The server verifies signature, audience and expiry. A new account needs
+        `consent`, as in `verifyWhatsappOtp`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthSignInRequest'
+            example:
+              id_token: eyJhbGciOiJSUzI1NiIsImtpZCI6Ij...
+              nonce: 3f9c2a7b1e
+              consent:
+                terms_version: '2026-10-01'
+                privacy_version: '2026-10-01'
+      responses:
+        '200':
+          description: Signed in.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+              examples:
+                new_user:
+                  $ref: '#/components/examples/AuthSessionExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/oauth/apple:
+    post:
+      operationId: signInWithApple
+      tags: [Auth]
+      summary: Sign in with Apple
+      description: |
+        Exchanges an Apple identity token for a session. Apple sends the user's name only on the
+        first authorization, so the app forwards it in `full_name` that time. A new account needs
+        `consent`, as in `verifyWhatsappOtp`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppleSignInRequest'
+            example:
+              id_token: eyJraWQiOiJXNldjT0tCIiwiYWxnIjoiUlMyNTYifQ...
+              nonce: 8d1e4b6a0c
+              full_name: Sofía Pérez
+              consent:
+                terms_version: '2026-10-01'
+                privacy_version: '2026-10-01'
+      responses:
+        '200':
+          description: Signed in.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+              examples:
+                new_user:
+                  $ref: '#/components/examples/AuthSessionExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/refresh:
+    post:
+      operationId: refreshSession
+      tags: [Auth]
+      summary: Renew the session
+      description: |
+        Exchanges a refresh token (valid 30 days) for a new access token (15 minutes) and a new
+        refresh token. The old refresh token is revoked on use; presenting it again returns
+        `REFRESH_TOKEN_INVALID` and revokes the whole token family (reuse detection).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+            example:
+              refresh_token: rt_01928f6e7c1a7d4e9b3a2f6c8e1d4a5b.Zx8kQ2
+      responses:
+        '200':
+          description: New token pair.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+              example:
+                access_token: eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiIwMTky...
+                refresh_token: rt_01928f6e7c1a7d4e9b3a2f6c8e1d4a5c.Yp3nR7
+                token_type: Bearer
+                expires_in: 900
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /me:
+    get:
+      operationId: getMe
+      tags: [Users]
+      summary: Get the signed-in user's profile
+      description: The full own profile, including the consents and the training preference.
+      responses:
+        '200':
+          description: The profile.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              examples:
+                player:
+                  $ref: '#/components/examples/UserExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateMe
+      tags: [Users]
+      summary: Update the signed-in user's profile and preferences
+      description: |
+        Partial update: only the fields present change; `null` clears an optional field. Phone
+        and email are not editable here (they come from the sign-in identities).
+        `training_opt_out: true` excludes the user's videos from AI training (section 12).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+            example:
+              display_name: Sofi Pérez
+              declared_category: '6'
+              playing_side: drive
+              training_opt_out: true
+      responses:
+        '200':
+          description: The updated profile.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              examples:
+                player:
+                  $ref: '#/components/examples/UserExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteMe
+      tags: [Users]
+      summary: Delete the signed-in user's account
+      description: |
+        Revokes every session at once and schedules the deletion of the profile, stats and own
+        clips within 30 days (Ley 25.326). Full match videos are deleted after 30 days anyway.
+        Idempotent: calling it again returns the same scheduled date.
+      responses:
+        '202':
+          description: Deletion scheduled.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDeletion'
+              example:
+                deletion_scheduled_for: '2026-11-16T21:30:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /me/matches:
+    get:
+      operationId: listMyMatches
+      tags: [Users]
+      summary: List the signed-in user's matches
+      description: Matches where the user is a confirmed player, newest first.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          required: false
+          description: Only matches in this status.
+          schema:
+            $ref: '#/components/schemas/MatchStatus'
+      responses:
+        '200':
+          description: One page of matches.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchSummaryPage'
+              example:
+                items:
+                  - id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b
+                    type: match
+                    status: published
+                    starts_at: '2026-10-15T22:00:00Z'
+                    ends_at: '2026-10-15T23:30:00Z'
+                    club:
+                      id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a60
+                      name: Pádel Norte
+                    court:
+                      id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61
+                      name: Cancha 2
+                    team: 1
+                    won: true
+                    sets:
+                      - team_1: 6
+                        team_2: 4
+                      - team_1: 7
+                        team_2: 5
+                next_cursor: eyJzdGFydHNfYXQiOiIyMDI2LTEwLTE1In0
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /me/stats:
+    get:
+      operationId: getMyStats
+      tags: [Users]
+      summary: Get the signed-in user's aggregate stats
+      description: Totals over the user's published matches. Lessons do not count.
+      responses:
+        '200':
+          description: The stats.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStats'
+              example:
+                matches_played: 24
+                matches_won: 14
+                sets_won: 31
+                sets_lost: 22
+                points_won: 812
+                points_played: 1530
+                rating: 4.35
+                last_match_at: '2026-10-15T23:30:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
 components:
   securitySchemes:
@@ -264,6 +707,383 @@ components:
           approved: [invoiced]
           invoiced: [paid]
           paid: []
+
+    HealthStatus:
+      type: object
+      description: Liveness result.
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+
+    PhoneNumber:
+      type: string
+      description: Phone in E.164 format, with country code (WhatsApp number).
+      pattern: '^\+[1-9][0-9]{7,14}$'
+      examples:
+        - '+5491155550123'
+
+    SignUpConsent:
+      type: object
+      description: |
+        Acceptance of the terms and the privacy policy (Ley 25.326), required to create an
+        account. Sending it means the user accepted the given versions; the server stores the
+        versions and the time.
+      required: [terms_version, privacy_version]
+      properties:
+        terms_version:
+          type: string
+          minLength: 1
+          maxLength: 32
+          description: Version of the terms the user saw, e.g. `2026-10-01`.
+        privacy_version:
+          type: string
+          minLength: 1
+          maxLength: 32
+          description: Version of the privacy policy the user saw.
+
+    OtpRequest:
+      type: object
+      required: [phone]
+      properties:
+        phone:
+          $ref: '#/components/schemas/PhoneNumber'
+
+    OtpChallenge:
+      type: object
+      required: [expires_in_seconds, resend_after_seconds]
+      properties:
+        expires_in_seconds:
+          type: integer
+          minimum: 0
+          description: Seconds until the code expires (300).
+        resend_after_seconds:
+          type: integer
+          minimum: 0
+          description: Seconds before the app may ask for a new code.
+
+    OtpVerifyRequest:
+      type: object
+      required: [phone, code]
+      properties:
+        phone:
+          $ref: '#/components/schemas/PhoneNumber'
+        code:
+          type: string
+          pattern: '^[0-9]{6}$'
+          description: The 6-digit code received by WhatsApp.
+        consent:
+          $ref: '#/components/schemas/SignUpConsent'
+
+    OAuthSignInRequest:
+      type: object
+      required: [id_token]
+      properties:
+        id_token:
+          type: string
+          minLength: 1
+          maxLength: 8192
+          description: ID token issued by the provider to this app.
+        nonce:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Raw nonce used when asking for the token, checked against its `nonce` claim.
+        consent:
+          $ref: '#/components/schemas/SignUpConsent'
+
+    AppleSignInRequest:
+      allOf:
+        - $ref: '#/components/schemas/OAuthSignInRequest'
+        - type: object
+          properties:
+            full_name:
+              type: string
+              minLength: 1
+              maxLength: 120
+              description: Name Apple sent on the first authorization only.
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+          minLength: 1
+          maxLength: 512
+
+    TokenPair:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in]
+      properties:
+        access_token:
+          type: string
+          description: JWT for the `Authorization` header. Valid for 15 minutes.
+        refresh_token:
+          type: string
+          description: Opaque, single-use token valid for 30 days. Store it securely.
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          minimum: 0
+          description: Seconds until the access token expires (900).
+
+    AuthSession:
+      allOf:
+        - $ref: '#/components/schemas/TokenPair'
+        - type: object
+          required: [user, is_new_user]
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            is_new_user:
+              type: boolean
+              description: True when this request created the account.
+
+    DeclaredCategory:
+      type: string
+      description: Self-declared Argentine padel category, from 8va (`8`) to 1ra (`1`).
+      enum: ['1', '2', '3', '4', '5', '6', '7', '8']
+
+    DominantHand:
+      type: string
+      enum: [right, left]
+
+    PlayingSide:
+      type: string
+      description: Preferred side of the court. `drive` is the right side, `reves` the left.
+      enum: [drive, reves, both]
+
+    User:
+      type: object
+      description: The signed-in user's own profile. Only the owner sees phone, email and birth date.
+      required:
+        - id
+        - display_name
+        - phone
+        - email
+        - photo_url
+        - declared_category
+        - dominant_hand
+        - playing_side
+        - birth_date
+        - training_opt_out
+        - terms_version
+        - terms_accepted_at
+        - privacy_version
+        - created_at
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        phone:
+          type:
+            - string
+            - 'null'
+          description: Verified WhatsApp phone in E.164, or `null` if the user signed in only with Google or Apple.
+        email:
+          type:
+            - string
+            - 'null'
+          maxLength: 254
+          description: |
+            Email from Google or Apple, or `null`. Plain string on purpose (no `format: email`), so
+            the Python models do not need `email-validator`.
+        photo_url:
+          type:
+            - string
+            - 'null'
+          format: uri
+        declared_category:
+          oneOf:
+            - $ref: '#/components/schemas/DeclaredCategory'
+            - type: 'null'
+        dominant_hand:
+          oneOf:
+            - $ref: '#/components/schemas/DominantHand'
+            - type: 'null'
+        playing_side:
+          oneOf:
+            - $ref: '#/components/schemas/PlayingSide'
+            - type: 'null'
+        birth_date:
+          type:
+            - string
+            - 'null'
+          format: date
+          description: Used to apply the minors rule (no recording without a guardian's permission).
+        training_opt_out:
+          type: boolean
+          description: True when the user asked that their videos not be used to train the AI.
+        terms_version:
+          type: string
+          description: Version of the terms the user accepted.
+        terms_accepted_at:
+          $ref: '#/components/schemas/Timestamp'
+        privacy_version:
+          type: string
+          description: Version of the privacy policy the user accepted.
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    UserUpdate:
+      type: object
+      description: Fields of `User` the owner may change. At least one is required.
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        photo_url:
+          type:
+            - string
+            - 'null'
+          format: uri
+        declared_category:
+          oneOf:
+            - $ref: '#/components/schemas/DeclaredCategory'
+            - type: 'null'
+        dominant_hand:
+          oneOf:
+            - $ref: '#/components/schemas/DominantHand'
+            - type: 'null'
+        playing_side:
+          oneOf:
+            - $ref: '#/components/schemas/PlayingSide'
+            - type: 'null'
+        birth_date:
+          type:
+            - string
+            - 'null'
+          format: date
+        training_opt_out:
+          type: boolean
+
+    AccountDeletion:
+      type: object
+      required: [deletion_scheduled_for]
+      properties:
+        deletion_scheduled_for:
+          $ref: '#/components/schemas/Timestamp'
+
+    EntityRef:
+      type: object
+      description: Id and display name of a related entity.
+      required: [id, name]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+
+    SetScore:
+      type: object
+      description: Games won by each team in one set.
+      required: [team_1, team_2]
+      properties:
+        team_1:
+          type: integer
+          minimum: 0
+        team_2:
+          type: integer
+          minimum: 0
+
+    MatchSummary:
+      type: object
+      description: A match in the user's list, seen from that user's side.
+      required: [id, type, status, starts_at, ends_at, club, court, team, won, sets]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        type:
+          type: string
+          enum: [match, lesson]
+        status:
+          $ref: '#/components/schemas/MatchStatus'
+        starts_at:
+          $ref: '#/components/schemas/Timestamp'
+        ends_at:
+          $ref: '#/components/schemas/Timestamp'
+        club:
+          $ref: '#/components/schemas/EntityRef'
+        court:
+          $ref: '#/components/schemas/EntityRef'
+        team:
+          type:
+            - integer
+            - 'null'
+          enum: [1, 2, null]
+          description: The user's team, or `null` while not assigned.
+        won:
+          type:
+            - boolean
+            - 'null'
+          description: Whether the user's team won, or `null` until the match is published.
+        sets:
+          type: array
+          description: Final score per set; empty until the match is published.
+          items:
+            $ref: '#/components/schemas/SetScore'
+
+    MatchSummaryPage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/MatchSummary'
+
+    UserStats:
+      type: object
+      description: Aggregate stats over the user's published matches.
+      required:
+        - matches_played
+        - matches_won
+        - sets_won
+        - sets_lost
+        - points_won
+        - points_played
+        - rating
+        - last_match_at
+      properties:
+        matches_played:
+          type: integer
+          minimum: 0
+        matches_won:
+          type: integer
+          minimum: 0
+        sets_won:
+          type: integer
+          minimum: 0
+        sets_lost:
+          type: integer
+          minimum: 0
+        points_won:
+          type: integer
+          minimum: 0
+        points_played:
+          type: integer
+          minimum: 0
+        rating:
+          type:
+            - number
+            - 'null'
+          description: Current level estimate, or `null` until enough matches are published.
+        last_match_at:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
 
     Page:
       type: object
@@ -470,6 +1290,48 @@ components:
         - code: DEVICE_CLUB_MISMATCH
           http_status: 403
           description: The device tried to act on a match, court or upload of another club.
+
+  examples:
+    UserExample:
+      summary: A player's profile
+      value:
+        id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f
+        display_name: Sofía Pérez
+        phone: '+5491155550123'
+        email: sofia@example.com
+        photo_url: null
+        declared_category: '6'
+        dominant_hand: right
+        playing_side: drive
+        birth_date: '1994-03-12'
+        training_opt_out: false
+        terms_version: '2026-10-01'
+        terms_accepted_at: '2026-10-17T21:30:00Z'
+        privacy_version: '2026-10-01'
+        created_at: '2026-10-17T21:30:00Z'
+    AuthSessionExample:
+      summary: Session for a newly created account
+      value:
+        access_token: eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiIwMTky...
+        refresh_token: rt_01928f6e7c1a7d4e9b3a2f6c8e1d4a5b.Zx8kQ2
+        token_type: Bearer
+        expires_in: 900
+        is_new_user: true
+        user:
+          id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f
+          display_name: Sofía Pérez
+          phone: '+5491155550123'
+          email: null
+          photo_url: null
+          declared_category: null
+          dominant_hand: null
+          playing_side: null
+          birth_date: null
+          training_opt_out: false
+          terms_version: '2026-10-01'
+          terms_accepted_at: '2026-10-17T21:30:00Z'
+          privacy_version: '2026-10-01'
+          created_at: '2026-10-17T21:30:00Z'
 
   responses:
     BadRequest:
