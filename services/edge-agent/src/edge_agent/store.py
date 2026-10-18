@@ -19,6 +19,19 @@ MIGRATIONS: Final[tuple[str, ...]] = (
         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     ) STRICT;
     """,
+    # 2: closed video segments written by the recorder (one row per file).
+    """
+    CREATE TABLE segments (
+        id TEXT PRIMARY KEY,
+        camera TEXT NOT NULL,
+        path TEXT NOT NULL UNIQUE,
+        started_at TEXT NOT NULL,
+        duration_ms INTEGER NOT NULL CHECK (duration_ms >= 0),
+        size_bytes INTEGER NOT NULL CHECK (size_bytes >= 0),
+        recorded_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    ) STRICT;
+    CREATE INDEX segments_by_camera_time ON segments (camera, started_at);
+    """,
 )
 
 
