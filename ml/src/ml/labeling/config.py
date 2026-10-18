@@ -1,4 +1,4 @@
-"""Typed loader for ``ml/config/labeling.yaml``: server, timeline steps and shortcuts."""
+"""Typed loader for ``ml/config/labeling.yaml``: server, timeline, shortcuts and shot types."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Annotated, Self
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from ml.schemas import Surface
+from ml.schemas import ShotType, Surface
 
 _PROJECT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 DEFAULT_LABELING_CONFIG_PATH = _PROJECT_DIR / "config" / "labeling.yaml"
@@ -41,6 +41,24 @@ class Action(StrEnum):
     DELETE_SELECTED = "delete_selected"
     UNDO = "undo"
     SAVE = "save"
+    TOGGLE_MODE = "toggle_mode"
+    NEXT_UNCLASSIFIED = "next_unclassified"
+    CLASSIFY_SHOT = "classify_shot"
+
+
+SHOT_TYPE_MODE_ACTIONS = frozenset(
+    {
+        Action.PLAY_PAUSE,
+        Action.CYCLE_RATE,
+        Action.SELECT_PREV,
+        Action.SELECT_NEXT,
+        Action.UNDO,
+        Action.SAVE,
+        Action.TOGGLE_MODE,
+        Action.NEXT_UNCLASSIFIED,
+    }
+)
+"""Timeline shortcuts that also work in shot-type mode; the others are off there."""
 
 
 class Shortcut(_Section):
@@ -86,10 +104,48 @@ class TimelineConfig(_Section):
     playback_rates: list[Annotated[float, Field(gt=0)]] = Field(min_length=1)
 
 
+class ShotTypeShortcut(_Section):
+    key: str = Field(min_length=1)
+    shot_type: ShotType
+
+
+class ShotTypeConfig(_Section):
+    """Shot-type mode: the clip around each shot, the per-type goal and its keys."""
+
+    clip_before_ms: PositiveInt
+    clip_after_ms: PositiveInt
+    target_per_type: PositiveInt
+    shortcuts: list[ShotTypeShortcut] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _one_key_per_type(self) -> Self:
+        keys = [s.key for s in self.shortcuts]
+        if repeated := sorted({key for key in keys if keys.count(key) > 1}):
+            msg = f"shot type keys must be unique, repeated: {repeated}"
+            raise ValueError(msg)
+        types = [s.shot_type for s in self.shortcuts]
+        if missing := sorted(set(ShotType) - set(types)):
+            msg = f"every shot type needs a key, missing: {missing}"
+            raise ValueError(msg)
+        if len(types) != len(set(types)):
+            msg = "each shot type must have exactly one key"
+            raise ValueError(msg)
+        return self
+
+
 class LabelingConfig(_Section):
     server: ServerConfig
     timeline: TimelineConfig
     shortcuts: list[Shortcut] = Field(min_length=1)
+    shot_type: ShotTypeConfig
+
+    @model_validator(mode="after")
+    def _shot_type_keys_are_free(self) -> Self:
+        shared = {s.key for s in self.shortcuts if s.action in SHOT_TYPE_MODE_ACTIONS}
+        if clash := sorted(shared & {s.key for s in self.shot_type.shortcuts}):
+            msg = f"shot type keys clash with shortcuts that work in that mode: {clash}"
+            raise ValueError(msg)
+        return self
 
     @model_validator(mode="after")
     def _keys_are_unique(self) -> Self:
