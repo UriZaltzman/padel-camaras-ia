@@ -13,9 +13,10 @@ from datetime import date
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Self
+from uuid import UUID
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 _PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 DEFAULT_HOLDOUT_PATH = _PROJECT_DIR / "config" / "holdout.yaml"
@@ -39,6 +40,27 @@ class HoldoutMatch(BaseModel):
     court_id: NonEmptyStr
     lighting: Lighting
 
+    @field_validator("match_id", mode="before")
+    @classmethod
+    def _normalize(cls, value: object) -> object:
+        return value.strip().lower() if isinstance(value, str) else value
+
+
+def normalize_match_id(raw: object, uuid_version: int) -> str:
+    """Return the canonical form of a match id; raise if it is not a UUID of that version."""
+    if not isinstance(raw, str):
+        msg = f"match id must be a string, got {type(raw).__name__}"
+        raise TypeError(msg)
+    try:
+        parsed = UUID(raw.strip().lower())
+    except ValueError as error:
+        msg = f"match id is not a UUID: {raw!r}"
+        raise ValueError(msg) from error
+    if parsed.version != uuid_version:
+        msg = f"match id is not a UUID v{uuid_version}: {raw!r}"
+        raise ValueError(msg)
+    return str(parsed)
+
 
 class HoldoutRegistry(BaseModel):
     """The versioned list of evaluation matches plus the rules it must satisfy."""
@@ -46,6 +68,7 @@ class HoldoutRegistry(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     version: PositiveInt
+    match_id_uuid_version: PositiveInt
     required_matches: PositiveInt
     min_day_matches: NonNegativeInt
     min_night_matches: NonNegativeInt
@@ -54,6 +77,8 @@ class HoldoutRegistry(BaseModel):
 
     @model_validator(mode="after")
     def _check_list(self) -> Self:
+        for match in self.matches:
+            normalize_match_id(match.match_id, self.match_id_uuid_version)
         counts = Counter(match.match_id for match in self.matches)
         duplicates = sorted(match_id for match_id, count in counts.items() if count > 1)
         if duplicates:
@@ -108,14 +133,22 @@ def load_holdout(path: Path = DEFAULT_HOLDOUT_PATH) -> HoldoutRegistry:
 
 
 def assert_no_holdout_in_training(
-    training_match_ids: Iterable[str], registry: HoldoutRegistry | None = None
+    training_match_ids: Iterable[str] | str | bytes, registry: HoldoutRegistry | None = None
 ) -> None:
     """Raise :class:`HoldoutLeakError` if any training match id is in the holdout.
+
+    Ids are compared as canonical UUIDs (stripped, lowercase); a malformed id raises
+    ``ValueError`` and a single string instead of a collection raises ``TypeError``.
 
     With no ``registry`` the versioned ``ml/config/holdout.yaml`` is loaded, so callers cannot
     accidentally check against a stale copy.
     """
+    if isinstance(training_match_ids, str | bytes):
+        msg = "training_match_ids must be an iterable of ids, not a single string"
+        raise TypeError(msg)
     holdout = registry if registry is not None else load_holdout()
-    leaked = holdout.match_ids.intersection(training_match_ids)
+    version = holdout.match_id_uuid_version
+    normalized = {normalize_match_id(match_id, version) for match_id in training_match_ids}
+    leaked = holdout.match_ids.intersection(normalized)
     if leaked:
         raise HoldoutLeakError(leaked)

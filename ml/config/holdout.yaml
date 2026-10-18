@@ -14,6 +14,8 @@
 # Cada entrada: match_id (id del partido en la plataforma), recorded_on (AAAA-MM-DD),
 # club_id, court_id, lighting (day | night).
 version: 1
+# Los ids son UUID de esta versión (CLAUDE.md: IDs UUID v7); se comparan en minúsculas y sin espacios.
+match_id_uuid_version: 7
 required_matches: 15
 min_day_matches: 5
 min_night_matches: 5
