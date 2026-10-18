@@ -1,4 +1,4 @@
-"""Labeling state machine: add, remove and move shots and bounces, undo, validate and save.
+"""Labeling state machine: shots, bounces, shot types and points; undo, validate and save.
 
 This module is pure Python with no UI: the local web page only sends actions here and shows
 the resulting state. It works on a single video (one camera) as well as on one camera of a
@@ -22,13 +22,18 @@ from ml.labels import (
     BounceLabel,
     LabelSetInfo,
     MatchLabels,
+    PointEndReason,
+    PointLabel,
     ShotLabel,
     ShotTypeLabel,
+    Team,
     list_label_set_versions,
     read_label_set,
     write_label_set,
 )
 from ml.schemas import Camera, CourtSide, ShotType, Surface
+from ml.scoring import MatchFormat, Score, reconstruct_score, running_scores
+from ml.thresholds import ScoringRules
 
 type Event = ShotLabel | BounceLabel
 
@@ -47,6 +52,10 @@ class ErrorCode(StrEnum):
     NOTHING_TO_UNDO = "LABEL_NOTHING_TO_UNDO"
     NOTHING_TO_SAVE = "LABEL_NOTHING_TO_SAVE"
     NOT_A_SHOT = "LABEL_NOT_A_SHOT"
+    POINT_NOT_FOUND = "LABEL_POINT_NOT_FOUND"
+    POINT_NOT_STARTED = "LABEL_POINT_NOT_STARTED"
+    POINT_TOO_SHORT = "LABEL_POINT_TOO_SHORT"
+    POINT_OVERLAP = "LABEL_POINT_OVERLAP"
 
 
 class LabelingError(ValueError):
@@ -71,6 +80,15 @@ class _Snapshot:
     shots: tuple[ShotLabel, ...]
     bounces: tuple[BounceLabel, ...]
     shot_types: tuple[ShotTypeLabel, ...] = ()
+    points: tuple[PointLabel, ...] = ()
+
+
+def _renumbered(points: Iterable[PointLabel]) -> tuple[PointLabel, ...]:
+    """Points in time order, numbered from 1 in that order."""
+    ordered = sorted(points, key=lambda p: (p.start_ms, str(p.id)))
+    return tuple(
+        point.model_copy(update={"number": number}) for number, point in enumerate(ordered, 1)
+    )
 
 
 def count_shot_types(labels: Iterable[ShotTypeLabel]) -> dict[ShotType, int]:
@@ -95,9 +113,10 @@ class LabelingSession:
     """One labeler's pass over one video of a match.
 
     If ``base`` is given (a stored version of the label set), editing starts from it and
-    saving stores a new version; shot types and points from the base are kept, except the
-    shot types of shots removed here. Shot types are edited here too (shot-type mode) and
-    share the same undo history.
+    saving stores a new version; shot types from the base are kept, except the shot types of
+    shots removed here. Shot types (shot-type mode) and points (points mode) are edited here
+    too and share the same undo history. ``match_format`` (golden point, super tie-break) is
+    only used to show the score reconstructed from the points.
     """
 
     def __init__(
@@ -106,6 +125,7 @@ class LabelingSession:
         camera: Camera = Camera.A,
         base: MatchLabels | None = None,
         id_factory: Callable[[], UUID] = new_uuid7,
+        match_format: MatchFormat | None = None,
     ) -> None:
         if base is not None and base.info.match_id != match_id:
             msg = f"base label set is for match {base.info.match_id}, not {match_id}"
@@ -118,7 +138,11 @@ class LabelingSession:
             shots=base.shots if base else (),
             bounces=base.bounces if base else (),
             shot_types=base.shot_types if base else (),
+            points=_renumbered(base.points) if base else (),
         )
+        self.match_format = match_format or MatchFormat()
+        self.pending_point_start: int | None = None
+        """Start of the point being marked, until its end is marked."""
         self._history: list[_Snapshot] = []
         self._saved_state = self._state
         self.duration_ms: int | None = None
@@ -145,6 +169,24 @@ class LabelingSession:
     def shot_type_counts(self) -> dict[ShotType, int]:
         """Shots of this match per type, as they stand (saved or not)."""
         return count_shot_types(self.shot_types)
+
+    @property
+    def points(self) -> tuple[PointLabel, ...]:
+        """Points in time order, numbered from 1."""
+        return self._state.points
+
+    def point(self, point_id: UUID) -> PointLabel:
+        for point in self.points:
+            if point.id == point_id:
+                return point
+        raise LabelingError(ErrorCode.POINT_NOT_FOUND, str(point_id))
+
+    def score(self, rules: ScoringRules) -> Score:
+        """Score reconstructed from the labeled points, to compare with the real one."""
+        return reconstruct_score((p.winner for p in self.points), rules, self.match_format)
+
+    def scores_after_each_point(self, rules: ScoringRules) -> list[Score]:
+        return running_scores((p.winner for p in self.points), rules, self.match_format)
 
     @property
     def dirty(self) -> bool:
@@ -246,7 +288,8 @@ class LabelingSession:
         if not self._history:
             raise LabelingError(ErrorCode.NOTHING_TO_UNDO, "history is empty")
         self._state = self._history.pop()
-        if self.selected is not None and self.selected not in {e.id for e in self.events()}:
+        alive = {e.id for e in self.events()} | {p.id for p in self.points}
+        if self.selected is not None and self.selected not in alive:
             self.selected = None
 
     def classify(self, shot_id: UUID, shot_type: ShotType) -> None:
@@ -297,6 +340,101 @@ class LabelingSession:
         self.selected = ids[index]
         return self.selected
 
+    # -- points ------------------------------------------------------------------------
+
+    def _check_free(self, start_ms: int, end_ms: int, ignore: UUID | None = None) -> None:
+        """Points can touch but never overlap."""
+        for other in self.points:
+            if other.id != ignore and start_ms < other.end_ms and other.start_ms < end_ms:
+                detail = f"{start_ms}-{end_ms} overlaps point {other.number}"
+                raise LabelingError(ErrorCode.POINT_OVERLAP, detail)
+
+    def _commit_points(self, points: Iterable[PointLabel]) -> None:
+        self._commit(replace(self._state, points=_renumbered(points)))
+
+    def start_point(self, time_ms: int) -> None:
+        """Mark where the next point starts (it is stored once its end is marked)."""
+        self._check_time(time_ms)
+        self._check_free(time_ms, time_ms + 1)
+        self.pending_point_start = time_ms
+
+    def cancel_point_start(self) -> None:
+        self.pending_point_start = None
+
+    def end_point(
+        self, time_ms: int, winner: Team, end_reason: PointEndReason = PointEndReason.OTHER
+    ) -> UUID:
+        """Close the started point with its winner and select it to set the end reason."""
+        start = self.pending_point_start
+        if start is None:
+            raise LabelingError(ErrorCode.POINT_NOT_STARTED, "mark the start first")
+        self._check_time(time_ms)
+        if time_ms <= start:
+            raise LabelingError(ErrorCode.POINT_TOO_SHORT, f"{time_ms} <= {start}")
+        self._check_free(start, time_ms)
+        point = PointLabel(
+            id=self._new_id(),
+            number=len(self.points) + 1,
+            start_ms=start,
+            end_ms=time_ms,
+            winner=winner,
+            end_reason=end_reason,
+        )
+        self._commit_points((*self.points, point))
+        self.pending_point_start = None
+        self.selected = point.id
+        return point.id
+
+    def edit_point(
+        self,
+        point_id: UUID,
+        *,
+        start_ms: int | None = None,
+        end_ms: int | None = None,
+        winner: Team | None = None,
+        end_reason: PointEndReason | None = None,
+    ) -> None:
+        """Change a point's bounds, winner or end reason. No change adds no undo step."""
+        current = self.point(point_id)
+        start = current.start_ms if start_ms is None else start_ms
+        end = current.end_ms if end_ms is None else end_ms
+        self._check_time(start)
+        self._check_time(end)
+        if end <= start:
+            raise LabelingError(ErrorCode.POINT_TOO_SHORT, f"{end} <= {start}")
+        self._check_free(start, end, ignore=point_id)
+        edited = current.model_copy(
+            update={
+                "start_ms": start,
+                "end_ms": end,
+                "winner": winner or current.winner,
+                "end_reason": end_reason or current.end_reason,
+            }
+        )
+        if edited != current:
+            self._commit_points(edited if p.id == point_id else p for p in self.points)
+        self.selected = point_id
+
+    def remove_point(self, point_id: UUID) -> None:
+        self.point(point_id)
+        self._commit_points(p for p in self.points if p.id != point_id)
+        if self.selected == point_id:
+            self.selected = None
+
+    def select_point_step(self, step: int, time_ms: int) -> UUID | None:
+        """Like ``select_step`` but only over points (points mode)."""
+        ids = [p.id for p in self.points]
+        if not ids:
+            self.selected = None
+            return None
+        if self.selected not in ids:
+            nearest = min(self.points, key=lambda p: abs(p.start_ms - time_ms))
+            self.selected = nearest.id
+            return self.selected
+        index = min(max(ids.index(self.selected) + step, 0), len(ids) - 1)
+        self.selected = ids[index]
+        return self.selected
+
     # -- selection ---------------------------------------------------------------------
 
     def select_nearest(self, time_ms: int) -> UUID | None:
@@ -322,7 +460,6 @@ class LabelingSession:
     def build(self, labeler: UUID, version: int, labeled_at: datetime) -> MatchLabels:
         """The label set as it stands, validated by ``MatchLabels``."""
         shot_ids = {shot.id for shot in self.shots}
-        base = self.base
         return MatchLabels(
             info=LabelSetInfo(
                 match_id=self.match_id, version=version, labeler=labeler, labeled_at=labeled_at
@@ -335,7 +472,7 @@ class LabelingSession:
                     key=lambda t: str(t.shot_id),
                 )
             ),
-            points=base.points if base else (),
+            points=self.points,
         )
 
     def save(self, labels_root: Path, labeler: UUID, now: datetime | None = None) -> Path:
@@ -351,14 +488,16 @@ class LabelingSession:
         return path
 
 
-def open_session(labels_root: Path, match_id: UUID, camera: Camera) -> LabelingSession:
+def open_session(
+    labels_root: Path, match_id: UUID, camera: Camera, match_format: MatchFormat | None = None
+) -> LabelingSession:
     """Start from the latest stored version of the match, or empty if there is none."""
     base = (
         read_label_set(labels_root, match_id)
         if list_label_set_versions(labels_root, match_id)
         else None
     )
-    return LabelingSession(match_id, camera, base)
+    return LabelingSession(match_id, camera, base, match_format=match_format)
 
 
 def stored_shot_type_counts(labels_root: Path, exclude: UUID | None = None) -> dict[ShotType, int]:

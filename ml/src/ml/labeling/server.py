@@ -21,10 +21,16 @@ from typing import Any, cast
 from pydantic import ValidationError
 
 from ml.labeling.actions import ActionRequest, SaveTarget, apply_action, session_state
-from ml.labeling.config import LOOPBACK_HOST_NAMES, SHOT_TYPE_MODE_ACTIONS, LabelingConfig
+from ml.labeling.config import (
+    LOOPBACK_HOST_NAMES,
+    POINTS_MODE_ACTIONS,
+    SHOT_TYPE_MODE_ACTIONS,
+    LabelingConfig,
+)
 from ml.labeling.session import LabelingError, LabelingSession
 from ml.labels import LabelSetExistsError
 from ml.schemas import ShotType
+from ml.thresholds import ScoringRules, load_thresholds
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +50,8 @@ class App:
     lock: Lock
     other_counts: Mapping[ShotType, int] = field(default_factory=dict)
     """Shot types already stored for other matches (progress against the goal)."""
+    scoring: ScoringRules = field(default_factory=lambda: load_thresholds().scoring)
+    """Scoring rules from thresholds.yaml, to show the score rebuilt from the points."""
 
 
 def _client_config(app: App) -> dict[str, Any]:
@@ -52,6 +60,8 @@ def _client_config(app: App) -> dict[str, Any]:
         "shortcuts": [s.model_dump(mode="json") for s in app.config.shortcuts],
         "shot_type": app.config.shot_type.model_dump(mode="json"),
         "shot_type_mode_actions": sorted(a.value for a in SHOT_TYPE_MODE_ACTIONS),
+        "points": app.config.points.model_dump(mode="json"),
+        "points_mode_actions": sorted(a.value for a in POINTS_MODE_ACTIONS),
         "texts": json.loads(LOCALE_PATH.read_text(encoding="utf-8")),
         "video_name": app.video_path.name,
     }
@@ -75,7 +85,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
         def _error(self, status: HTTPStatus, code: str, detail: str) -> None:
             logger.warning("labeling request rejected: %s %s", code, detail)
             with app.lock:
-                state = session_state(app.session, app.other_counts)
+                state = session_state(app.session, app.other_counts, app.scoring)
             self._json({"error": code, "state": state}, status)
 
         def _allowed_hosts(self) -> set[str]:
@@ -110,7 +120,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                 self._json(_client_config(app))
             elif self.path == "/api/state":
                 with app.lock:
-                    self._json(session_state(app.session, app.other_counts))
+                    self._json(session_state(app.session, app.other_counts, app.scoring))
             elif self.path == "/video":
                 self._video()
             else:
@@ -182,7 +192,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     else:
                         self._send(HTTPStatus.NOT_FOUND, b"", "text/plain")
                         return
-                    state = session_state(app.session, app.other_counts)
+                    state = session_state(app.session, app.other_counts, app.scoring)
             except LabelingError as error:
                 self._error(HTTPStatus.CONFLICT, error.code.value, str(error))
                 return

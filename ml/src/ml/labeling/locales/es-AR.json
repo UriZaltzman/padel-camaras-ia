@@ -8,7 +8,9 @@
     "labeler": "Tu id de etiquetador (UUID v7). Si no lo pasás, se usa el de esta compu.",
     "video_missing": "No encontré el video {video}.",
     "ready": "Abrí {url} en el navegador para etiquetar el partido {match_id}. Ctrl+C para cerrar.",
-    "unsaved": "Ojo: cerraste con cambios sin guardar."
+    "unsaved": "Ojo: cerraste con cambios sin guardar.",
+    "golden_point": "El partido se jugó con punto de oro en 40 iguales (si no, con ventaja).",
+    "super_tiebreak": "El tercer set se jugó como super tie-break."
   },
   "title": "Etiquetado de golpes y botes",
   "status": {
@@ -49,14 +51,22 @@
     "delete_selected": "Borrar el evento seleccionado",
     "undo": "Deshacer",
     "save": "Guardar",
-    "toggle_mode": "Cambiar entre línea de tiempo y tipo de golpe",
+    "toggle_mode": "Cambiar de modo: línea de tiempo, tipo de golpe, puntos",
     "next_unclassified": "Ir al próximo golpe sin tipo",
-    "classify_shot": "Tipo de golpe: {shot_type}"
+    "classify_shot": "Tipo de golpe: {shot_type}",
+    "point_start": "Empieza un punto acá",
+    "point_end": "Termina el punto: lo ganó la {team}",
+    "point_reason": "Motivo: {end_reason}",
+    "point_set_start": "Mover el inicio del punto al cuadro actual",
+    "point_set_end": "Mover el final del punto al cuadro actual",
+    "point_cancel": "Descartar el inicio marcado"
   },
   "headings": {
     "events": "Eventos",
     "shortcuts": "Atajos de teclado",
-    "progress": "Golpes por tipo (meta {target} por tipo)"
+    "progress": "Golpes por tipo (meta {target} por tipo)",
+    "points": "Puntos",
+    "score": "Marcador reconstruido"
   },
   "empty": "Todavía no marcaste nada. Pausá en el golpe o bote y apretá su tecla.",
   "key_names": {
@@ -66,7 +76,8 @@
     "ArrowUp": "↑",
     "ArrowDown": "↓",
     "Backspace": "Borrar",
-    "Enter": "Enter"
+    "Enter": "Enter",
+    "Escape": "Esc"
   },
   "unload_warning": "Tenés cambios sin guardar.",
   "errors": {
@@ -81,7 +92,11 @@
     "LABEL_UNSUPPORTED_MEDIA_TYPE": "No pude leer el pedido.",
     "LABEL_BAD_REQUEST": "No pude aplicar esa acción.",
     "NETWORK": "Se cortó la conexión con la herramienta. ¿Sigue abierta la terminal?",
-    "LABEL_NOT_A_SHOT": "Solo se le puede poner tipo a un golpe, no a un bote."
+    "LABEL_NOT_A_SHOT": "Solo se le puede poner tipo a un golpe, no a un bote.",
+    "LABEL_POINT_NOT_FOUND": "Ese punto ya no existe.",
+    "LABEL_POINT_NOT_STARTED": "Primero marcá dónde empieza el punto.",
+    "LABEL_POINT_TOO_SHORT": "El punto tiene que terminar después de empezar.",
+    "LABEL_POINT_OVERLAP": "Ese punto se pisa con otro ya marcado."
   },
   "shot_types": {
     "serve": "saque",
@@ -98,7 +113,8 @@
   },
   "modes": {
     "timeline": "Modo: línea de tiempo",
-    "shot_type": "Modo: tipo de golpe"
+    "shot_type": "Modo: tipo de golpe",
+    "points": "Modo: puntos"
   },
   "shot_type_status": {
     "unclassified": "Golpes sin tipo en este video: {n}",
@@ -107,5 +123,47 @@
     "untyped": "sin tipo",
     "no_shots": "Este video no tiene golpes marcados. Marcalos primero en la línea de tiempo.",
     "unknown_no_goal": "sin meta"
+  },
+  "end_reasons": {
+    "double_fault": "doble falta",
+    "own_floor": "pique en su propio campo",
+    "net": "red",
+    "direct_wall": "pared directa",
+    "double_bounce": "doble pique",
+    "out_of_court": "afuera de la cancha",
+    "ball_lost": "pelota perdida",
+    "other": "otro"
+  },
+  "teams": {
+    "1": "pareja 1",
+    "2": "pareja 2"
+  },
+  "points_status": {
+    "pending": "Punto empezado en {time}. Marcá el final con la tecla de la pareja que lo ganó.",
+    "idle": "Pausá donde empieza el punto y apretá su tecla.",
+    "format_golden": "Con punto de oro",
+    "format_advantage": "Con ventaja",
+    "format_super_tiebreak": "Tercer set: super tie-break",
+    "empty": "Todavía no marcaste puntos.",
+    "point": "#{number} {start}–{end} · ganó la {team} · {end_reason} · {score}",
+    "compare": "Compará este marcador con el resultado real del partido."
+  },
+  "score": {
+    "calls": {
+      "love": "0",
+      "fifteen": "15",
+      "thirty": "30",
+      "forty": "40",
+      "advantage": "Ventaja"
+    },
+    "deuce": "Iguales",
+    "golden": "Punto de oro",
+    "tiebreak": "Tie-break",
+    "super_tiebreak": "Super tie-break",
+    "sets": "Sets: {sets}",
+    "games": "Games: {one}-{two}",
+    "points": "Puntos: {one}-{two}",
+    "winner": "Ganó la {team}.",
+    "after_end": "Hay {n} puntos marcados después de que terminó el partido: revisá las etiquetas o la configuración."
   }
 }

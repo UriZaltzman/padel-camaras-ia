@@ -83,6 +83,9 @@ class PointThresholds(_Section):
 
 
 class ScoringRules(_Section):
+    points_per_game: PositiveInt
+    min_point_lead: PositiveInt
+    sets_to_win: PositiveInt
     games_per_set: PositiveInt
     min_game_lead: PositiveInt
     tiebreak_points: PositiveInt

@@ -60,7 +60,12 @@ point:
   min_confidence: 0.7
 
 # Section 6: scoring rules.
+# points_per_game: 15, 30, 40, game. min_point_lead: advantage games and tie-breaks are won
+# by this many points. sets_to_win: best of three.
 scoring:
+  points_per_game: 4
+  min_point_lead: 2
+  sets_to_win: 2
   games_per_set: 6
   min_game_lead: 2
   tiebreak_points: 7

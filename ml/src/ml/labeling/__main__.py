@@ -14,6 +14,7 @@ from ml.labeling.config import DEFAULT_LABELING_CONFIG_PATH, load_labeling_confi
 from ml.labeling.server import LOCALE_PATH, App, serve
 from ml.labeling.session import new_uuid7, open_session, stored_shot_type_counts
 from ml.schemas import Camera
+from ml.scoring import MatchFormat
 
 VIDEO_INDEX_NAME = "videos.json"
 """Inside the labels root: maps each video file name to the match id it was given."""
@@ -49,6 +50,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--match-id", type=UUID, help=texts["match_id"])
     parser.add_argument("--camera", type=Camera, default=Camera.A, help=texts["camera"])
     parser.add_argument("--labeler", type=UUID, help=texts["labeler"])
+    parser.add_argument("--golden-point", action="store_true", help=texts["golden_point"])
+    parser.add_argument("--super-tiebreak", action="store_true", help=texts["super_tiebreak"])
     parser.add_argument("--config", type=Path, default=DEFAULT_LABELING_CONFIG_PATH)
     args = parser.parse_args(argv)
     if not args.video.is_file():
@@ -58,7 +61,8 @@ def main(argv: list[str] | None = None) -> None:
     config = load_labeling_config(args.config)
     match_id = args.match_id or match_id_for_video(args.labels_root, args.video)
     labeler = args.labeler or local_labeler_id()
-    session = open_session(args.labels_root, match_id, args.camera)
+    match_format = MatchFormat(golden_point=args.golden_point, super_tiebreak=args.super_tiebreak)
+    session = open_session(args.labels_root, match_id, args.camera, match_format)
     app = App(
         session=session,
         config=config,

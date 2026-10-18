@@ -1,4 +1,4 @@
-"""Typed loader for ``ml/config/labeling.yaml``: server, timeline, shortcuts and shot types."""
+"""Typed loader for ``ml/config/labeling.yaml``: server, timeline, shortcuts, shot types, points."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from typing import Annotated, Self
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ml.labels import PointEndReason, Team
 from ml.schemas import ShotType, Surface
 
 _PROJECT_DIR = Path(__file__).resolve().parent.parent.parent.parent
@@ -44,6 +45,43 @@ class Action(StrEnum):
     TOGGLE_MODE = "toggle_mode"
     NEXT_UNCLASSIFIED = "next_unclassified"
     CLASSIFY_SHOT = "classify_shot"
+    POINT_START = "point_start"
+    POINT_END = "point_end"
+    POINT_REASON = "point_reason"
+    POINT_SET_START = "point_set_start"
+    POINT_SET_END = "point_set_end"
+    POINT_CANCEL = "point_cancel"
+
+
+POINT_ACTIONS = frozenset(
+    {
+        Action.POINT_START,
+        Action.POINT_END,
+        Action.POINT_REASON,
+        Action.POINT_SET_START,
+        Action.POINT_SET_END,
+        Action.POINT_CANCEL,
+    }
+)
+"""Actions of points mode; their keys live in the ``points`` section."""
+
+POINTS_MODE_ACTIONS = frozenset(
+    {
+        Action.PLAY_PAUSE,
+        Action.SEEK_BACK,
+        Action.SEEK_FORWARD,
+        Action.SEEK_BACK_FINE,
+        Action.SEEK_FORWARD_FINE,
+        Action.CYCLE_RATE,
+        Action.SELECT_PREV,
+        Action.SELECT_NEXT,
+        Action.DELETE_SELECTED,
+        Action.UNDO,
+        Action.SAVE,
+        Action.TOGGLE_MODE,
+    }
+)
+"""Timeline shortcuts that also work in points mode; the others are off there."""
 
 
 SHOT_TYPE_MODE_ACTIONS = frozenset(
@@ -133,11 +171,68 @@ class ShotTypeConfig(_Section):
         return self
 
 
+class PointShortcut(_Section):
+    """A points-mode key: ``point_end`` carries the winner, ``point_reason`` the end reason."""
+
+    key: str = Field(min_length=1)
+    action: Action
+    winner: Team | None = None
+    end_reason: PointEndReason | None = None
+
+    @model_validator(mode="after")
+    def _is_a_point_action(self) -> Self:
+        if self.action not in POINT_ACTIONS:
+            msg = f"points shortcut {self.key!r}: {self.action} is not a points action"
+            raise ValueError(msg)
+        if (self.action is Action.POINT_END) != (self.winner is not None):
+            msg = f"points shortcut {self.key!r}: winner goes with, and only with, point_end"
+            raise ValueError(msg)
+        if (self.action is Action.POINT_REASON) != (self.end_reason is not None):
+            msg = f"points shortcut {self.key!r}: end_reason goes with, and only with, point_reason"
+            raise ValueError(msg)
+        return self
+
+
+class PointsConfig(_Section):
+    shortcuts: list[PointShortcut] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _complete_and_unique(self) -> Self:
+        keys = [s.key for s in self.shortcuts]
+        if repeated := sorted({key for key in keys if keys.count(key) > 1}):
+            msg = f"points keys must be unique, repeated: {repeated}"
+            raise ValueError(msg)
+        if missing := sorted(set(Team) - {s.winner for s in self.shortcuts if s.winner}):
+            msg = f"every team needs a point_end key, missing: {missing}"
+            raise ValueError(msg)
+        reasons = {s.end_reason for s in self.shortcuts if s.end_reason}
+        if missing_reasons := sorted(set(PointEndReason) - reasons):
+            msg = f"every end reason needs a key, missing: {missing_reasons}"
+            raise ValueError(msg)
+        return self
+
+
 class LabelingConfig(_Section):
     server: ServerConfig
     timeline: TimelineConfig
     shortcuts: list[Shortcut] = Field(min_length=1)
     shot_type: ShotTypeConfig
+    points: PointsConfig
+
+    @model_validator(mode="after")
+    def _point_keys_are_free(self) -> Self:
+        shared = {s.key for s in self.shortcuts if s.action in POINTS_MODE_ACTIONS}
+        if clash := sorted(shared & {s.key for s in self.points.shortcuts}):
+            msg = f"points keys clash with shortcuts that work in that mode: {clash}"
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def _point_actions_only_in_points(self) -> Self:
+        if wrong := sorted(s.key for s in self.shortcuts if s.action in POINT_ACTIONS):
+            msg = f"points actions go in the points section, not in shortcuts: {wrong}"
+            raise ValueError(msg)
+        return self
 
     @model_validator(mode="after")
     def _shot_type_keys_are_free(self) -> Self:
