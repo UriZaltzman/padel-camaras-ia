@@ -1,0 +1,17 @@
+# Expo
+.expo/
+expo-env.d.ts
+web-build/
+.metro-health-check*
+
+# Generated native folders (Continuous Native Generation)
+/ios
+/android
+
+# Signing material never goes to git
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem

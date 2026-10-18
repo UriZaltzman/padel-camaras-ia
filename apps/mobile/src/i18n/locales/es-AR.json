@@ -1,0 +1,9 @@
+{
+  "home": {
+    "dataLabel": "Cancha · Jugadores · Pelota",
+    "title": "{brand}",
+    "subtitle": "Tu partido, visto entero.",
+    "body": "Escaneá el QR de tu cancha y mirá tu partido apenas salís.",
+    "primaryAction": "Buscar club y turno"
+  }
+}
