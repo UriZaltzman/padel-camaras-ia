@@ -1,0 +1,8 @@
+@import 'tailwindcss';
+@config '../../tailwind.config.ts';
+
+@layer base {
+  body {
+    @apply bg-glass font-sans text-night antialiased;
+  }
+}
