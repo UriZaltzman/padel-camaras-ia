@@ -1,0 +1,44 @@
+# Smoke-test overlay, used only by smoke-test.sh (never in a club):
+#   - the recorder reads the camera simulator (infra/camsim, network camsim_default)
+#     instead of the macvlan camera LAN;
+#   - the uploader sends to a throwaway MinIO (AGPL: external test service only, never
+#     shipped in the club image).
+# Needs Docker Compose >= 2.24.4 (!override).
+services:
+  recorder:
+    networks: !override
+      - cameras
+
+  uploader:
+    depends_on: !override
+      - recorder
+      - minio-bucket
+    networks: !override
+      - uplink
+
+  minio:
+    image: minio/minio:RELEASE.2024-10-13T13-34-11Z
+    command: ['server', '/data']
+    environment:
+      MINIO_ROOT_USER: ${EDGE_UPLOADER_ACCESS_KEY_ID}
+      MINIO_ROOT_PASSWORD: ${EDGE_UPLOADER_SECRET_ACCESS_KEY}
+    networks: [uplink]
+
+  minio-bucket:
+    image: minio/mc:RELEASE.2024-10-08T09-37-26Z
+    depends_on: [minio]
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - >-
+        until mc alias set smoke http://minio:9000 "$$MC_USER" "$$MC_PASS" >/dev/null 2>&1;
+        do sleep 1; done; mc mb --ignore-existing smoke/$$MC_BUCKET
+    environment:
+      MC_USER: ${EDGE_UPLOADER_ACCESS_KEY_ID}
+      MC_PASS: ${EDGE_UPLOADER_SECRET_ACCESS_KEY}
+      MC_BUCKET: ${EDGE_UPLOADER_BUCKET}
+    networks: [uplink]
+
+networks:
+  cameras: !override
+    name: camsim_default
+    external: true

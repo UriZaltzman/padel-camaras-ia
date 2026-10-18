@@ -1,0 +1,112 @@
+# Club box, phase 0: recorder + uploader for one court (2 cameras), from the "club" image
+# (default target of services/edge-agent/Dockerfile: it does not include the simulator).
+#
+#   cp .env.example .env && chmod 600 .env     # then fill in .env (never commit it)
+#   docker compose build && docker compose up -d
+#   docker compose exec recorder edge-recorder probe
+#   docker compose exec recorder edge-recorder check --schedule /etc/edge-agent/horario.json
+#
+# Network: outbound only. No service publishes ports. The recorder lives only on the
+# "cameras" network (macvlan on the camera NIC, internal: no gateway, no internet); the
+# uploader lives only on "uplink" (the club's internet). Cameras never see the uplink.
+# Step-by-step installation: INSTALL.md (Spanish). Smoke test: smoke-test.sh.
+name: club-box
+
+x-edge-env: &edge-env
+  EDGE_CLUB_ID: ${EDGE_CLUB_ID:?set EDGE_CLUB_ID in .env}
+  EDGE_DEVICE_ID: ${EDGE_DEVICE_ID:?set EDGE_DEVICE_ID in .env}
+  EDGE_API_BASE_URL: ${EDGE_API_BASE_URL:?set EDGE_API_BASE_URL in .env}
+  EDGE_DATA_DIR: /var/lib/edge-agent
+  EDGE_RECORDER_SEGMENTS_DIR: /recordings
+  EDGE_LOG_LEVEL: ${EDGE_LOG_LEVEL:-INFO}
+  TZ: ${TZ:-America/Argentina/Buenos_Aires}
+
+# SQLite store (segment catalog, upload progress): shared, the uploader reads what the
+# recorder wrote (WAL mode). Host folders must be owned by uid 10001 (user "edge").
+x-state-volume: &state-volume
+  type: bind
+  source: ${EDGE_STATE_DIR:-/srv/edge-agent/state}
+  target: /var/lib/edge-agent
+
+# 10 s MPEG-TS segments, about 3.6 GB per hour and camera.
+x-recordings-volume: &recordings-volume
+  type: bind
+  source: ${EDGE_RECORDINGS_DIR:-/srv/edge-agent/recordings}
+  target: /recordings
+
+x-hardening: &hardening
+  read_only: true
+  tmpfs: [/tmp]
+  cap_drop: [ALL]
+  security_opt: ['no-new-privileges:true']
+  stop_grace_period: 30s
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: 20m
+      max-file: '5'
+
+services:
+  recorder:
+    <<: *hardening
+    image: ${EDGE_IMAGE:-edge-agent:local}
+    build:
+      context: ../..
+      dockerfile: services/edge-agent/Dockerfile
+      target: club
+    entrypoint: ['/usr/bin/tini', '--', 'edge-recorder']
+    command: ['run', '--schedule', '/etc/edge-agent/horario.json']
+    environment:
+      <<: *edge-env
+      # JSON {"court-1-a": "rtsp://...", "court-1-b": "rtsp://..."}. Carries the camera
+      # passwords: lives only in .env and is never logged.
+      EDGE_RECORDER_CAMERAS: ${EDGE_RECORDER_CAMERAS:?set EDGE_RECORDER_CAMERAS in .env}
+    volumes:
+      - *state-volume
+      - *recordings-volume
+      # A folder, not the file: the recorder re-reads horario.json when it changes.
+      - type: bind
+        source: ${EDGE_CONFIG_DIR:-./config}
+        target: /etc/edge-agent
+        read_only: true
+    networks:
+      cameras:
+        ipv4_address: ${RECORDER_CAMERA_IP:-10.50.0.2}
+
+  uploader:
+    <<: *hardening
+    image: ${EDGE_IMAGE:-edge-agent:local}
+    entrypoint: ['/usr/bin/tini', '--', 'edge-uploader']
+    command: ['run']
+    depends_on:
+      - recorder
+    environment:
+      <<: *edge-env
+      EDGE_UPLOADER_ENDPOINT_URL: ${EDGE_UPLOADER_ENDPOINT_URL:?set EDGE_UPLOADER_ENDPOINT_URL in .env}
+      EDGE_UPLOADER_BUCKET: ${EDGE_UPLOADER_BUCKET:?set EDGE_UPLOADER_BUCKET in .env}
+      EDGE_UPLOADER_ACCESS_KEY_ID: ${EDGE_UPLOADER_ACCESS_KEY_ID:?set EDGE_UPLOADER_ACCESS_KEY_ID in .env}
+      EDGE_UPLOADER_SECRET_ACCESS_KEY: ${EDGE_UPLOADER_SECRET_ACCESS_KEY:?set EDGE_UPLOADER_SECRET_ACCESS_KEY in .env}
+      EDGE_UPLOADER_REGION: ${EDGE_UPLOADER_REGION:-auto}
+      EDGE_UPLOADER_KEY_PREFIX: ${EDGE_UPLOADER_KEY_PREFIX:-segments/}
+      # Leave room on the club's connection (bytes per second; 625000 = 5 Mbps).
+      EDGE_UPLOADER_BANDWIDTH_LIMIT_BYTES_PER_S: ${EDGE_UPLOADER_BANDWIDTH_LIMIT_BYTES_PER_S:-625000}
+    volumes:
+      - *state-volume
+      - *recordings-volume
+    networks: [uplink]
+
+networks:
+  # Camera LAN: macvlan on the NIC wired to the PoE switch. internal: Docker adds no
+  # gateway and no NAT, so nothing on it reaches the internet (spec section 12).
+  cameras:
+    driver: macvlan
+    internal: true
+    driver_opts:
+      parent: ${CAMERA_NIC:?set CAMERA_NIC in .env}
+    ipam:
+      config:
+        - subnet: ${CAMERA_SUBNET:-10.50.0.0/24}
+  # Club internet, outbound only (no published ports).
+  uplink:
+    driver: bridge
