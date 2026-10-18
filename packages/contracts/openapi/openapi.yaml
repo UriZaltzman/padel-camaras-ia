@@ -77,6 +77,8 @@ tags:
     description: The signed-in user's profile, matches, stats and account deletion.
   - name: Clubs
     description: Clubs, their courts and booking rules, and the owner's club settings.
+  - name: Bookings
+    description: Court availability, holds, invites, cancellations and fixed weekly turns.
 
 # Every operation must:
 # - document `429` and reference `components/responses` for every 4xx and 5xx response;
@@ -703,6 +705,346 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /courts/{id}/availability:
+    get:
+      operationId: getCourtAvailability
+      tags: [Bookings]
+      summary: Free start times of a court for one day and duration
+      description: |
+        Generates every possible start of the given `date` (local day in the club's time zone)
+        from the court's booking rules: the rule for that weekday, `opens_at`, `closes_at`,
+        `start_interval_minutes` and `allowed_durations`. A booking must end by `closes_at`.
+        Starts that overlap a `held` or `confirmed` booking are dropped, as are starts already in
+        the past. Each slot carries its price (from the price band where it starts) and its
+        deposit, both in cents.
+
+        Public: no credentials needed, and the answer has no personal data (it never says who
+        booked). Served in under 300 ms from a 30-second cache per court, so a slot shown here
+        can still be taken: `POST /bookings` is the only source of truth and answers
+        `BOOKING_SLOT_TAKEN` in that case.
+
+        A court that is not `active`, has no rule for that weekday or does not allow that
+        duration returns `200` with an empty `slots` list. An unknown court returns `404`.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CourtId'
+        - name: date
+          in: query
+          required: true
+          description: Local day in the club's time zone, `YYYY-MM-DD`. Today up to 60 days ahead.
+          schema:
+            type: string
+            format: date
+          example: '2026-10-23'
+        - name: duration_minutes
+          in: query
+          required: true
+          description: Booking length to look for.
+          schema:
+            $ref: '#/components/schemas/BookingDuration'
+          example: 90
+      responses:
+        '200':
+          description: Free slots, ordered by start.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourtAvailability'
+              examples:
+                friday_evening:
+                  $ref: '#/components/examples/CourtAvailabilityExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /bookings:
+    post:
+      operationId: createBooking
+      tags: [Bookings]
+      summary: Hold a slot (creates a `held` booking)
+      description: |
+        Creates the booking in `held` status with `hold_expires_at` 10 minutes ahead, inside a
+        transaction. The caller takes position 1. The PostgreSQL exclusion constraint on
+        `(court_id, [starts_at, ends_at))` over `held` and `confirmed` bookings lets only one of
+        two concurrent requests through; the other gets `409 BOOKING_SLOT_TAKEN` with the
+        `court_id` and `starts_at` in `details`.
+
+        - **Deposit.** If the court asks for a deposit, `deposit_cents` is above 0 and the client
+          opens the Mercado Pago checkout (`POST /payments/checkout`, Payments module). The
+          approved webhook moves the booking to `confirmed`. If the hold is not paid in 10
+          minutes, a job moves it to `expired` and the slot is free again. With no deposit the
+          booking moves to `confirmed` in the same request, so the response already says
+          `confirmed` and `hold_expires_at` is `null`.
+        - **Fixed weekly booking.** With `recurrence`, the slot is stored as a weekly rule and the
+          bookings of the next 8 weeks are generated (renewed every week, section 9). The first
+          occurrence follows the normal hold and deposit flow. The other occurrences are created
+          when the first one is confirmed, and confirmed without a deposit of their own; weeks
+          whose slot is already taken are skipped and listed in `series.skipped_starts`, and never
+          fail the request. Only a conflict on the first occurrence returns `BOOKING_SLOT_TAKEN`.
+        - **Minors (section 12).** A turn with a player under 18 (by `birth_date` on the day of
+          the booking) is not recorded unless a parent or guardian permission is loaded in the
+          booking (`guardian_consent` here for the caller, or on `accept` for an invited player).
+          The booking is still created: it gets `no_record: true` with `no_record_reason:
+          minor_without_guardian`, and recording is enabled again once every minor has a
+          permission on file. `no_record: true` in the request marks the turn as "do not record"
+          on purpose.
+
+        Errors: `BOOKING_SLOT_TAKEN` (409); `BOOKING_SLOT_INVALID` (422, the slot breaks the court
+        rules, the court is not `active` or the start is in the past); `NOT_FOUND` (court);
+        `TERMS_NOT_ACCEPTED` and `CLUB_SERVICE_SUSPENDED` (403); `VALIDATION_FAILED` (400).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCreate'
+            examples:
+              single:
+                summary: One 90-minute turn
+                value:
+                  court_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61
+                  starts_at: '2026-10-23T22:00:00Z'
+                  duration_minutes: 90
+              weekly:
+                summary: Fixed weekly turn, every Friday for the next 8 weeks
+                value:
+                  court_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61
+                  starts_at: '2026-10-23T22:00:00Z'
+                  duration_minutes: 90
+                  recurrence:
+                    frequency: weekly
+                    weeks_ahead: 8
+              minor_with_guardian:
+                summary: A minor books with a guardian's permission
+                value:
+                  court_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61
+                  starts_at: '2026-10-24T14:00:00Z'
+                  duration_minutes: 60
+                  guardian_consent:
+                    guardian_name: Laura Gómez
+                    guardian_phone: '+5491155550199'
+                    relationship: mother
+                    consent_version: '2026-10-01'
+      responses:
+        '201':
+          description: The booking, `held` (deposit pending) or `confirmed` (no deposit).
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+              examples:
+                held:
+                  $ref: '#/components/examples/HeldBookingExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /bookings/{id}/invite:
+    post:
+      operationId: inviteToBooking
+      tags: [Bookings]
+      summary: Create an invite link for a free position
+      description: |
+        **Only the player in position 1** (who booked) may call it; other players get
+        `403 FORBIDDEN` and users outside the booking get `404 NOT_FOUND`. Returns a single-use
+        link the app shares by WhatsApp. The link is valid until the booking starts; asking again
+        for the same position replaces the previous link.
+
+        Errors: `BOOKING_FULL` (409, positions 2 to 4 are taken, or the requested one is);
+        `BOOKING_INVITE_INVALID` (422, the booking is not `held` or `confirmed`).
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingInviteRequest'
+            example:
+              position: 2
+      responses:
+        '201':
+          description: The invite.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingInvite'
+              example:
+                booking_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a70
+                position: 2
+                token: inv_7Hq2LmZx9KpR4tWc
+                url: https://example.com/i/inv_7Hq2LmZx9KpR4tWc
+                expires_at: '2026-10-23T22:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /bookings/{id}/accept:
+    post:
+      operationId: acceptBookingInvite
+      tags: [Bookings]
+      summary: Accept an invite and join the booking
+      description: |
+        The signed-in user takes the invite's position. This links the user to the match that is
+        recorded for the booking. Idempotent: accepting again when the user is already a player
+        returns `200` with the booking unchanged.
+
+        **Minors (section 12).** If the user is under 18 on the day of the booking, send
+        `guardian_consent`. Without it the user still joins, but the booking becomes
+        `no_record: true` (`minor_without_guardian`) until a permission is on file for every
+        minor.
+
+        Errors: `BOOKING_INVITE_INVALID` (422, wrong, used or replaced token, or the booking is
+        no longer `held` or `confirmed`); `BOOKING_FULL` (409); `TERMS_NOT_ACCEPTED` (403).
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingAcceptRequest'
+            example:
+              token: inv_7Hq2LmZx9KpR4tWc
+      responses:
+        '200':
+          description: The booking with the user in the invite's position.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+              examples:
+                held:
+                  $ref: '#/components/examples/HeldBookingExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /bookings/{id}/cancel:
+    post:
+      operationId: cancelBooking
+      tags: [Bookings]
+      summary: Cancel a confirmed booking, refunding the deposit if in time
+      description: |
+        The player in position 1 or the club's staff or owner may cancel; other players get
+        `403 FORBIDDEN`. Moves the booking from `confirmed` to `cancelled` and frees the slot.
+        A `held` booking cannot be cancelled (`409 INVALID_STATE_TRANSITION`): its hold simply
+        expires.
+
+        **Refund.** If the cancellation happens at least `cancellation_refund_hours` (copied from
+        the court when the booking was made, 24 by default) before `starts_at`, the whole paid
+        deposit is refunded through the Mercado Pago API: `refund_cents` equals
+        `deposit_paid_cents` and `refund_status` is `pending` until the refund webhook arrives.
+        Later cancellations keep the deposit (`refund_cents: 0`, `refund_status: none`), as does a
+        `no_show`.
+
+        `scope: series` on an occurrence of a fixed weekly booking also cancels every later
+        occurrence and stops renewing the rule; each occurrence gets its own refund decision and
+        the response reports the one of the booking in the path.
+
+        Errors: `INVALID_STATE_TRANSITION` (409); `PAYMENT_PROVIDER_ERROR` (502, the booking is
+        cancelled anyway and the refund is retried in the background).
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCancelRequest'
+            example:
+              scope: this
+      responses:
+        '200':
+          description: The cancelled booking and the refund decision.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingCancellation'
+              example:
+                booking_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a70
+                status: cancelled
+                cancelled_at: '2026-10-21T15:00:00Z'
+                refund_cents: 900000
+                refund_status: pending
+                cancelled_booking_ids:
+                  - 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a70
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -737,6 +1079,22 @@ components:
       in: path
       required: true
       description: Club id.
+      schema:
+        $ref: '#/components/schemas/Uuid'
+
+    CourtId:
+      name: id
+      in: path
+      required: true
+      description: Court id.
+      schema:
+        $ref: '#/components/schemas/Uuid'
+
+    BookingId:
+      name: id
+      in: path
+      required: true
+      description: Booking id.
       schema:
         $ref: '#/components/schemas/Uuid'
 
@@ -1628,6 +1986,313 @@ components:
           items:
             $ref: '#/components/schemas/CourtSettingsUpdate'
 
+    AvailabilitySlot:
+      type: object
+      description: A free start time for the requested duration.
+      required: [starts_at, ends_at, amount_cents, deposit_cents]
+      properties:
+        starts_at:
+          $ref: '#/components/schemas/Timestamp'
+        ends_at:
+          $ref: '#/components/schemas/Timestamp'
+        amount_cents:
+          $ref: '#/components/schemas/AmountCents'
+        deposit_cents:
+          $ref: '#/components/schemas/AmountCents'
+
+    CourtAvailability:
+      type: object
+      required: [court_id, date, timezone, duration_minutes, slots]
+      properties:
+        court_id:
+          $ref: '#/components/schemas/Uuid'
+        date:
+          type: string
+          format: date
+          description: Local day asked for, in the club's time zone.
+        timezone:
+          type: string
+          description: IANA time zone of the club.
+        duration_minutes:
+          $ref: '#/components/schemas/BookingDuration'
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailabilitySlot'
+
+    GuardianRelationship:
+      type: string
+      enum: [mother, father, guardian]
+
+    GuardianConsent:
+      type: object
+      description: |
+        Permission of a parent or legal guardian to record a minor's turn (section 12). Sending
+        it means the guardian accepted the given version of the consent text; the server stores
+        who, the version and the time. Only the club's staff and the player see it.
+      required: [guardian_name, guardian_phone, relationship, consent_version]
+      additionalProperties: false
+      properties:
+        guardian_name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        guardian_phone:
+          $ref: '#/components/schemas/PhoneNumber'
+        relationship:
+          $ref: '#/components/schemas/GuardianRelationship'
+        consent_version:
+          type: string
+          minLength: 1
+          maxLength: 32
+          description: Version of the consent text the guardian accepted, e.g. `2026-10-01`.
+
+    BookingRecurrence:
+      type: object
+      description: Fixed weekly turn on the same weekday and local time, generated 8 weeks ahead.
+      required: [frequency, weeks_ahead]
+      additionalProperties: false
+      properties:
+        frequency:
+          type: string
+          enum: [weekly]
+        weeks_ahead:
+          type: integer
+          enum: [8]
+          description: Weeks generated ahead, renewed every week (section 9).
+
+    BookingCreate:
+      type: object
+      required: [court_id, starts_at, duration_minutes]
+      additionalProperties: false
+      properties:
+        court_id:
+          $ref: '#/components/schemas/Uuid'
+        starts_at:
+          $ref: '#/components/schemas/Timestamp'
+        duration_minutes:
+          $ref: '#/components/schemas/BookingDuration'
+        recurrence:
+          $ref: '#/components/schemas/BookingRecurrence'
+        no_record:
+          type: boolean
+          default: false
+          description: True marks the turn as "do not record" on purpose.
+        guardian_consent:
+          $ref: '#/components/schemas/GuardianConsent'
+
+    BookingSource:
+      type: string
+      description: Where the booking was made.
+      enum: [app, panel]
+
+    NoRecordReason:
+      type: string
+      description: |
+        Why the turn will not be recorded: `requested` by the booker, a `club_school` marked by
+        the club, or a `minor_without_guardian` (section 12).
+      enum: [requested, club_school, minor_without_guardian]
+
+    BookingPlayer:
+      type: object
+      description: A position of the booking. Position 1 is who booked.
+      required: [position, user, accepted, guardian_consent_on_file]
+      properties:
+        position:
+          type: integer
+          minimum: 1
+          maximum: 4
+        user:
+          description: The player, or `null` while the position is free or the invite is pending.
+          oneOf:
+            - $ref: '#/components/schemas/EntityRef'
+            - type: 'null'
+        accepted:
+          type: boolean
+        guardian_consent_on_file:
+          type: boolean
+          description: True when a guardian permission is loaded for this player (minors only).
+
+    BookingSeries:
+      type: object
+      description: The fixed weekly rule an occurrence belongs to.
+      required: [id, weeks_ahead, skipped_starts]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        weeks_ahead:
+          type: integer
+          enum: [8]
+        skipped_starts:
+          type: array
+          description: Starts of the next weeks not generated because the slot was taken.
+          items:
+            $ref: '#/components/schemas/Timestamp'
+
+    Booking:
+      type: object
+      required:
+        - id
+        - club_id
+        - court_id
+        - starts_at
+        - ends_at
+        - duration_minutes
+        - status
+        - hold_expires_at
+        - price_cents
+        - deposit_cents
+        - deposit_paid_cents
+        - cancellation_refund_hours
+        - source
+        - players
+        - no_record
+        - no_record_reason
+        - series
+        - created_at
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        club_id:
+          $ref: '#/components/schemas/Uuid'
+        court_id:
+          $ref: '#/components/schemas/Uuid'
+        starts_at:
+          $ref: '#/components/schemas/Timestamp'
+        ends_at:
+          $ref: '#/components/schemas/Timestamp'
+        duration_minutes:
+          $ref: '#/components/schemas/BookingDuration'
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        hold_expires_at:
+          description: When a `held` booking expires (10 minutes after creation); `null` otherwise.
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        price_cents:
+          $ref: '#/components/schemas/AmountCents'
+        deposit_cents:
+          $ref: '#/components/schemas/AmountCents'
+        deposit_paid_cents:
+          $ref: '#/components/schemas/AmountCents'
+        cancellation_refund_hours:
+          type: integer
+          minimum: 0
+          maximum: 168
+          description: Court policy copied when the booking was created; later changes do not apply.
+        source:
+          $ref: '#/components/schemas/BookingSource'
+        players:
+          type: array
+          minItems: 1
+          maxItems: 4
+          items:
+            $ref: '#/components/schemas/BookingPlayer'
+        no_record:
+          type: boolean
+          description: True means the club device will not record this turn.
+        no_record_reason:
+          oneOf:
+            - $ref: '#/components/schemas/NoRecordReason'
+            - type: 'null'
+        series:
+          oneOf:
+            - $ref: '#/components/schemas/BookingSeries'
+            - type: 'null'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    BookingInviteRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        position:
+          type: integer
+          minimum: 2
+          maximum: 4
+          description: Position to invite to. Omitted means the lowest free one.
+
+    BookingInvite:
+      type: object
+      required: [booking_id, position, token, url, expires_at]
+      properties:
+        booking_id:
+          $ref: '#/components/schemas/Uuid'
+        position:
+          type: integer
+          minimum: 2
+          maximum: 4
+        token:
+          type: string
+          minLength: 8
+          maxLength: 128
+          description: Single-use invite token.
+        url:
+          type: string
+          format: uri
+          description: Link to share by WhatsApp; opens the app or the web on the invite.
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    BookingAcceptRequest:
+      type: object
+      required: [token]
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+          minLength: 8
+          maxLength: 128
+        guardian_consent:
+          $ref: '#/components/schemas/GuardianConsent'
+
+    BookingCancelScope:
+      type: string
+      description: '`series` also cancels the later occurrences of a fixed weekly booking.'
+      enum: [this, series]
+
+    BookingCancelRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        scope:
+          $ref: '#/components/schemas/BookingCancelScope'
+
+    RefundStatus:
+      type: string
+      description: |
+        `none` when the deposit is kept or there was none; `pending` until Mercado Pago confirms
+        the refund.
+      enum: [none, pending]
+
+    BookingCancellation:
+      type: object
+      required:
+        - booking_id
+        - status
+        - cancelled_at
+        - refund_cents
+        - refund_status
+        - cancelled_booking_ids
+      properties:
+        booking_id:
+          $ref: '#/components/schemas/Uuid'
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        cancelled_at:
+          $ref: '#/components/schemas/Timestamp'
+        refund_cents:
+          $ref: '#/components/schemas/AmountCents'
+        refund_status:
+          $ref: '#/components/schemas/RefundStatus'
+        cancelled_booking_ids:
+          type: array
+          description: Every booking cancelled by the request (more than one with `scope` `series`).
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Uuid'
+
     Page:
       type: object
       description: |
@@ -1930,6 +2595,51 @@ components:
             type: coach_monthly
             monthly_fee_cents: 2500000
           lesson_payments_enabled: true
+
+    CourtAvailabilityExample:
+      summary: Free 90-minute slots on a Friday evening
+      value:
+        court_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61
+        date: '2026-10-23'
+        timezone: America/Argentina/Buenos_Aires
+        duration_minutes: 90
+        slots:
+          - starts_at: '2026-10-23T20:30:00Z'
+            ends_at: '2026-10-23T22:00:00Z'
+            amount_cents: 2400000
+            deposit_cents: 720000
+          - starts_at: '2026-10-23T22:00:00Z'
+            ends_at: '2026-10-23T23:30:00Z'
+            amount_cents: 3000000
+            deposit_cents: 900000
+
+    HeldBookingExample:
+      summary: A held booking waiting for its deposit
+      value:
+        id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a70
+        club_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a60
+        court_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61
+        starts_at: '2026-10-23T22:00:00Z'
+        ends_at: '2026-10-23T23:30:00Z'
+        duration_minutes: 90
+        status: held
+        hold_expires_at: '2026-10-18T15:10:00Z'
+        price_cents: 3000000
+        deposit_cents: 900000
+        deposit_paid_cents: 0
+        cancellation_refund_hours: 24
+        source: app
+        players:
+          - position: 1
+            user:
+              id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f
+              name: Sofía Pérez
+            accepted: true
+            guardian_consent_on_file: false
+        no_record: false
+        no_record_reason: null
+        series: null
+        created_at: '2026-10-18T15:00:00Z'
 
   responses:
     BadRequest:

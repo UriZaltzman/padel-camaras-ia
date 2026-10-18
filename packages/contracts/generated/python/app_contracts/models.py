@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date as date_aliased
 from enum import Enum, IntEnum, StrEnum
 from typing import Annotated, Any, Literal
 from uuid import UUID
@@ -260,7 +260,7 @@ class User(BaseModel):
     declared_category: DeclaredCategory | None
     dominant_hand: DominantHand | None
     playing_side: PlayingSide | None
-    birth_date: date | None
+    birth_date: date_aliased | None
     """
     Used to apply the minors rule (no recording without a guardian's permission).
     """
@@ -293,7 +293,7 @@ class UserUpdate(BaseModel):
     declared_category: DeclaredCategory | None = None
     dominant_hand: DominantHand | None = None
     playing_side: PlayingSide | None = None
-    birth_date: date | None = None
+    birth_date: date_aliased | None = None
     training_opt_out: bool | None = None
 
 
@@ -643,6 +643,255 @@ class ClubSettingsUpdate(BaseModel):
     )
     charges: ChargeSettings | None = None
     courts: Annotated[list[CourtSettingsUpdate] | None, Field(max_length=50, min_length=1)] = None
+
+
+class AvailabilitySlot(BaseModel):
+    """
+    A free start time for the requested duration.
+    """
+
+    starts_at: Timestamp
+    ends_at: Timestamp
+    amount_cents: AmountCents
+    deposit_cents: AmountCents
+
+
+class CourtAvailability(BaseModel):
+    court_id: Uuid
+    date: date_aliased
+    """
+    Local day asked for, in the club's time zone.
+    """
+    timezone: str
+    """
+    IANA time zone of the club.
+    """
+    duration_minutes: BookingDuration
+    slots: list[AvailabilitySlot]
+
+
+class GuardianRelationship(StrEnum):
+    mother = "mother"
+    father = "father"
+    guardian = "guardian"
+
+
+class GuardianConsent(BaseModel):
+    """
+    Permission of a parent or legal guardian to record a minor's turn (section 12). Sending
+    it means the guardian accepted the given version of the consent text; the server stores
+    who, the version and the time. Only the club's staff and the player see it.
+
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    guardian_name: Annotated[str, Field(max_length=120, min_length=1)]
+    guardian_phone: PhoneNumber
+    relationship: GuardianRelationship
+    consent_version: Annotated[str, Field(max_length=32, min_length=1)]
+    """
+    Version of the consent text the guardian accepted, e.g. `2026-10-01`.
+    """
+
+
+class Frequency(StrEnum):
+    weekly = "weekly"
+
+
+class WeeksAhead(IntEnum):
+    """
+    Weeks generated ahead, renewed every week (section 9).
+    """
+
+    integer_8 = 8
+
+
+class BookingRecurrence(BaseModel):
+    """
+    Fixed weekly turn on the same weekday and local time, generated 8 weeks ahead.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    frequency: Frequency
+    weeks_ahead: WeeksAhead
+    """
+    Weeks generated ahead, renewed every week (section 9).
+    """
+
+
+class BookingCreate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    court_id: Uuid
+    starts_at: Timestamp
+    duration_minutes: BookingDuration
+    recurrence: BookingRecurrence | None = None
+    no_record: bool | None = False
+    """
+    True marks the turn as "do not record" on purpose.
+    """
+    guardian_consent: GuardianConsent | None = None
+
+
+class BookingSource(StrEnum):
+    """
+    Where the booking was made.
+    """
+
+    app = "app"
+    panel = "panel"
+
+
+class NoRecordReason(StrEnum):
+    """
+    Why the turn will not be recorded: `requested` by the booker, a `club_school` marked by
+    the club, or a `minor_without_guardian` (section 12).
+
+    """
+
+    requested = "requested"
+    club_school = "club_school"
+    minor_without_guardian = "minor_without_guardian"
+
+
+class BookingPlayer(BaseModel):
+    """
+    A position of the booking. Position 1 is who booked.
+    """
+
+    position: Annotated[int, Field(ge=1, le=4)]
+    user: EntityRef | None
+    """
+    The player, or `null` while the position is free or the invite is pending.
+    """
+    accepted: bool
+    guardian_consent_on_file: bool
+    """
+    True when a guardian permission is loaded for this player (minors only).
+    """
+
+
+class WeeksAhead1(IntEnum):
+    integer_8 = 8
+
+
+class BookingSeries(BaseModel):
+    """
+    The fixed weekly rule an occurrence belongs to.
+    """
+
+    id: Uuid
+    weeks_ahead: WeeksAhead1
+    skipped_starts: list[Timestamp]
+    """
+    Starts of the next weeks not generated because the slot was taken.
+    """
+
+
+class Booking(BaseModel):
+    id: Uuid
+    club_id: Uuid
+    court_id: Uuid
+    starts_at: Timestamp
+    ends_at: Timestamp
+    duration_minutes: BookingDuration
+    status: BookingStatus
+    hold_expires_at: Timestamp | None
+    """
+    When a `held` booking expires (10 minutes after creation); `null` otherwise.
+    """
+    price_cents: AmountCents
+    deposit_cents: AmountCents
+    deposit_paid_cents: AmountCents
+    cancellation_refund_hours: Annotated[int, Field(ge=0, le=168)]
+    """
+    Court policy copied when the booking was created; later changes do not apply.
+    """
+    source: BookingSource
+    players: Annotated[list[BookingPlayer], Field(max_length=4, min_length=1)]
+    no_record: bool
+    """
+    True means the club device will not record this turn.
+    """
+    no_record_reason: NoRecordReason | None
+    series: BookingSeries | None
+    created_at: Timestamp
+
+
+class BookingInviteRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    position: Annotated[int | None, Field(ge=2, le=4)] = None
+    """
+    Position to invite to. Omitted means the lowest free one.
+    """
+
+
+class BookingInvite(BaseModel):
+    booking_id: Uuid
+    position: Annotated[int, Field(ge=2, le=4)]
+    token: Annotated[str, Field(max_length=128, min_length=8)]
+    """
+    Single-use invite token.
+    """
+    url: AnyUrl
+    """
+    Link to share by WhatsApp; opens the app or the web on the invite.
+    """
+    expires_at: Timestamp
+
+
+class BookingAcceptRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    token: Annotated[str, Field(max_length=128, min_length=8)]
+    guardian_consent: GuardianConsent | None = None
+
+
+class BookingCancelScope(StrEnum):
+    """
+    `series` also cancels the later occurrences of a fixed weekly booking.
+    """
+
+    this = "this"
+    series = "series"
+
+
+class BookingCancelRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    scope: BookingCancelScope | None = None
+
+
+class RefundStatus(StrEnum):
+    """
+    `none` when the deposit is kept or there was none; `pending` until Mercado Pago confirms
+    the refund.
+
+    """
+
+    none = "none"
+    pending = "pending"
+
+
+class BookingCancellation(BaseModel):
+    booking_id: Uuid
+    status: BookingStatus
+    cancelled_at: Timestamp
+    refund_cents: AmountCents
+    refund_status: RefundStatus
+    cancelled_booking_ids: Annotated[list[Uuid], Field(min_length=1)]
+    """
+    Every booking cancelled by the request (more than one with `scope` `series`).
+    """
 
 
 class Page(BaseModel):
