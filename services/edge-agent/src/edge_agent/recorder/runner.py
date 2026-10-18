@@ -228,8 +228,19 @@ class Recorder:
                 )
 
     def shutdown(self) -> None:
+        """Stop every camera, even if saving one camera's segments fails."""
+        failed: Exception | None = None
         for slot in self._slots:
-            self._stop(slot)
+            try:
+                self._stop(slot)
+            except Exception as error:
+                if slot.run is not None:
+                    _terminate(slot.run.process)
+                    slot.run = None
+                logger.exception("recorder_shutdown_failed", extra={"camera": slot.camera})
+                failed = failed or error
+        if failed is not None:
+            raise failed
 
     def run(
         self,
@@ -237,11 +248,18 @@ class Recorder:
         interval: float = TICK_INTERVAL_S,
         until: Callable[[], bool] = lambda: False,
     ) -> None:
-        """Tick until ``stop`` is set or ``until()`` is true, then stop every camera."""
+        """Tick until ``stop`` is set or ``until()`` is true, then stop every camera.
+
+        An error (e.g. the store cannot be written) is logged and re-raised: a recorder
+        that silently catalogues nothing is worse than one that stops.
+        """
         try:
             while not stop.is_set() and not until():
                 self.tick()
                 stop.wait(interval)
+        except Exception:
+            logger.exception("recorder_crashed")
+            raise
         finally:
             self.shutdown()
 
