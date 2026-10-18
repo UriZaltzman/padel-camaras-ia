@@ -41,6 +41,7 @@ MIGRATIONS: Final[tuple[str, ...]] = (
         upload_id TEXT,
         part_size INTEGER NOT NULL CHECK (part_size > 0),
         completed_at TEXT,
+        skipped_reason TEXT,
         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     ) STRICT;
     CREATE TABLE upload_parts (

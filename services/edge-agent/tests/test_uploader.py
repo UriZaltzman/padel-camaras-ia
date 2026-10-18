@@ -1,5 +1,6 @@
 """Uploader unit tests with an in-memory fake S3 store and a fake clock."""
 
+import logging
 import os
 import sqlite3
 from collections.abc import Sequence
@@ -168,6 +169,45 @@ def test_token_bucket_serves_requests_larger_than_burst() -> None:
 def test_token_bucket_rejects_bad_rate() -> None:
     with pytest.raises(ValueError, match="positive"):
         TokenBucket(0, 1)
+
+
+def test_missing_file_is_skipped_and_queue_continues(
+    conn: sqlite3.Connection, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    _segment(conn, tmp_path, "gone.mp4", 10)
+    data = _segment(conn, tmp_path, "b.mp4", PART + 1)
+    (tmp_path / "gone.mp4").unlink()
+    store, clock = FakeStore(), FakeClock()
+    bucket = TokenBucket(10 * PART, CHUNK, clock=clock, sleep=clock.sleep)
+
+    with caplog.at_level(logging.INFO, logger="edge_agent.uploader"):
+        assert not upload_pending(conn, store, _settings(), bucket)
+
+    assert store.objects == {"segments/court-1-a/b.mp4": data}
+    assert pending_segments(conn) == []
+    reason = conn.execute("SELECT skipped_reason FROM uploads WHERE completed_at IS NULL")
+    assert reason.fetchone() == ("FILE_MISSING",)
+    assert "uploader_segment_missing" in caplog.text
+
+
+def test_credentials_never_logged(
+    conn: sqlite3.Connection, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    _segment(conn, tmp_path, "a.mp4", 2 * PART)
+    store, clock = FakeStore(), FakeClock()
+    bucket = TokenBucket(10 * PART, CHUNK, clock=clock, sleep=clock.sleep)
+    settings = _settings()
+
+    with caplog.at_level(logging.DEBUG):
+        store.cut_after = 1
+        upload_pending(conn, store, settings, bucket)
+        store.cut_after = None
+        upload_pending(conn, store, settings, bucket)
+
+    assert caplog.records
+    dumped = caplog.text + "".join(repr(r.__dict__) for r in caplog.records)
+    assert "test-key" not in dumped
+    assert "test-secret" not in dumped
 
 
 def test_settings_hide_credentials() -> None:

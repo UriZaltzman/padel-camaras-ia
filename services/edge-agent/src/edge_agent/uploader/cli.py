@@ -22,7 +22,13 @@ from botocore.exceptions import BotoCoreError, ClientError
 from edge_agent.logs import configure_logging
 from edge_agent.settings import SettingsError, load_settings
 from edge_agent.store import open_store
-from edge_agent.uploader.multipart import ObjectStore, pending_segments, upload_segment
+from edge_agent.uploader.multipart import (
+    ObjectStore,
+    mark_skipped,
+    object_key,
+    pending_segments,
+    upload_segment,
+)
 from edge_agent.uploader.ratelimit import TokenBucket
 from edge_agent.uploader.s3 import S3ObjectStore, make_client
 from edge_agent.uploader.settings import UploaderSettings, load_uploader_settings
@@ -31,6 +37,7 @@ EXIT_OK: Final = 0
 EXIT_ERROR: Final = 1
 EXIT_CONFIG_ERROR: Final = 2
 
+SKIP_FILE_MISSING: Final = "FILE_MISSING"
 TRANSIENT_ERRORS: Final = (OSError, BotoCoreError, ClientError)
 
 logger = logging.getLogger("edge_agent.uploader")
@@ -58,6 +65,17 @@ def upload_pending(
                 bucket=bucket,
                 chunk_bytes=settings.chunk_bytes,
             )
+        except FileNotFoundError:
+            # Before OSError: a deleted file will not come back, the rest must go on.
+            logger.error("uploader_segment_missing", extra={"segment_id": segment.id})
+            mark_skipped(
+                conn,
+                segment,
+                object_key(settings.key_prefix, segment),
+                settings.part_size_bytes,
+                SKIP_FILE_MISSING,
+            )
+            ok = False
         except TRANSIENT_ERRORS as error:
             # Type only: botocore messages are safe, but keep logs minimal.
             logger.warning(

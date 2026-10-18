@@ -54,7 +54,7 @@ def pending_segments(conn: sqlite3.Connection) -> list[PendingSegment]:
         """
         SELECT s.id, s.camera, s.path, s.started_at FROM segments s
         LEFT JOIN uploads u ON u.segment_id = s.id
-        WHERE u.completed_at IS NULL
+        WHERE u.completed_at IS NULL AND u.skipped_reason IS NULL
         ORDER BY s.started_at, s.id
         """
     ).fetchall()
@@ -63,6 +63,23 @@ def pending_segments(conn: sqlite3.Connection) -> list[PendingSegment]:
 
 def object_key(prefix: str, segment: PendingSegment) -> str:
     return f"{prefix}{segment.camera}/{segment.path.name}"
+
+
+def mark_skipped(
+    conn: sqlite3.Connection, segment: PendingSegment, key: str, part_size: int, reason: str
+) -> None:
+    """Take a segment out of the queue (e.g. its file is gone) without blocking the rest."""
+    with conn:
+        conn.execute(
+            """
+            INSERT INTO uploads (segment_id, object_key, part_size, skipped_reason)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT (segment_id) DO UPDATE SET
+                skipped_reason = excluded.skipped_reason,
+                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            """,
+            (segment.id, key, part_size, reason),
+        )
 
 
 def _begin(
