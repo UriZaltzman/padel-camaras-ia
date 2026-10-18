@@ -289,6 +289,180 @@ export interface paths {
     patch: operations['updateClubSettings'];
     trace?: never;
   };
+  '/courts/{id}/availability': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Free start times of a court for one day and duration
+     * @description Generates every possible start of the given `date` (local day in the club's time zone)
+     *     from the court's booking rules: the rule for that weekday, `opens_at`, `closes_at`,
+     *     `start_interval_minutes` and `allowed_durations`. A booking must end by `closes_at`.
+     *     Starts that overlap a `held` or `confirmed` booking are dropped, as are starts already in
+     *     the past. Each slot carries its price (from the price band where it starts) and its
+     *     deposit, both in cents.
+     *
+     *     Public: no credentials needed, and the answer has no personal data (it never says who
+     *     booked). Served in under 300 ms from a 30-second cache per court, so a slot shown here
+     *     can still be taken: `POST /bookings` is the only source of truth and answers
+     *     `BOOKING_SLOT_TAKEN` in that case.
+     *
+     *     A court that is not `active`, has no rule for that weekday or does not allow that
+     *     duration returns `200` with an empty `slots` list. An unknown court returns `404`.
+     */
+    get: operations['getCourtAvailability'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/bookings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Hold a slot (creates a `held` booking)
+     * @description Creates the booking in `held` status with `hold_expires_at` 10 minutes ahead, inside a
+     *     transaction. The caller takes position 1. The PostgreSQL exclusion constraint on
+     *     `(court_id, [starts_at, ends_at))` over `held` and `confirmed` bookings lets only one of
+     *     two concurrent requests through; the other gets `409 BOOKING_SLOT_TAKEN` with the
+     *     `court_id` and `starts_at` in `details`.
+     *
+     *     - **Deposit.** If the court asks for a deposit, `deposit_cents` is above 0 and the client
+     *       opens the Mercado Pago checkout (`POST /payments/checkout`, Payments module). The
+     *       approved webhook moves the booking to `confirmed`. If the hold is not paid in 10
+     *       minutes, a job moves it to `expired` and the slot is free again. With no deposit the
+     *       booking moves to `confirmed` in the same request, so the response already says
+     *       `confirmed` and `hold_expires_at` is `null`.
+     *     - **Fixed weekly booking.** With `recurrence`, the slot is stored as a weekly rule and the
+     *       bookings of the next 8 weeks are generated (renewed every week, section 9). The first
+     *       occurrence follows the normal hold and deposit flow. The other occurrences are created
+     *       when the first one is confirmed, and confirmed without a deposit of their own; weeks
+     *       whose slot is already taken are skipped and listed in `series.skipped_starts`, and never
+     *       fail the request. Only a conflict on the first occurrence returns `BOOKING_SLOT_TAKEN`.
+     *     - **Minors (section 12).** A turn with a player under 18 (by `birth_date` on the day of
+     *       the booking) is not recorded unless a parent or guardian permission is loaded in the
+     *       booking (`guardian_consent` here for the caller, or on `accept` for an invited player).
+     *       The booking is still created: it gets `no_record: true` with `no_record_reason:
+     *       minor_without_guardian`, and recording is enabled again once every minor has a
+     *       permission on file. `no_record: true` in the request marks the turn as "do not record"
+     *       on purpose.
+     *
+     *     Errors: `BOOKING_SLOT_TAKEN` (409); `BOOKING_SLOT_INVALID` (422, the slot breaks the court
+     *     rules, the court is not `active` or the start is in the past); `NOT_FOUND` (court);
+     *     `TERMS_NOT_ACCEPTED` and `CLUB_SERVICE_SUSPENDED` (403); `VALIDATION_FAILED` (400).
+     */
+    post: operations['createBooking'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/bookings/{id}/invite': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create an invite link for a free position
+     * @description **Only the player in position 1** (who booked) may call it; other players get
+     *     `403 FORBIDDEN` and users outside the booking get `404 NOT_FOUND`. Returns a single-use
+     *     link the app shares by WhatsApp. The link is valid until the booking starts; asking again
+     *     for the same position replaces the previous link.
+     *
+     *     Errors: `BOOKING_FULL` (409, positions 2 to 4 are taken, or the requested one is);
+     *     `BOOKING_INVITE_INVALID` (422, the booking is not `held` or `confirmed`).
+     */
+    post: operations['inviteToBooking'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/bookings/{id}/accept': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Accept an invite and join the booking
+     * @description The signed-in user takes the invite's position. This links the user to the match that is
+     *     recorded for the booking. Idempotent: accepting again when the user is already a player
+     *     returns `200` with the booking unchanged.
+     *
+     *     **Minors (section 12).** If the user is under 18 on the day of the booking, send
+     *     `guardian_consent`. Without it the user still joins, but the booking becomes
+     *     `no_record: true` (`minor_without_guardian`) until a permission is on file for every
+     *     minor.
+     *
+     *     Errors: `BOOKING_INVITE_INVALID` (422, wrong, used or replaced token, or the booking is
+     *     no longer `held` or `confirmed`); `BOOKING_FULL` (409); `TERMS_NOT_ACCEPTED` (403).
+     */
+    post: operations['acceptBookingInvite'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/bookings/{id}/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Cancel a confirmed booking, refunding the deposit if in time
+     * @description The player in position 1 or the club's staff or owner may cancel; other players get
+     *     `403 FORBIDDEN`. Moves the booking from `confirmed` to `cancelled` and frees the slot.
+     *     A `held` booking cannot be cancelled (`409 INVALID_STATE_TRANSITION`): its hold simply
+     *     expires.
+     *
+     *     **Refund.** If the cancellation happens at least `cancellation_refund_hours` (copied from
+     *     the court when the booking was made, 24 by default) before `starts_at`, the whole paid
+     *     deposit is refunded through the Mercado Pago API: `refund_cents` equals
+     *     `deposit_paid_cents` and `refund_status` is `pending` until the refund webhook arrives.
+     *     Later cancellations keep the deposit (`refund_cents: 0`, `refund_status: none`), as does a
+     *     `no_show`.
+     *
+     *     `scope: series` on an occurrence of a fixed weekly booking also cancels every later
+     *     occurrence and stops renewing the rule; each occurrence gets its own refund decision and
+     *     the response reports the one of the booking in the path.
+     *
+     *     Errors: `INVALID_STATE_TRANSITION` (409); `PAYMENT_PROVIDER_ERROR` (502, the booking is
+     *     cancelled anyway and the refund is retried in the background).
+     */
+    post: operations['cancelBooking'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -692,6 +866,155 @@ export interface components {
       charges?: components['schemas']['ChargeSettings'];
       courts?: components['schemas']['CourtSettingsUpdate'][];
     };
+    /** @description A free start time for the requested duration. */
+    AvailabilitySlot: {
+      starts_at: components['schemas']['Timestamp'];
+      ends_at: components['schemas']['Timestamp'];
+      amount_cents: components['schemas']['AmountCents'];
+      deposit_cents: components['schemas']['AmountCents'];
+    };
+    CourtAvailability: {
+      court_id: components['schemas']['Uuid'];
+      /**
+       * Format: date
+       * @description Local day asked for, in the club's time zone.
+       */
+      date: string;
+      /** @description IANA time zone of the club. */
+      timezone: string;
+      duration_minutes: components['schemas']['BookingDuration'];
+      slots: components['schemas']['AvailabilitySlot'][];
+    };
+    /** @enum {string} */
+    GuardianRelationship: 'mother' | 'father' | 'guardian';
+    /**
+     * @description Permission of a parent or legal guardian to record a minor's turn (section 12). Sending
+     *     it means the guardian accepted the given version of the consent text; the server stores
+     *     who, the version and the time. Only the club's staff and the player see it.
+     */
+    GuardianConsent: {
+      guardian_name: string;
+      guardian_phone: components['schemas']['PhoneNumber'];
+      relationship: components['schemas']['GuardianRelationship'];
+      /** @description Version of the consent text the guardian accepted, e.g. `2026-10-01`. */
+      consent_version: string;
+    };
+    /** @description Fixed weekly turn on the same weekday and local time, generated 8 weeks ahead. */
+    BookingRecurrence: {
+      /** @enum {string} */
+      frequency: 'weekly';
+      /**
+       * @description Weeks generated ahead, renewed every week (section 9).
+       * @enum {integer}
+       */
+      weeks_ahead: 8;
+    };
+    BookingCreate: {
+      court_id: components['schemas']['Uuid'];
+      starts_at: components['schemas']['Timestamp'];
+      duration_minutes: components['schemas']['BookingDuration'];
+      recurrence?: components['schemas']['BookingRecurrence'];
+      /**
+       * @description True marks the turn as "do not record" on purpose.
+       * @default false
+       */
+      no_record: boolean;
+      guardian_consent?: components['schemas']['GuardianConsent'];
+    };
+    /**
+     * @description Where the booking was made.
+     * @enum {string}
+     */
+    BookingSource: 'app' | 'panel';
+    /**
+     * @description Why the turn will not be recorded: `requested` by the booker, a `club_school` marked by
+     *     the club, or a `minor_without_guardian` (section 12).
+     * @enum {string}
+     */
+    NoRecordReason: 'requested' | 'club_school' | 'minor_without_guardian';
+    /** @description A position of the booking. Position 1 is who booked. */
+    BookingPlayer: {
+      position: number;
+      /** @description The player, or `null` while the position is free or the invite is pending. */
+      user: components['schemas']['EntityRef'] | null;
+      accepted: boolean;
+      /** @description True when a guardian permission is loaded for this player (minors only). */
+      guardian_consent_on_file: boolean;
+    };
+    /** @description The fixed weekly rule an occurrence belongs to. */
+    BookingSeries: {
+      id: components['schemas']['Uuid'];
+      /** @enum {integer} */
+      weeks_ahead: 8;
+      /** @description Starts of the next weeks not generated because the slot was taken. */
+      skipped_starts: components['schemas']['Timestamp'][];
+    };
+    Booking: {
+      id: components['schemas']['Uuid'];
+      club_id: components['schemas']['Uuid'];
+      court_id: components['schemas']['Uuid'];
+      starts_at: components['schemas']['Timestamp'];
+      ends_at: components['schemas']['Timestamp'];
+      duration_minutes: components['schemas']['BookingDuration'];
+      status: components['schemas']['BookingStatus'];
+      /** @description When a `held` booking expires (10 minutes after creation); `null` otherwise. */
+      hold_expires_at: components['schemas']['Timestamp'] | null;
+      price_cents: components['schemas']['AmountCents'];
+      deposit_cents: components['schemas']['AmountCents'];
+      deposit_paid_cents: components['schemas']['AmountCents'];
+      /** @description Court policy copied when the booking was created; later changes do not apply. */
+      cancellation_refund_hours: number;
+      source: components['schemas']['BookingSource'];
+      players: components['schemas']['BookingPlayer'][];
+      /** @description True means the club device will not record this turn. */
+      no_record: boolean;
+      no_record_reason: components['schemas']['NoRecordReason'] | null;
+      series: components['schemas']['BookingSeries'] | null;
+      created_at: components['schemas']['Timestamp'];
+    };
+    BookingInviteRequest: {
+      /** @description Position to invite to. Omitted means the lowest free one. */
+      position?: number;
+    };
+    BookingInvite: {
+      booking_id: components['schemas']['Uuid'];
+      position: number;
+      /** @description Single-use invite token. */
+      token: string;
+      /**
+       * Format: uri
+       * @description Link to share by WhatsApp; opens the app or the web on the invite.
+       */
+      url: string;
+      expires_at: components['schemas']['Timestamp'];
+    };
+    BookingAcceptRequest: {
+      token: string;
+      guardian_consent?: components['schemas']['GuardianConsent'];
+    };
+    /**
+     * @description `series` also cancels the later occurrences of a fixed weekly booking.
+     * @enum {string}
+     */
+    BookingCancelScope: 'this' | 'series';
+    BookingCancelRequest: {
+      scope?: components['schemas']['BookingCancelScope'];
+    };
+    /**
+     * @description `none` when the deposit is kept or there was none; `pending` until Mercado Pago confirms
+     *     the refund.
+     * @enum {string}
+     */
+    RefundStatus: 'none' | 'pending';
+    BookingCancellation: {
+      booking_id: components['schemas']['Uuid'];
+      status: components['schemas']['BookingStatus'];
+      cancelled_at: components['schemas']['Timestamp'];
+      refund_cents: components['schemas']['AmountCents'];
+      refund_status: components['schemas']['RefundStatus'];
+      /** @description Every booking cancelled by the request (more than one with `scope` `series`). */
+      cancelled_booking_ids: components['schemas']['Uuid'][];
+    };
     /**
      * @description Base of every paginated response. A list operation combines it with `allOf` and adds an
      *     `items` array of its own type.
@@ -890,6 +1213,10 @@ export interface components {
     Limit: number;
     /** @description Club id. */
     ClubId: components['schemas']['Uuid'];
+    /** @description Court id. */
+    CourtId: components['schemas']['Uuid'];
+    /** @description Booking id. */
+    BookingId: components['schemas']['Uuid'];
   };
   requestBodies: never;
   headers: {
@@ -958,6 +1285,24 @@ export type SchemaCoachPlan = components['schemas']['CoachPlan'];
 export type SchemaChargeSettings = components['schemas']['ChargeSettings'];
 export type SchemaCourtSettingsUpdate = components['schemas']['CourtSettingsUpdate'];
 export type SchemaClubSettingsUpdate = components['schemas']['ClubSettingsUpdate'];
+export type SchemaAvailabilitySlot = components['schemas']['AvailabilitySlot'];
+export type SchemaCourtAvailability = components['schemas']['CourtAvailability'];
+export type SchemaGuardianRelationship = components['schemas']['GuardianRelationship'];
+export type SchemaGuardianConsent = components['schemas']['GuardianConsent'];
+export type SchemaBookingRecurrence = components['schemas']['BookingRecurrence'];
+export type SchemaBookingCreate = components['schemas']['BookingCreate'];
+export type SchemaBookingSource = components['schemas']['BookingSource'];
+export type SchemaNoRecordReason = components['schemas']['NoRecordReason'];
+export type SchemaBookingPlayer = components['schemas']['BookingPlayer'];
+export type SchemaBookingSeries = components['schemas']['BookingSeries'];
+export type SchemaBooking = components['schemas']['Booking'];
+export type SchemaBookingInviteRequest = components['schemas']['BookingInviteRequest'];
+export type SchemaBookingInvite = components['schemas']['BookingInvite'];
+export type SchemaBookingAcceptRequest = components['schemas']['BookingAcceptRequest'];
+export type SchemaBookingCancelScope = components['schemas']['BookingCancelScope'];
+export type SchemaBookingCancelRequest = components['schemas']['BookingCancelRequest'];
+export type SchemaRefundStatus = components['schemas']['RefundStatus'];
+export type SchemaBookingCancellation = components['schemas']['BookingCancellation'];
 export type SchemaPage = components['schemas']['Page'];
 export type SchemaError = components['schemas']['Error'];
 export type SchemaValidationIssue = components['schemas']['ValidationIssue'];
@@ -976,6 +1321,8 @@ export type ResponseServiceUnavailable = components['responses']['ServiceUnavail
 export type ParameterCursor = components['parameters']['Cursor'];
 export type ParameterLimit = components['parameters']['Limit'];
 export type ParameterClubId = components['parameters']['ClubId'];
+export type ParameterCourtId = components['parameters']['CourtId'];
+export type ParameterBookingId = components['parameters']['BookingId'];
 export type HeaderXRequestId = components['headers']['X-Request-Id'];
 export type HeaderRateLimitLimit = components['headers']['RateLimit-Limit'];
 export type HeaderRateLimitRemaining = components['headers']['RateLimit-Remaining'];
@@ -1502,6 +1849,222 @@ export interface operations {
       404: components['responses']['NotFound'];
       429: components['responses']['TooManyRequests'];
       500: components['responses']['InternalError'];
+    };
+  };
+  getCourtAvailability: {
+    parameters: {
+      query: {
+        /**
+         * @description Local day in the club's time zone, `YYYY-MM-DD`. Today up to 60 days ahead.
+         * @example 2026-10-23
+         */
+        date: string;
+        /**
+         * @description Booking length to look for.
+         * @example 90
+         */
+        duration_minutes: components['schemas']['BookingDuration'];
+      };
+      header?: never;
+      path: {
+        /** @description Court id. */
+        id: components['parameters']['CourtId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Free slots, ordered by start. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CourtAvailability'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  createBooking: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['BookingCreate'];
+      };
+    };
+    responses: {
+      /** @description The booking, `held` (deposit pending) or `confirmed` (no deposit). */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Booking'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  inviteToBooking: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Booking id. */
+        id: components['parameters']['BookingId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        /**
+         * @example {
+         *       "position": 2
+         *     }
+         */
+        'application/json': components['schemas']['BookingInviteRequest'];
+      };
+    };
+    responses: {
+      /** @description The invite. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "booking_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a70",
+           *       "position": 2,
+           *       "token": "inv_7Hq2LmZx9KpR4tWc",
+           *       "url": "https://example.com/i/inv_7Hq2LmZx9KpR4tWc",
+           *       "expires_at": "2026-10-23T22:00:00Z"
+           *     }
+           */
+          'application/json': components['schemas']['BookingInvite'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  acceptBookingInvite: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Booking id. */
+        id: components['parameters']['BookingId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "token": "inv_7Hq2LmZx9KpR4tWc"
+         *     }
+         */
+        'application/json': components['schemas']['BookingAcceptRequest'];
+      };
+    };
+    responses: {
+      /** @description The booking with the user in the invite's position. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Booking'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  cancelBooking: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Booking id. */
+        id: components['parameters']['BookingId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        /**
+         * @example {
+         *       "scope": "this"
+         *     }
+         */
+        'application/json': components['schemas']['BookingCancelRequest'];
+      };
+    };
+    responses: {
+      /** @description The cancelled booking and the refund decision. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "booking_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a70",
+           *       "status": "cancelled",
+           *       "cancelled_at": "2026-10-21T15:00:00Z",
+           *       "refund_cents": 900000,
+           *       "refund_status": "pending",
+           *       "cancelled_booking_ids": [
+           *         "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a70"
+           *       ]
+           *     }
+           */
+          'application/json': components['schemas']['BookingCancellation'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+      502: components['responses']['BadGateway'];
     };
   };
 }
