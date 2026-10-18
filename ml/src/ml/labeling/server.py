@@ -12,15 +12,15 @@ import mimetypes
 import re
 from dataclasses import dataclass
 from http import HTTPStatus
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 from pathlib import Path
 from threading import Lock
-from typing import Any
+from typing import Any, cast
 
 from pydantic import ValidationError
 
 from ml.labeling.actions import ActionRequest, SaveTarget, apply_action, session_state
-from ml.labeling.config import LabelingConfig
+from ml.labeling.config import LOOPBACK_HOST_NAMES, LabelingConfig
 from ml.labeling.session import LabelingError, LabelingSession
 from ml.labels import LabelSetExistsError
 
@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 _PACKAGE_DIR = Path(__file__).resolve().parent
 INDEX_PATH = _PACKAGE_DIR / "static" / "index.html"
 LOCALE_PATH = _PACKAGE_DIR / "locales" / "es-AR.json"
+JSON_CONTENT_TYPE = "application/json"
 _RANGE = re.compile(r"bytes=(?P<start>\d*)-(?P<end>\d*)")
 
 
@@ -63,7 +64,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
             self.wfile.write(body)
 
         def _json(self, payload: object, status: HTTPStatus = HTTPStatus.OK) -> None:
-            self._send(status, json.dumps(payload).encode(), "application/json")
+            self._send(status, json.dumps(payload).encode(), JSON_CONTENT_TYPE)
 
         def _error(self, status: HTTPStatus, code: str, detail: str) -> None:
             logger.warning("labeling request rejected: %s %s", code, detail)
@@ -71,7 +72,32 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                 state = session_state(app.session)
             self._json({"error": code, "state": state}, status)
 
+        def _allowed_hosts(self) -> set[str]:
+            port = cast("HTTPServer", self.server).server_port
+            return {f"{name}:{port}" for name in LOOPBACK_HOST_NAMES}
+
+        def _rejected(self, *, post: bool) -> bool:
+            """Block DNS rebinding (foreign Host) and cross-site requests (CSRF)."""
+            hosts = self._allowed_hosts()
+            origin = self.headers.get("Origin")
+            content_type = self.headers.get("Content-Type", "").split(";")[0].strip()
+            if self.headers.get("Host") not in hosts:
+                reason = "LABEL_FORBIDDEN_HOST"
+            elif origin is not None and origin not in {f"http://{host}" for host in hosts}:
+                reason = "LABEL_FORBIDDEN_ORIGIN"
+            elif post and content_type != JSON_CONTENT_TYPE:
+                reason = "LABEL_UNSUPPORTED_MEDIA_TYPE"
+            else:
+                return False
+            logger.warning("labeling request blocked: %s", reason)
+            self._send(
+                HTTPStatus.FORBIDDEN, json.dumps({"error": reason}).encode(), JSON_CONTENT_TYPE
+            )
+            return True
+
         def do_GET(self) -> None:
+            if self._rejected(post=False):
+                return
             if self.path == "/":
                 self._send(HTTPStatus.OK, INDEX_PATH.read_bytes(), "text/html; charset=utf-8")
             elif self.path == "/api/config":
@@ -124,6 +150,9 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
 
         def _body(self) -> dict[str, Any]:
             length = int(self.headers.get("Content-Length", "0"))
+            if not 0 <= length <= app.config.server.max_body_bytes:
+                msg = f"body of {length} bytes is over the limit"
+                raise ValueError(msg)
             body = json.loads(self.rfile.read(length) or b"{}")
             if not isinstance(body, dict):
                 msg = "body must be a JSON object"
@@ -131,6 +160,8 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
             return body
 
         def do_POST(self) -> None:
+            if self._rejected(post=True):
+                return
             try:
                 body = self._body()
                 with app.lock:

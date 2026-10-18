@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Annotated, Self
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ml.schemas import Surface
 
@@ -60,10 +60,23 @@ class Shortcut(_Section):
         return self
 
 
+LOOPBACK_HOST_NAMES = ("127.0.0.1", "localhost")
+"""The only addresses the tool may listen on: it must never be reachable from a network."""
+
+
 class ServerConfig(_Section):
     host: str
     port: PositiveInt
     video_chunk_bytes: PositiveInt
+    max_body_bytes: PositiveInt
+
+    @field_validator("host")
+    @classmethod
+    def _must_be_loopback(cls, value: str) -> str:
+        if value not in LOOPBACK_HOST_NAMES:
+            msg = f"host must be one of {LOOPBACK_HOST_NAMES}, got {value!r}"
+            raise ValueError(msg)
+        return value
 
 
 class TimelineConfig(_Section):

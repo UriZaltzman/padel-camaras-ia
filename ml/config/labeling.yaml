@@ -1,9 +1,10 @@
 # Labeling tool settings: server, timeline steps and keyboard shortcuts.
 # These are UI constants, not AI thresholds (those live in thresholds.yaml).
 server:
-  host: "127.0.0.1"
+  host: '127.0.0.1'
   port: 8765
   video_chunk_bytes: 1048576
+  max_body_bytes: 4096
 timeline:
   seek_step_ms: 2000
   fine_step_ms: 40
@@ -11,27 +12,27 @@ timeline:
   playback_rates: [0.25, 0.5, 1.0]
 # key: the KeyboardEvent.key value. track_id: player of a shot. surface: bounce surface.
 shortcuts:
-  - { key: " ", action: play_pause }
-  - { key: "ArrowLeft", action: seek_back }
-  - { key: "ArrowRight", action: seek_forward }
-  - { key: ",", action: seek_back_fine }
-  - { key: ".", action: seek_forward_fine }
-  - { key: "p", action: cycle_rate }
-  - { key: "1", action: shot, track_id: 0 }
-  - { key: "2", action: shot, track_id: 1 }
-  - { key: "3", action: shot, track_id: 2 }
-  - { key: "4", action: shot, track_id: 3 }
-  - { key: "f", action: bounce, surface: floor }
-  - { key: "g", action: bounce, surface: back_glass }
-  - { key: "l", action: bounce, surface: side_glass }
-  - { key: "r", action: bounce, surface: fence }
-  - { key: "n", action: bounce, surface: net }
-  - { key: "s", action: toggle_side }
-  - { key: "ArrowUp", action: select_prev }
-  - { key: "ArrowDown", action: select_next }
-  - { key: "[", action: nudge_back }
-  - { key: "]", action: nudge_forward }
-  - { key: "m", action: move_to_playhead }
-  - { key: "Backspace", action: delete_selected }
-  - { key: "z", action: undo }
-  - { key: "Enter", action: save }
+  - { key: ' ', action: play_pause }
+  - { key: 'ArrowLeft', action: seek_back }
+  - { key: 'ArrowRight', action: seek_forward }
+  - { key: ',', action: seek_back_fine }
+  - { key: '.', action: seek_forward_fine }
+  - { key: 'p', action: cycle_rate }
+  - { key: '1', action: shot, track_id: 0 }
+  - { key: '2', action: shot, track_id: 1 }
+  - { key: '3', action: shot, track_id: 2 }
+  - { key: '4', action: shot, track_id: 3 }
+  - { key: 'f', action: bounce, surface: floor }
+  - { key: 'g', action: bounce, surface: back_glass }
+  - { key: 'l', action: bounce, surface: side_glass }
+  - { key: 'r', action: bounce, surface: fence }
+  - { key: 'n', action: bounce, surface: net }
+  - { key: 's', action: toggle_side }
+  - { key: 'ArrowUp', action: select_prev }
+  - { key: 'ArrowDown', action: select_next }
+  - { key: '[', action: nudge_back }
+  - { key: ']', action: nudge_forward }
+  - { key: 'm', action: move_to_playhead }
+  - { key: 'Backspace', action: delete_selected }
+  - { key: 'z', action: undo }
+  - { key: 'Enter', action: save }

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import threading
 import urllib.request
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -266,7 +267,10 @@ def test_server_serves_video_ranges_and_actions(tmp_path: Path) -> None:
 
         def post(path: str, body: dict[str, object]) -> dict[str, object]:
             req = urllib.request.Request(  # noqa: S310
-                f"{base}{path}", data=json.dumps(body).encode(), method="POST"
+                f"{base}{path}",
+                data=json.dumps(body).encode(),
+                method="POST",
+                headers={"Content-Type": "application/json", "Origin": base},
             )
             try:
                 with urllib.request.urlopen(req) as response:  # noqa: S310
@@ -289,3 +293,74 @@ def test_server_serves_video_ranges_and_actions(tmp_path: Path) -> None:
     finally:
         server.shutdown()
         server.server_close()
+
+
+@pytest.fixture
+def running_app(tmp_path: Path) -> Iterator[tuple[str, LabelingSession]]:
+    video = tmp_path / "clip.mp4"
+    video.write_bytes(b"video")
+    session = LabelingSession(new_uuid7())
+    app = App(session, load_labeling_config(), video, SaveTarget(tmp_path, new_uuid7()), Lock())
+    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}", session
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def _status(url: str, data: bytes | None, headers: dict[str, str]) -> int:
+    request = urllib.request.Request(  # noqa: S310
+        url, data=data, headers=headers, method="POST" if data is not None else "GET"
+    )
+    try:
+        with urllib.request.urlopen(request) as response:  # noqa: S310
+            return int(response.status)
+    except urllib.error.HTTPError as error:
+        return error.code
+
+
+SAVE_BODY = json.dumps({"action": "shot", "time_ms": 0, "track_id": 0}).encode()
+
+
+def test_server_accepts_same_origin_json(running_app: tuple[str, LabelingSession]) -> None:
+    base, session = running_app
+    headers = {"Content-Type": "application/json", "Origin": base}
+    assert _status(f"{base}/api/action", SAVE_BODY, headers) == 200
+    assert len(session.shots) == 1
+
+
+def test_server_rejects_cross_origin_post(running_app: tuple[str, LabelingSession]) -> None:
+    base, session = running_app
+    headers = {"Content-Type": "application/json", "Origin": "http://evil.example"}
+    assert _status(f"{base}/api/action", SAVE_BODY, headers) == 403
+    assert session.shots == ()
+
+
+def test_server_rejects_text_plain_post(running_app: tuple[str, LabelingSession]) -> None:
+    base, session = running_app
+    assert _status(f"{base}/api/action", SAVE_BODY, {"Content-Type": "text/plain"}) == 403
+    assert session.shots == ()
+
+
+def test_server_rejects_spoofed_host(running_app: tuple[str, LabelingSession]) -> None:
+    base, session = running_app
+    assert _status(f"{base}/api/state", None, {"Host": "evil.example"}) == 403
+    headers = {"Content-Type": "application/json", "Host": "evil.example:80"}
+    assert _status(f"{base}/api/action", SAVE_BODY, headers) == 403
+    assert session.shots == ()
+
+
+def test_server_rejects_oversized_body(running_app: tuple[str, LabelingSession]) -> None:
+    base, _session = running_app
+    limit = load_labeling_config().server.max_body_bytes
+    body = json.dumps({"action": "undo", "time_ms": 0, "pad": "x" * limit}).encode()
+    assert _status(f"{base}/api/action", body, {"Content-Type": "application/json"}) == 400
+
+
+@pytest.mark.parametrize("host", ["0.0.0.0", "192.168.0.10", "::", "example.com"])  # noqa: S104
+def test_config_only_listens_on_loopback(host: str) -> None:
+    raw = load_labeling_config().model_dump(mode="json")
+    with pytest.raises(ValidationError, match="host"):
+        LabelingConfig.model_validate({**raw, "server": {**raw["server"], "host": host}})
