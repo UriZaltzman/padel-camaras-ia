@@ -165,11 +165,17 @@ ALTER TABLE "booking_slots_rules"
     ADD CONSTRAINT "booking_slots_rules_cancellation_hours_check"
         CHECK ("cancellation_hours" >= 0),
     ADD CONSTRAINT "booking_slots_rules_deposit_check"
-        CHECK (
-            ("deposit_kind" = 'none'    AND "deposit_amount_cents" IS NULL AND "deposit_bps" IS NULL) OR
-            ("deposit_kind" = 'fixed'   AND "deposit_amount_cents" > 0     AND "deposit_bps" IS NULL) OR
-            ("deposit_kind" = 'percent' AND "deposit_amount_cents" IS NULL AND "deposit_bps" BETWEEN 1 AND 10000)
-        );
+        CHECK (COALESCE(
+            ("deposit_kind" = 'none'    AND "deposit_amount_cents" IS NULL     AND "deposit_bps" IS NULL) OR
+            ("deposit_kind" = 'fixed'   AND "deposit_amount_cents" IS NOT NULL AND "deposit_amount_cents" > 0 AND "deposit_bps" IS NULL) OR
+            ("deposit_kind" = 'percent' AND "deposit_amount_cents" IS NULL     AND "deposit_bps" IS NOT NULL AND "deposit_bps" BETWEEN 1 AND 10000),
+            FALSE
+        ));
+
+-- Prisma does not emit NOT NULL for scalar lists.
+ALTER TABLE "booking_slots_rules"
+    ALTER COLUMN "days_of_week" SET NOT NULL,
+    ALTER COLUMN "allowed_durations_minutes" SET NOT NULL;
 
 ALTER TABLE "booking_rule_price_bands"
     ADD CONSTRAINT "booking_rule_price_bands_duration_check"
@@ -185,7 +191,11 @@ ALTER TABLE "bookings"
     ADD CONSTRAINT "bookings_hold_expires_check"
         CHECK ("status" <> 'held' OR "hold_expires_at" IS NOT NULL),
     ADD CONSTRAINT "bookings_guardian_permission_check"
-        CHECK ("guardian_permission_at" IS NULL OR "guardian_user_id" IS NOT NULL);
+        CHECK ("guardian_permission_at" IS NULL OR "guardian_user_id" IS NOT NULL),
+    -- §12: a booking with minors is only recorded with a guardian permission on it.
+    ADD CONSTRAINT "bookings_minors_permission_check"
+        CHECK (NOT "includes_minors" OR "no_record"
+               OR ("guardian_permission_at" IS NOT NULL AND "guardian_user_id" IS NOT NULL));
 
 ALTER TABLE "booking_players"
     ADD CONSTRAINT "booking_players_position_check"
