@@ -91,7 +91,7 @@ jobs:
       - run: uv sync --locked
       - name: Integration tests
         run: >
-          uv run pytest tests/test_camsim_integration.py
+          uv run pytest tests/test_camsim_integration.py tests/test_recorder_integration.py
           -rs -v --junitxml="$RUNNER_TEMP/camsim-integration.xml"
       # The tests skip themselves when a tool is missing; in CI that must be a failure.
       - name: Fail if any integration test was skipped
