@@ -89,3 +89,19 @@ uv run mypy --config-file ../../packages/config/mypy.ini .
 # Imagen (desde la raíz del repo):
 docker build -f services/edge-agent/Dockerfile -t edge-agent .
 ```
+
+## Uploader (`edge-uploader`)
+
+Uploads recorded segments to S3-compatible storage (Cloudflare R2, MinIO) with multipart
+upload. The upload id and every confirmed part are saved in SQLite, so after a network cut
+or restart it resumes without re-sending confirmed parts. Bandwidth is capped with a token
+bucket (`EDGE_UPLOADER_BANDWIDTH_LIMIT_BYTES_PER_S`).
+
+Settings: `EDGE_UPLOADER_ENDPOINT_URL`, `EDGE_UPLOADER_BUCKET`, `EDGE_UPLOADER_ACCESS_KEY_ID`,
+`EDGE_UPLOADER_SECRET_ACCESS_KEY` (never logged), optional `EDGE_UPLOADER_REGION`,
+`EDGE_UPLOADER_KEY_PREFIX`, `EDGE_UPLOADER_PART_SIZE_BYTES`, `EDGE_UPLOADER_CHUNK_BYTES`,
+`EDGE_UPLOADER_POLL_INTERVAL_S`, `EDGE_UPLOADER_RETRY_INTERVAL_S`.
+
+Integration test: start a MinIO yourself and set `EDGE_TEST_MINIO_ENDPOINT`
+(e.g. `http://127.0.0.1:9000`). MinIO is AGPL, so it is only an external test service and
+is never bundled in the image.

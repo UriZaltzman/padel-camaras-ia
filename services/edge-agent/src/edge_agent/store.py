@@ -32,6 +32,26 @@ MIGRATIONS: Final[tuple[str, ...]] = (
     ) STRICT;
     CREATE INDEX segments_by_camera_time ON segments (camera, started_at);
     """,
+    # 3: multipart uploads of segments, resumable after a cut (one row per segment)
+    # and the parts the object store already confirmed.
+    """
+    CREATE TABLE uploads (
+        segment_id TEXT PRIMARY KEY REFERENCES segments (id),
+        object_key TEXT NOT NULL,
+        upload_id TEXT,
+        part_size INTEGER NOT NULL CHECK (part_size > 0),
+        completed_at TEXT,
+        skipped_reason TEXT,
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    ) STRICT;
+    CREATE TABLE upload_parts (
+        segment_id TEXT NOT NULL REFERENCES uploads (segment_id),
+        part_number INTEGER NOT NULL CHECK (part_number >= 1),
+        etag TEXT NOT NULL,
+        size_bytes INTEGER NOT NULL CHECK (size_bytes >= 0),
+        PRIMARY KEY (segment_id, part_number)
+    ) STRICT;
+    """,
 )
 
 
