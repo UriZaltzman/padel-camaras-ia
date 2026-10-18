@@ -42,12 +42,15 @@ def test_records_simulated_camera_into_continuous_segments(
             desired=lambda _now: frozenset({camera.name}),
         )
         started = datetime.now(UTC)
+        # SQLite connections belong to the thread that opened them: run on this thread
+        # and let a timer stop it.
         stop = threading.Event()
-        runner = threading.Thread(target=recorder.run, args=(stop, 0.5))
-        runner.start()
-        stop.wait(RECORD_S)
-        stop.set()
-        runner.join(timeout=30)
+        timer = threading.Timer(RECORD_S, stop.set)
+        timer.start()
+        try:
+            recorder.run(stop, 0.5)
+        finally:
+            timer.cancel()
 
         spans = spans_between(conn, camera.name, started, datetime.now(UTC))
         assert len(spans) >= 2, spans
