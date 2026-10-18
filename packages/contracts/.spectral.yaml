@@ -4,6 +4,7 @@ extends:
 functionsDir: ./spectral/functions
 functions:
   - errorCatalog
+  - stateMachine
 
 rules:
   # Shared building blocks (pagination, error responses) are defined before the module
@@ -17,6 +18,14 @@ rules:
     given: $.components.schemas.ErrorCode
     then:
       function: errorCatalog
+
+  state-machine-consistent:
+    description: Every x-state-machine matches its status enum (section 3 transition tables).
+    severity: error
+    message: '{{error}}'
+    given: $.components.schemas[?(@['x-state-machine'])]
+    then:
+      function: stateMachine
 
   error-schema-shape:
     description: The error body is {code, message, details}.

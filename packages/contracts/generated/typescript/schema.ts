@@ -25,6 +25,46 @@ export interface components {
      */
     AmountCents: number;
     /**
+     * @description Status of a match (`matches.status`). Recording and analysis move it forward; a score
+     *     correction sends it to `needs_review`, and after 30 days the full video is deleted and it
+     *     is `archived`.
+     * @enum {string}
+     */
+    MatchStatus:
+      | 'scheduled'
+      | 'recording'
+      | 'recorded'
+      | 'processing'
+      | 'published'
+      | 'needs_review'
+      | 'archived'
+      | 'failed'
+      | 'cancelled';
+    /**
+     * @description Status of a booking (`bookings.status`). A new booking is `held` for 10 minutes while the
+     *     deposit is paid; if it is not paid in time it is `expired` and the slot is released.
+     * @enum {string}
+     */
+    BookingStatus: 'held' | 'confirmed' | 'completed' | 'cancelled' | 'no_show' | 'expired';
+    /**
+     * @description Status of an analysis job (`processing_jobs.status`). The job also stores its pipeline
+     *     stage, so it resumes from there after a power cut.
+     * @enum {string}
+     */
+    ProcessingJobStatus: 'queued' | 'running' | 'succeeded' | 'failed';
+    /**
+     * @description Status of a payment (`payments.status`). Only the Mercado Pago webhook changes it, never
+     *     the app.
+     * @enum {string}
+     */
+    PaymentStatus: 'pending' | 'approved' | 'rejected' | 'refunded';
+    /**
+     * @description Status of a monthly settlement (`settlements.status`). It is drafted on the 1st of each
+     *     month, approved by the team, invoiced and then paid.
+     * @enum {string}
+     */
+    SettlementStatus: 'draft' | 'approved' | 'invoiced' | 'paid';
+    /**
      * @description Base of every paginated response. A list operation combines it with `allOf` and adds an
      *     `items` array of its own type.
      */
@@ -239,6 +279,11 @@ export interface components {
 export type SchemaUuid = components['schemas']['Uuid'];
 export type SchemaTimestamp = components['schemas']['Timestamp'];
 export type SchemaAmountCents = components['schemas']['AmountCents'];
+export type SchemaMatchStatus = components['schemas']['MatchStatus'];
+export type SchemaBookingStatus = components['schemas']['BookingStatus'];
+export type SchemaProcessingJobStatus = components['schemas']['ProcessingJobStatus'];
+export type SchemaPaymentStatus = components['schemas']['PaymentStatus'];
+export type SchemaSettlementStatus = components['schemas']['SettlementStatus'];
 export type SchemaPage = components['schemas']['Page'];
 export type SchemaError = components['schemas']['Error'];
 export type SchemaValidationIssue = components['schemas']['ValidationIssue'];
