@@ -1,7 +1,9 @@
 {
   "extends": "@app/config/tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM"]
   },
-  "include": ["tokens.ts", "src"]
+  "include": ["tokens.ts", "src", "vitest.config.ts"]
 }

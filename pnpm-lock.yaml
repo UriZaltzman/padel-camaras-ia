@@ -252,18 +252,39 @@ importers:
       '@app/config':
         specifier: workspace:*
         version: link:../config
+      '@testing-library/dom':
+        specifier: ^10.4.2
+        version: 10.4.2
+      '@testing-library/react':
+        specifier: ^16.3.3
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@types/react':
+        specifier: ~19.3.0
+        version: 19.3.0
       eslint:
         specifier: ^9.15.0
         version: 9.39.5(jiti@2.7.0)
+      jsdom:
+        specifier: ^25.0.1
+        version: 25.0.1
       prettier:
         specifier: ^3.3.3
         version: 3.9.10
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: 19.3.0
+        version: 19.3.0(react@19.3.0)
+      react-native:
+        specifier: 0.88.0
+        version: 0.88.0(@babel/core@7.29.7)(@react-native/metro-config@0.88.0(@babel/core@7.29.7))(@types/react@19.3.0)(react@19.3.0)
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
       vitest:
         specifier: ^2.1.5
-        version: 2.1.9(@types/node@26.6.5)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.51.2)
+        version: 2.1.9(@types/node@26.6.5)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.51.2)
 
   services/api:
     dependencies:
@@ -9842,6 +9863,16 @@ snapshots:
     optionalDependencies:
       jest: 30.5.2(@types/node@22.20.5)
 
+  '@testing-library/react@16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+    dependencies:
+      '@babel/runtime': 7.29.10
+      '@testing-library/dom': 10.4.2
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
+    optionalDependencies:
+      '@types/react': 19.3.0
+      '@types/react-dom': 19.3.0(@types/react@19.3.0)
+
   '@testing-library/react@16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       '@babel/runtime': 7.29.10
@@ -14740,7 +14771,7 @@ snapshots:
       - supports-color
       - terser
 
-  vitest@2.1.9(@types/node@26.6.5)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.51.2):
+  vitest@2.1.9(@types/node@26.6.5)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.51.2):
     dependencies:
       '@vitest/expect': 2.1.9
       '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@26.6.5)(lightningcss@1.32.0)(terser@5.51.2))
@@ -14764,7 +14795,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 26.6.5
-      jsdom: 26.1.0
+      jsdom: 25.0.1
     transitivePeerDependencies:
       - less
       - lightningcss
