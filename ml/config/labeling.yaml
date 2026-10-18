@@ -56,3 +56,22 @@ shot_type:
     - { key: '9', shot_type: lob }
     - { key: '0', shot_type: off_the_wall }
     - { key: 'x', shot_type: unknown }
+# Points mode: mark where each point starts and ends, who won it and why it ended.
+# point_end closes the started point with its winner; point_reason sets the end reason of
+# the selected point; point_set_start / point_set_end move its bounds to the playhead.
+points:
+  shortcuts:
+    - { key: 'i', action: point_start }
+    - { key: 'Escape', action: point_cancel }
+    - { key: '1', action: point_end, winner: '1' }
+    - { key: '2', action: point_end, winner: '2' }
+    - { key: 'a', action: point_set_start }
+    - { key: 'e', action: point_set_end }
+    - { key: 'd', action: point_reason, end_reason: double_fault }
+    - { key: 'o', action: point_reason, end_reason: own_floor }
+    - { key: 'n', action: point_reason, end_reason: net }
+    - { key: 'w', action: point_reason, end_reason: direct_wall }
+    - { key: 'b', action: point_reason, end_reason: double_bounce }
+    - { key: 'f', action: point_reason, end_reason: out_of_court }
+    - { key: 'l', action: point_reason, end_reason: ball_lost }
+    - { key: 'x', action: point_reason, end_reason: other }

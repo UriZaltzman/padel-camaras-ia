@@ -116,6 +116,30 @@
       body.shot-type #timeline .bounce {
         opacity: 0.3;
       }
+      #timeline .point {
+        position: absolute;
+        top: 0;
+        height: 4px;
+        background: var(--sel);
+        opacity: 0.6;
+      }
+      #timeline .point.team-2 {
+        top: 44px;
+      }
+      #timeline .point.selected {
+        opacity: 1;
+        outline: 1px solid var(--accent);
+      }
+      .points-only,
+      body.points .not-points {
+        display: none;
+      }
+      body.points .points-only {
+        display: block;
+      }
+      #score p {
+        margin: 2px 0;
+      }
       kbd {
         background: #333;
         padding: 1px 6px;
@@ -133,10 +157,18 @@
         <div id="message" role="status"></div>
       </section>
       <aside>
-        <h2 id="h-progress"></h2>
-        <table id="progress"></table>
-        <h2 id="h-events"></h2>
-        <ol id="events"></ol>
+        <section class="points-only">
+          <h2 id="h-score"></h2>
+          <div id="score"></div>
+          <h2 id="h-points"></h2>
+          <ol id="points"></ol>
+        </section>
+        <section class="not-points">
+          <h2 id="h-progress"></h2>
+          <table id="progress"></table>
+          <h2 id="h-events"></h2>
+          <ol id="events"></ol>
+        </section>
         <h2 id="h-shortcuts"></h2>
         <table id="shortcuts"></table>
       </aside>
@@ -161,7 +193,13 @@
       const nowMs = () => Math.round(video.currentTime * 1000);
       const keyLabel = (k) => texts.key_names[k] || k;
 
+      const MODES = ['timeline', 'shot_type', 'points'];
+
       function describeAction(sc) {
+        if (sc.end_reason) {
+          return fmt(texts.actions.point_reason, { end_reason: texts.end_reasons[sc.end_reason] });
+        }
+        if (sc.winner) return fmt(texts.actions.point_end, { team: texts.teams[sc.winner] });
         if (sc.shot_type) {
           return fmt(texts.actions.classify_shot, { shot_type: texts.shot_types[sc.shot_type] });
         }
@@ -252,6 +290,7 @@
           document.getElementById('status').append(span);
         }
         renderShotTypeMode();
+        renderPointsMode();
         renderShortcuts();
         drawPlayhead();
       }
@@ -326,8 +365,95 @@
         if (shot && nowMs() >= clipEnd(shot)) video.currentTime = clipStart(shot) / 1000;
       }
 
+      // Points mode: spans on the timeline, the list of points and the rebuilt score.
+      function describeScore(sc) {
+        const parts = [];
+        const sets = sc.sets.map((g) => g.join('-')).join(' ');
+        if (sets) parts.push(fmt(texts.score.sets, { sets }));
+        parts.push(fmt(texts.score.games, { one: sc.games[0], two: sc.games[1] }));
+        if (sc.tiebreak) {
+          parts.push(sc.super_tiebreak ? texts.score.super_tiebreak : texts.score.tiebreak);
+          parts.push(fmt(texts.score.points, { one: sc.points[0], two: sc.points[1] }));
+        } else if (sc.deuce) {
+          parts.push(state.golden_point ? texts.score.golden : texts.score.deuce);
+        } else {
+          const [one, two] = sc.calls.map((c) => texts.score.calls[c]);
+          parts.push(fmt(texts.score.points, { one, two }));
+        }
+        return parts.join(' · ');
+      }
+
+      function renderPointsMode() {
+        document.body.classList.toggle('points', mode === 'points');
+        if (!state.points) return;
+        const dur = state.duration_ms || 1;
+        const tl = document.getElementById('timeline');
+        tl.querySelectorAll('.point').forEach((m) => m.remove());
+        const list = document.getElementById('points');
+        list.innerHTML = '';
+        if (!state.points.length) {
+          const li = document.createElement('li');
+          li.textContent = texts.points_status.empty;
+          list.append(li);
+        }
+        for (const p of state.points) {
+          const sel = p.id === state.selected ? ' selected' : '';
+          const span = document.createElement('div');
+          span.className = `point team-${p.winner}${sel}`;
+          span.style.left = `${(p.start_ms / dur) * 100}%`;
+          span.style.width = `${((p.end_ms - p.start_ms) / dur) * 100}%`;
+          tl.append(span);
+          const li = document.createElement('li');
+          li.className = sel.trim();
+          li.textContent = fmt(texts.points_status.point, {
+            number: p.number,
+            start: clock(p.start_ms),
+            end: clock(p.end_ms),
+            team: texts.teams[p.winner],
+            end_reason: texts.end_reasons[p.end_reason],
+            score: describeScore(p.score_after),
+          });
+          li.onclick = () => {
+            video.currentTime = p.start_ms / 1000;
+            state.selected = p.id;
+            render();
+          };
+          list.append(li);
+        }
+        const box = document.getElementById('score');
+        box.innerHTML = '';
+        const sc = state.score;
+        const lines = [
+          state.golden_point
+            ? texts.points_status.format_golden
+            : texts.points_status.format_advantage,
+          describeScore(sc),
+        ];
+        if (state.super_tiebreak) lines.splice(1, 0, texts.points_status.format_super_tiebreak);
+        if (sc.winner) lines.push(fmt(texts.score.winner, { team: texts.teams[sc.winner] }));
+        if (sc.points_after_end) lines.push(fmt(texts.score.after_end, { n: sc.points_after_end }));
+        lines.push(texts.points_status.compare);
+        for (const line of lines) {
+          const el = document.createElement('p');
+          el.textContent = line;
+          box.append(el);
+        }
+        if (mode === 'points') {
+          const span = document.createElement('span');
+          span.textContent =
+            state.pending_point_start === null
+              ? texts.points_status.idle
+              : fmt(texts.points_status.pending, { time: clock(state.pending_point_start) });
+          document.getElementById('status').append(span);
+        }
+      }
+
       function activeShortcuts() {
         if (mode === 'timeline') return cfg.shortcuts;
+        if (mode === 'points') {
+          const shared = cfg.shortcuts.filter((s) => cfg.points_mode_actions.includes(s.action));
+          return [...cfg.points.shortcuts, ...shared];
+        }
         const shared = cfg.shortcuts.filter((s) => cfg.shot_type_mode_actions.includes(s.action));
         return [...cfg.shot_type.shortcuts, ...shared];
       }
@@ -368,7 +494,7 @@
           render();
         },
         toggle_mode: () => {
-          mode = mode === 'timeline' ? 'shot_type' : 'timeline';
+          mode = MODES[(MODES.indexOf(mode) + 1) % MODES.length];
           video.pause();
           render();
         },
@@ -399,6 +525,8 @@
           time_ms: nowMs(),
           track_id: sc.track_id,
           surface: sc.surface,
+          winner: sc.winner,
+          end_reason: sc.end_reason,
           event_id: state.selected,
         });
       });
@@ -429,6 +557,8 @@
         document.title = `${texts.title} · ${cfg.video_name}`;
         document.getElementById('h-events').textContent = texts.headings.events;
         document.getElementById('h-shortcuts').textContent = texts.headings.shortcuts;
+        document.getElementById('h-points').textContent = texts.headings.points;
+        document.getElementById('h-score').textContent = texts.headings.score;
         document.getElementById('h-progress').textContent = fmt(texts.headings.progress, {
           target: cfg.shot_type.target_per_type,
         });

@@ -17,7 +17,7 @@ from pydantic import ValidationError
 
 from ml.labeling.__main__ import local_labeler_id, match_id_for_video
 from ml.labeling.actions import PLAYBACK_ACTIONS, ActionRequest, SaveTarget, apply_action
-from ml.labeling.config import Action, LabelingConfig, load_labeling_config
+from ml.labeling.config import POINT_ACTIONS, Action, LabelingConfig, load_labeling_config
 from ml.labeling.server import LOCALE_PATH, App, make_handler
 from ml.labeling.session import ErrorCode, LabelingError, LabelingSession, new_uuid7, open_session
 from ml.labels import (
@@ -226,7 +226,10 @@ def test_shot_and_bounce_need_their_argument(session: LabelingSession, tmp_path:
 
 def test_default_config_covers_every_action_and_surface() -> None:
     config = load_labeling_config()
-    assert {s.action for s in config.shortcuts} == set(Action) - {Action.CLASSIFY_SHOT}
+    assert {s.action for s in config.shortcuts} == (
+        set(Action) - {Action.CLASSIFY_SHOT} - POINT_ACTIONS
+    )
+    assert {s.action for s in config.points.shortcuts} == POINT_ACTIONS
     assert {s.surface for s in config.shortcuts if s.surface} == set(Surface)
 
 
