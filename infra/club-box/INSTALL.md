@@ -25,7 +25,7 @@ Requisitos del club (relevados en la visita, §15): toma de 220 V en la oficina,
 ## 2. Montaje de las cámaras
 
 - **Cámara A** detrás del vidrio de fondo del lado A; **cámara B** detrás del vidrio del lado B. Cada una, elevada y centrada en el ancho de la cancha (x = 5 m), tiene que ver **la cancha entera**: los 4 rincones, la red y las 2 líneas de saque (§5, "Geometría de la cancha").
-- **Altura:** la especificación no fija todavía un número. Montá la cámara lo más alto que permita el soporte detrás del vidrio, por encima de la reja, y verificá en la imagen que se vean los 4 rincones del piso y que el vidrio de fondo propio no tape la línea de fondo. Anotá la altura real medida (en metros, desde el piso hasta el lente) y la distancia al vidrio; se la pasás a soporte para la calibración. *Pendiente: altura recomendada, a definir por `vision-ia` con los partidos de la fase 0.*
+- **Altura:** la especificación no fija todavía un número. Montá la cámara lo más alto que permita el soporte detrás del vidrio, por encima de la reja, y verificá en la imagen que se vean los 4 rincones del piso y que el vidrio de fondo propio no tape la línea de fondo. Anotá la altura real medida (en metros, desde el piso hasta el lente) y la distancia al vidrio; se la pasás a soporte para la calibración. _Pendiente: altura recomendada, a definir por `vision-ia` con los partidos de la fase 0._
 - Lente en 2,8 mm (lo más abierto) si con 4 mm no entra la cancha entera.
 - Sin luminarias de frente al lente ni sol directo de frente en ningún horario; si pasa, mové el soporte antes de seguir.
 - Fijá bien el soporte: si la cámara se mueve, se pierde la calibración.
@@ -69,10 +69,11 @@ router del club ─────────────  placa de red 2 (DHCP, c
    echo "allow 10.50.0.0/24" | sudo tee /etc/chrony/conf.d/camaras.conf
    sudo systemctl restart chrony
    ```
-5. Firewall: nada entra salvo SSH desde la red local (la VPN de soporte llega después).
+5. Firewall: nada entra salvo SSH desde la red local y la hora (NTP) que piden las cámaras, solo desde su red y por su placa (la VPN de soporte llega después).
    ```bash
    sudo ufw default deny incoming && sudo ufw default allow outgoing
    sudo ufw allow from 192.168.0.0/16 to any port 22 proto tcp
+   sudo ufw allow in on enp3s0 from 10.50.0.0/24 to any port 123 proto udp   # enp3s0 = CAMERA_NIC
    sudo ufw enable
    ```
 6. Docker Engine y Compose (versión 2.24.4 o más nueva) desde el repositorio oficial de Docker (docs.docker.com, "Install Docker Engine on Ubuntu"). Después: `sudo usermod -aG docker tecnico` y volvé a entrar.
@@ -125,10 +126,22 @@ Hacé **dos** turnos de prueba de 20 minutos (§15, partido de prueba): uno **de
 
 1. Agregá los dos turnos a `config/horario.json`, por ejemplo:
    ```json
-   {"shifts": [
-     {"id": "prueba-dia", "cameras": ["court-1-a", "court-1-b"], "start": "2026-10-20T15:00:00-03:00", "end": "2026-10-20T15:20:00-03:00"},
-     {"id": "prueba-noche", "cameras": ["court-1-a", "court-1-b"], "start": "2026-10-20T20:30:00-03:00", "end": "2026-10-20T20:50:00-03:00"}
-   ]}
+   {
+     "shifts": [
+       {
+         "id": "prueba-dia",
+         "cameras": ["court-1-a", "court-1-b"],
+         "start": "2026-10-20T15:00:00-03:00",
+         "end": "2026-10-20T15:20:00-03:00"
+       },
+       {
+         "id": "prueba-noche",
+         "cameras": ["court-1-a", "court-1-b"],
+         "start": "2026-10-20T20:30:00-03:00",
+         "end": "2026-10-20T20:50:00-03:00"
+       }
+     ]
+   }
    ```
 2. Durante el turno, mirá que se escriban segmentos (uno cada 10 s por cámara):
    ```bash
@@ -160,20 +173,20 @@ La instalación está aprobada cuando las dos pruebas pasan el `check` con códi
 
 ## 8. Problemas frecuentes
 
-| Síntoma | Qué revisar |
-| --- | --- |
-| `docker compose up` dice `set EDGE_... in .env` | Falta esa variable en `.env`. |
-| Un contenedor se reinicia en loop y el log dice `Invalid edge-agent configuration` | El mensaje nombra la variable mal cargada (UUID inválido, URL sin `https://`, JSON de cámaras mal formado). Nunca muestra el valor. |
-| `probe` dice que una cámara está caída | `ping 10.50.0.11`; luz del puerto PoE en el switch; usuario, clave y ruta RTSP en `EDGE_RECORDER_CAMERAS`; que la cámara no haya cambiado de IP. Probá el RTSP desde la notebook con VLC. |
-| `probe` dice resolución o fps distintos | Configurá el stream principal de la cámara en 2560x1440 a 25 fps. |
-| Error al crear la red `cameras` (`parent interface not found`) | `CAMERA_NIC` no coincide con el nombre de la placa (`ip link`). |
-| Error `Address already in use` en la red `cameras` | `RECORDER_CAMERA_IP` choca con otra IP (cámara o computadora). Usá otra libre, por ejemplo `10.50.0.2`. |
-| `Permission denied` en `/recordings` o `/var/lib/edge-agent` | Las carpetas no son del uid 10001: repetí el paso 5.2. |
-| `check` muestra huecos | `docker compose logs recorder` en ese horario: si FFmpeg se reinició, la cámara se cortó (cable, PoE, luz). Si los huecos son en todas las cámaras a la vez, revisá la UPS y `journalctl -b -1` por reinicios. |
-| La hora de los segmentos no coincide con el turno | `timedatectl` (zona Buenos Aires, NTP activo) y NTP de las cámaras apuntando a `10.50.0.1`. Los nombres de archivo están en UTC (3 horas más). |
-| El uploader loguea `uploader_segment_failed` todo el tiempo | Internet del club (`curl -I https://www.google.com`), claves y nombre del bucket en `.env`. Lo pendiente se retoma solo cuando vuelve la conexión, sin perder lo grabado. |
-| La imagen de noche sale en blanco y negro o con parpadeo | Paso 6.4: modo noche/IR apagado, anti-flicker 50 Hz. |
-| Se cortó la luz | Al volver, la computadora arranca sola y los contenedores también. Verificá con `docker compose ps` y `check`. |
+| Síntoma                                                                            | Qué revisar                                                                                                                                                                                                    |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docker compose up` dice `set EDGE_... in .env`                                    | Falta esa variable en `.env`.                                                                                                                                                                                  |
+| Un contenedor se reinicia en loop y el log dice `Invalid edge-agent configuration` | El mensaje nombra la variable mal cargada (UUID inválido, URL sin `https://`, JSON de cámaras mal formado). Nunca muestra el valor.                                                                            |
+| `probe` dice que una cámara está caída                                             | `ping 10.50.0.11`; luz del puerto PoE en el switch; usuario, clave y ruta RTSP en `EDGE_RECORDER_CAMERAS`; que la cámara no haya cambiado de IP. Probá el RTSP desde la notebook con VLC.                      |
+| `probe` dice resolución o fps distintos                                            | Configurá el stream principal de la cámara en 2560x1440 a 25 fps.                                                                                                                                              |
+| Error al crear la red `cameras` (`parent interface not found`)                     | `CAMERA_NIC` no coincide con el nombre de la placa (`ip link`).                                                                                                                                                |
+| Error `Address already in use` en la red `cameras`                                 | `RECORDER_CAMERA_IP` choca con otra IP (cámara o computadora). Usá otra libre, por ejemplo `10.50.0.2`.                                                                                                        |
+| `Permission denied` en `/recordings` o `/var/lib/edge-agent`                       | Las carpetas no son del uid 10001: repetí el paso 5.2.                                                                                                                                                         |
+| `check` muestra huecos                                                             | `docker compose logs recorder` en ese horario: si FFmpeg se reinició, la cámara se cortó (cable, PoE, luz). Si los huecos son en todas las cámaras a la vez, revisá la UPS y `journalctl -b -1` por reinicios. |
+| La hora de los segmentos no coincide con el turno                                  | `timedatectl` (zona Buenos Aires, NTP activo) y NTP de las cámaras apuntando a `10.50.0.1`. Los nombres de archivo están en UTC (3 horas más).                                                                 |
+| El uploader loguea `uploader_segment_failed` todo el tiempo                        | Internet del club (`curl -I https://www.google.com`), claves y nombre del bucket en `.env`. Lo pendiente se retoma solo cuando vuelve la conexión, sin perder lo grabado.                                      |
+| La imagen de noche sale en blanco y negro o con parpadeo                           | Paso 6.4: modo noche/IR apagado, anti-flicker 50 Hz.                                                                                                                                                           |
+| Se cortó la luz                                                                    | Al volver, la computadora arranca sola y los contenedores también. Verificá con `docker compose ps` y `check`.                                                                                                 |
 
 Si nada de esto lo resuelve, mandá a soporte la salida de `docker compose ps`, `docker compose logs --tail 200` y `df -h`. Los logs no tienen claves ni datos personales.
 
