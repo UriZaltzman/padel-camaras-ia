@@ -7,6 +7,7 @@ Docker, Terraform, scripts de despliegue y `hardware/bom.yaml`. Ver `.claude/age
 | Carpeta     | Qué hay                                                                      |
 | ----------- | ---------------------------------------------------------------------------- |
 | `camsim/`   | Simulador de cámaras en Docker Compose (ver `services/edge-agent/README.md`) |
+| `club-box/` | Equipo del club, fase 0 (recorder + uploader), guía `INSTALL.md` y prueba `smoke-test.sh` |
 | `hardware/` | `bom.yaml` del equipo del club                                               |
 
 ## hardware
