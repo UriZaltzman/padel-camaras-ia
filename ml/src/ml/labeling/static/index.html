@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title></title>
+<style>
+  :root { --bg: #111; --fg: #eee; --muted: #999; --accent: #4cc38a; --bounce: #e0a030; --sel: #fff; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px system-ui, sans-serif; }
+  main { display: grid; grid-template-columns: 1fr 340px; gap: 12px; padding: 12px; height: 100vh; box-sizing: border-box; }
+  #left { display: flex; flex-direction: column; min-width: 0; }
+  video { width: 100%; max-height: 70vh; background: #000; }
+  #timeline { position: relative; height: 48px; background: #222; margin-top: 8px; cursor: pointer; }
+  #timeline .mark { position: absolute; top: 4px; width: 3px; height: 40px; }
+  #timeline .shot { background: var(--accent); }
+  #timeline .bounce { background: var(--bounce); top: 24px; height: 20px; }
+  #timeline .selected { outline: 2px solid var(--sel); }
+  #playhead { position: absolute; top: 0; width: 1px; height: 48px; background: var(--sel); }
+  #status { margin-top: 8px; color: var(--muted); display: flex; gap: 16px; flex-wrap: wrap; }
+  #message { color: var(--bounce); min-height: 1.4em; margin-top: 4px; }
+  aside { overflow: auto; }
+  ol { padding-left: 20px; }
+  li { cursor: pointer; padding: 2px 0; }
+  li.selected { color: var(--sel); font-weight: bold; }
+  li.shot::marker { color: var(--accent); }
+  li.bounce::marker { color: var(--bounce); }
+  table { border-collapse: collapse; width: 100%; color: var(--muted); }
+  td { padding: 2px 4px; }
+  kbd { background: #333; padding: 1px 6px; border-radius: 3px; color: var(--fg); }
+</style>
+</head>
+<body>
+<main>
+  <section id="left">
+    <video id="video" src="/video" preload="auto"></video>
+    <div id="timeline"><div id="playhead"></div></div>
+    <div id="status"></div>
+    <div id="message" role="status"></div>
+  </section>
+  <aside>
+    <h2 id="h-events"></h2>
+    <ol id="events"></ol>
+    <h2 id="h-shortcuts"></h2>
+    <table id="shortcuts"></table>
+  </aside>
+</main>
+<script>
+// Thin UI: playback lives here, every label change goes to the Python session.
+const video = document.getElementById("video");
+let cfg, texts, state, rateIndex = 0;
+
+const fmt = (s, vars) => s.replace(/\{(\w+)\}/g, (_, k) => vars[k]);
+const clock = (ms) => {
+  const t = Math.floor(ms / 1000), m = Math.floor(t / 60), s = t % 60;
+  return `${m}:${String(s).padStart(2, "0")}.${String(ms % 1000).padStart(3, "0")}`;
+};
+const nowMs = () => Math.round(video.currentTime * 1000);
+const keyLabel = (k) => texts.key_names[k] || k;
+
+function describeAction(sc) {
+  return fmt(texts.actions[sc.action], {
+    n: sc.track_id === null ? "" : sc.track_id + 1,
+    surface: sc.surface ? texts.surfaces[sc.surface] : "",
+  });
+}
+
+function describeEvent(e) {
+  const what = e.kind === "shot"
+    ? `${texts.kinds.shot} · ${fmt(texts.player, { n: e.track_id + 1 })}`
+    : `${texts.kinds.bounce} · ${texts.surfaces[e.surface]} · ${e.side}`;
+  return `${clock(e.time_ms)}  ${what}`;
+}
+
+async function call(path, body) {
+  try {
+    const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (data.error) { show(texts.errors[data.error] || data.error); state = data.state; }
+    else { state = data; show(data.saved_to ? fmt(texts.status.saved, { version: data.version }) : ""); }
+    render();
+  } catch { show(texts.errors.NETWORK); }
+}
+
+function show(msg) { document.getElementById("message").textContent = msg; }
+
+function seek(ms) { video.currentTime = Math.max(0, Math.min(video.duration || 0, (video.currentTime * 1000 + ms) / 1000)); }
+
+function render() {
+  const dur = state.duration_ms || 1;
+  const tl = document.getElementById("timeline");
+  tl.querySelectorAll(".mark").forEach((m) => m.remove());
+  const list = document.getElementById("events");
+  list.innerHTML = "";
+  if (!state.events.length) { const li = document.createElement("li"); li.textContent = texts.empty; list.append(li); }
+  for (const e of state.events) {
+    const sel = e.id === state.selected ? " selected" : "";
+    const m = document.createElement("div");
+    m.className = `mark ${e.kind}${sel}`;
+    m.style.left = `${(e.time_ms / dur) * 100}%`;
+    tl.append(m);
+    const li = document.createElement("li");
+    li.className = `${e.kind}${sel}`;
+    li.textContent = describeEvent(e);
+    li.onclick = () => { video.currentTime = e.time_ms / 1000; state.selected = e.id; render(); };
+    list.append(li);
+  }
+  document.getElementById("status").innerHTML = "";
+  for (const s of [
+    fmt(texts.status.camera, { camera: state.camera }),
+    fmt(texts.status.side, { side: state.side }),
+    fmt(texts.status.rate, { rate: video.playbackRate }),
+    state.dirty ? texts.status.unsaved : texts.status.clean,
+  ]) { const span = document.createElement("span"); span.textContent = s; document.getElementById("status").append(span); }
+  drawPlayhead();
+}
+
+function drawPlayhead() {
+  const dur = state.duration_ms || 1;
+  document.getElementById("playhead").style.left = `${(nowMs() / dur) * 100}%`;
+}
+
+const playback = {
+  play_pause: () => (video.paused ? video.play() : video.pause()),
+  seek_back: () => seek(-cfg.timeline.seek_step_ms),
+  seek_forward: () => seek(cfg.timeline.seek_step_ms),
+  seek_back_fine: () => { video.pause(); seek(-cfg.timeline.fine_step_ms); },
+  seek_forward_fine: () => { video.pause(); seek(cfg.timeline.fine_step_ms); },
+  cycle_rate: () => {
+    rateIndex = (rateIndex + 1) % cfg.timeline.playback_rates.length;
+    video.playbackRate = cfg.timeline.playback_rates[rateIndex];
+    render();
+  },
+};
+
+document.addEventListener("keydown", (ev) => {
+  if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  const sc = cfg && cfg.shortcuts.find((s) => s.key === ev.key);
+  if (!sc) return;
+  ev.preventDefault();
+  if (playback[sc.action]) { playback[sc.action](); return; }
+  call("/api/action", { action: sc.action, time_ms: nowMs(), track_id: sc.track_id, surface: sc.surface, event_id: state.selected });
+});
+
+document.getElementById("timeline").addEventListener("click", (ev) => {
+  const r = ev.currentTarget.getBoundingClientRect();
+  video.currentTime = ((ev.clientX - r.left) / r.width) * (video.duration || 0);
+});
+
+video.addEventListener("timeupdate", drawPlayhead);
+video.addEventListener("seeked", drawPlayhead);
+video.addEventListener("loadedmetadata", () => call("/api/duration", { duration_ms: Math.floor(video.duration * 1000) }));
+window.addEventListener("beforeunload", (ev) => { if (state && state.dirty) { ev.preventDefault(); ev.returnValue = texts.unload_warning; } });
+
+(async () => {
+  cfg = await (await fetch("/api/config")).json();
+  texts = cfg.texts;
+  document.title = `${texts.title} · ${cfg.video_name}`;
+  document.getElementById("h-events").textContent = texts.headings.events;
+  document.getElementById("h-shortcuts").textContent = texts.headings.shortcuts;
+  const table = document.getElementById("shortcuts");
+  for (const sc of cfg.shortcuts) {
+    const tr = table.insertRow();
+    const k = document.createElement("kbd"); k.textContent = keyLabel(sc.key);
+    tr.insertCell().append(k);
+    tr.insertCell().textContent = describeAction(sc);
+  }
+  rateIndex = Math.max(0, cfg.timeline.playback_rates.indexOf(1));
+  state = await (await fetch("/api/state")).json();
+  render();
+})();
+</script>
+</body>
+</html>
