@@ -235,6 +235,8 @@ El resto de los datos de entrenamiento sale de videos existentes, con las etique
 
 **Reglas de entrenamiento:** 15 partidos propios, grabados con nuestras 2 cámaras, quedan siempre fuera del entrenamiento y sirven solo para medir. Cada modelo se guarda con su versión, sus datos y sus métricas (MLflow), y solo se instala en los clubes si mejora o iguala todas las métricas sobre esos 15 partidos. Los puntos corregidos por jugadores entran a una cola de revisión y, una vez validados, al siguiente entrenamiento. El entrenamiento corre en GPU por hora en la nube.
 
+**Qué nunca entra al entrenamiento (ADR 0002):** videos de jugadores que eligieron "no usar mis videos para entrenar" (propios, o existentes donde se los pueda identificar); partidos con menores sin permiso del adulto responsable; datasets, videos y pesos preentrenados con licencia AGPL o GPL, solo para uso no comercial, o con términos poco claros.
+
 ## 9. Reservas
 
 Las reservas reemplazan al WhatsApp del club y son las que le dicen al equipo del club cuándo grabar y a quién pertenece cada partido. La garantía de que nunca hay dos reservas pisadas la da la base de datos, no el código.

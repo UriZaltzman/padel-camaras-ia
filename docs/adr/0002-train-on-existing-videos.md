@@ -24,6 +24,8 @@ La sección 8 de la especificación y la fase 0 de la hoja de ruta pedían graba
 
 - **Cambio de dominio:** los videos existentes tienen otros ángulos (en general una cámara alta en el fondo o de transmisión), otra luz y otros vidrios. Lo que aprende el modelo puede no pasar bien a nuestras cámaras. Se mitiga con el ajuste fino sobre partidos propios y midiendo siempre sobre los 15 propios; si no alcanza las métricas, se graban más partidos propios.
 - **Botes y 3D:** la triangulación y las superficies de bote dependen de nuestras 2 cámaras; para eso los videos existentes ayudan poco y el peso cae en los partidos propios.
-- **Licencias:** solo se usan fuentes con licencia escrita que permita uso comercial y entrenamiento. Sin licencia clara, no se usa.
+- **Licencias:** solo se usan fuentes con licencia escrita que permita uso comercial y entrenamiento. Quedan prohibidos los datasets, videos y pesos preentrenados con licencia AGPL o GPL, solo para uso no comercial, o con términos poco claros.
 - **Datos personales (Ley 25.326):** los videos muestran personas identificables. Se guardan con acceso restringido, solo para entrenar, y se borran si la licencia o el titular lo piden.
+- **Jugadores que no aceptan entrenar:** los videos de jugadores que eligieron "no usar mis videos para entrenar" quedan siempre fuera, tanto en partidos propios como en videos existentes donde se los pueda identificar.
+- **Menores:** los partidos con menores sin permiso del adulto responsable nunca se usan para entrenar.
 - **Sin reconocimiento facial:** la regla sigue igual. Ningún modelo se entrena para reconocer caras, ni con videos propios ni con existentes.
