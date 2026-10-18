@@ -47,4 +47,4 @@ Los valores salen de la sección "Hardware y presupuesto del combo" de `docs/est
 
 - Rangos de referencia del modo clase y catálogo de consejos: se definen con 2 o 3 entrenadores durante el piloto.
 - Velocidad real del pipeline en la GPU del club: se mide en la fase 0.
-- Club amigo para grabar los 100 partidos de la fase 0.
+- Club amigo para grabar los 20 a 30 partidos propios de la fase 0.
