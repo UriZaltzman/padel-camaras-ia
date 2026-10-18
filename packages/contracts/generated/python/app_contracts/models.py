@@ -4,8 +4,8 @@
 from __future__ import annotations
 
 from datetime import date
-from enum import Enum, StrEnum
-from typing import Annotated, Any
+from enum import Enum, IntEnum, StrEnum
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from pydantic import AnyUrl, AwareDatetime, BaseModel, ConfigDict, Field, RootModel
@@ -378,6 +378,273 @@ class UserStats(BaseModel):
     last_match_at: Timestamp | None
 
 
+class ClubPlan(StrEnum):
+    """
+    How the club got the camera kit: `loan` (comodato, we keep ownership) or `purchase`.
+    Set by the contract with us; read-only for the club.
+
+    """
+
+    loan = "loan"
+    purchase = "purchase"
+
+
+class ClubSummary(BaseModel):
+    """
+    A club in the public list.
+    """
+
+    id: Uuid
+    name: Annotated[str, Field(max_length=120, min_length=1)]
+    address: Annotated[str, Field(max_length=200)]
+    city: Annotated[str, Field(max_length=80)]
+    logo_url: AnyUrl | None
+    courts_count: Annotated[int, Field(ge=0)]
+
+
+class CourtStatus(StrEnum):
+    """
+    `active` takes bookings; `maintenance` is temporarily closed (no new bookings);
+    `inactive` is out of service.
+
+    """
+
+    active = "active"
+    maintenance = "maintenance"
+    inactive = "inactive"
+
+
+class Weekday(StrEnum):
+    mon = "mon"
+    tue = "tue"
+    wed = "wed"
+    thu = "thu"
+    fri = "fri"
+    sat = "sat"
+    sun = "sun"
+
+
+class LocalTime(RootModel[str]):
+    root: Annotated[
+        str, Field(examples=["18:00"], pattern="^(([01][0-9]|2[0-3]):[0-5][0-9]|24:00)$")
+    ]
+    """
+    Local time `HH:MM` in the club's time zone. `24:00` is allowed as an end time and means
+    midnight at the end of the day.
+
+    """
+
+
+class BookingDuration(IntEnum):
+    """
+    Allowed booking length in minutes.
+    """
+
+    integer_60 = 60
+    integer_90 = 90
+    integer_120 = 120
+
+
+class DurationPrice(BaseModel):
+    duration_minutes: BookingDuration
+    amount_cents: AmountCents
+
+
+class PriceBand(BaseModel):
+    """
+    Price of a booking that starts in `[starts_at, ends_at)`, for example peak hours from
+    18:00 to 23:00. The bands of a rule must cover its opening hours without gaps or
+    overlaps, and have a price for every allowed duration.
+
+    """
+
+    starts_at: LocalTime
+    ends_at: LocalTime
+    prices: Annotated[list[DurationPrice], Field(max_length=3, min_length=1)]
+
+
+class StartIntervalMinutes(IntEnum):
+    """
+    Every how many minutes a booking may start (30 by default).
+    """
+
+    integer_15 = 15
+    integer_30 = 30
+    integer_60 = 60
+
+
+class BookingRule(BaseModel):
+    """
+    Opening hours of a court on some weekdays (`booking_slots_rules`). A booking must start
+    on a step of `start_interval_minutes` from `opens_at` and end by `closes_at`. Rules of
+    one court must not overlap on the same day.
+
+    """
+
+    days: Annotated[list[Weekday], Field(max_length=7, min_length=1)]
+    opens_at: LocalTime
+    closes_at: LocalTime
+    allowed_durations: Annotated[list[BookingDuration], Field(max_length=3, min_length=1)]
+    start_interval_minutes: StartIntervalMinutes
+    """
+    Every how many minutes a booking may start (30 by default).
+    """
+    price_bands: Annotated[list[PriceBand], Field(max_length=12, min_length=1)]
+
+
+class Type1(StrEnum):
+    none = "none"
+
+
+class DepositNone(BaseModel):
+    """
+    No deposit; the booking is confirmed right away.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    type: Literal["none"]
+
+
+class Type2(StrEnum):
+    percent = "percent"
+
+
+class DepositPercent(BaseModel):
+    """
+    Deposit as a percent of the booking price, rounded down to whole cents.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    type: Literal["percent"]
+    percent: Annotated[int, Field(ge=1, le=100)]
+
+
+class Type3(StrEnum):
+    fixed = "fixed"
+
+
+class DepositFixed(BaseModel):
+    """
+    Fixed deposit amount in ARS cents, capped at the booking price.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    type: Literal["fixed"]
+    amount_cents: Annotated[int, Field(ge=1)]
+
+
+class Deposit(RootModel[DepositNone | DepositPercent | DepositFixed]):
+    root: Annotated[DepositNone | DepositPercent | DepositFixed, Field(discriminator="type")]
+    """
+    Deposit asked to confirm a booking, paid with Mercado Pago (section 9).
+    """
+
+
+class CourtBookingSettings(BaseModel):
+    """
+    Booking rules, deposit and cancellation policy of one court.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    rules: Annotated[list[BookingRule], Field(max_length=14)]
+    """
+    Empty means the court takes no bookings from the app.
+    """
+    deposit: Deposit
+    cancellation_refund_hours: Annotated[int, Field(ge=0, le=168)]
+    """
+    Cancelling at least this many hours before the start refunds the deposit (24 by
+    default). Later cancellations and `no_show` keep it.
+
+    """
+
+
+class PlayerExtraSettings(BaseModel):
+    """
+    Per-match extra charged to each player to unlock the full analysis (`player_extra`
+    payments). The money goes to the club's Mercado Pago account.
+
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    enabled: bool
+    """
+    False means everything is free for players.
+    """
+    amount_cents: Annotated[int | None, Field(ge=1)]
+    """
+    Price per player and match in ARS cents. Required when `enabled` is true.
+    """
+
+
+class Type4(StrEnum):
+    included = "included"
+    coach_monthly = "coach_monthly"
+
+
+class CoachPlan(BaseModel):
+    """
+    Who pays for the coach tools: `included` in the club's subscription, or
+    `coach_monthly`, a monthly fee each coach pays.
+
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    type: Type4
+    monthly_fee_cents: Annotated[int | None, Field(ge=1)] = None
+    """
+    Monthly fee per coach in ARS cents. Required when `type` is `coach_monthly`.
+    """
+
+
+class ChargeSettings(BaseModel):
+    """
+    How the club charges players and coaches (section 10).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    player_extra: PlayerExtraSettings
+    coach_plan: CoachPlan
+    lesson_payments_enabled: bool
+    """
+    True lets the club's coaches charge their lessons in the app (`lesson` payments).
+    """
+
+
+class CourtSettingsUpdate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    court_id: Uuid
+    booking: CourtBookingSettings
+
+
+class ClubSettingsUpdate(BaseModel):
+    """
+    Settings the owner may change. At least one field is required.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    charges: ChargeSettings | None = None
+    courts: Annotated[list[CourtSettingsUpdate] | None, Field(max_length=50, min_length=1)] = None
+
+
 class Page(BaseModel):
     """
     Base of every paginated response. A list operation combines it with `allOf` and adds an
@@ -460,6 +727,21 @@ class MatchSummaryPage(Page):
     items: list[MatchSummary]
 
 
+class ClubSummaryPage(Page):
+    items: list[ClubSummary]
+
+
+class Court(BaseModel):
+    id: Uuid
+    name: Annotated[str, Field(max_length=60, min_length=1)]
+    covered: bool
+    """
+    True for an indoor (techada) court.
+    """
+    status: CourtStatus
+    booking: CourtBookingSettings
+
+
 class Error(BaseModel):
     """
     Body of every 4xx and 5xx response.
@@ -474,3 +756,23 @@ class Error(BaseModel):
     """
     Optional machine-readable detail. Shape per code in the `ErrorCode` catalog.
     """
+
+
+class Club(BaseModel):
+    """
+    Public detail of a club with its courts and settings.
+    """
+
+    id: Uuid
+    name: Annotated[str, Field(max_length=120, min_length=1)]
+    address: Annotated[str, Field(max_length=200)]
+    city: Annotated[str, Field(max_length=80)]
+    timezone: Annotated[str, Field(examples=["America/Argentina/Buenos_Aires"])]
+    """
+    IANA time zone of the club. Booking rule hours are local times in this zone.
+    """
+    logo_url: AnyUrl | None
+    sponsor_name: Annotated[str | None, Field(max_length=120)]
+    plan: ClubPlan
+    courts: list[Court]
+    charges: ChargeSettings

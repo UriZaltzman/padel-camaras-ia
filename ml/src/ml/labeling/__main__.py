@@ -12,7 +12,7 @@ from uuid import UUID
 from ml.labeling.actions import SaveTarget
 from ml.labeling.config import DEFAULT_LABELING_CONFIG_PATH, load_labeling_config
 from ml.labeling.server import LOCALE_PATH, App, serve
-from ml.labeling.session import new_uuid7, open_session
+from ml.labeling.session import new_uuid7, open_session, stored_shot_type_counts
 from ml.schemas import Camera
 
 VIDEO_INDEX_NAME = "videos.json"
@@ -65,6 +65,7 @@ def main(argv: list[str] | None = None) -> None:
         video_path=args.video,
         target=SaveTarget(args.labels_root, labeler),
         lock=Lock(),
+        other_counts=stored_shot_type_counts(args.labels_root, exclude=match_id),
     )
     url = f"http://{config.server.host}:{config.server.port}/"
     print(texts["ready"].format(url=url, match_id=match_id))  # noqa: T201

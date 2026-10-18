@@ -110,6 +110,12 @@
       td {
         padding: 2px 4px;
       }
+      #progress td.done {
+        color: var(--accent);
+      }
+      body.shot-type #timeline .bounce {
+        opacity: 0.3;
+      }
       kbd {
         background: #333;
         padding: 1px 6px;
@@ -127,6 +133,8 @@
         <div id="message" role="status"></div>
       </section>
       <aside>
+        <h2 id="h-progress"></h2>
+        <table id="progress"></table>
         <h2 id="h-events"></h2>
         <ol id="events"></ol>
         <h2 id="h-shortcuts"></h2>
@@ -139,7 +147,9 @@
       let cfg,
         texts,
         state,
-        rateIndex = 0;
+        rateIndex = 0,
+        mode = 'timeline',
+        clipShot = null;
 
       const fmt = (s, vars) => s.replace(/\{(\w+)\}/g, (_, k) => vars[k]);
       const clock = (ms) => {
@@ -152,6 +162,9 @@
       const keyLabel = (k) => texts.key_names[k] || k;
 
       function describeAction(sc) {
+        if (sc.shot_type) {
+          return fmt(texts.actions.classify_shot, { shot_type: texts.shot_types[sc.shot_type] });
+        }
         return fmt(texts.actions[sc.action], {
           n: sc.track_id === null ? '' : sc.track_id + 1,
           surface: sc.surface ? texts.surfaces[sc.surface] : '',
@@ -161,7 +174,9 @@
       function describeEvent(e) {
         const what =
           e.kind === 'shot'
-            ? `${texts.kinds.shot} · ${fmt(texts.player, { n: e.track_id + 1 })}`
+            ? `${texts.kinds.shot} · ${fmt(texts.player, { n: e.track_id + 1 })} · ${
+                e.shot_type ? texts.shot_types[e.shot_type] : texts.shot_type_status.untyped
+              }`
             : `${texts.kinds.bounce} · ${texts.surfaces[e.surface]} · ${e.side}`;
         return `${clock(e.time_ms)}  ${what}`;
       }
@@ -236,7 +251,98 @@
           span.textContent = s;
           document.getElementById('status').append(span);
         }
+        renderShotTypeMode();
+        renderShortcuts();
         drawPlayhead();
+      }
+
+      // Shot-type mode: loop a clip around the selected shot and show progress per type.
+      function selectedShot() {
+        return state.events.find((e) => e.id === state.selected && e.kind === 'shot') || null;
+      }
+
+      function renderShotTypeMode() {
+        document.body.classList.toggle('shot-type', mode === 'shot_type');
+        const status = document.getElementById('status');
+        const extra = [texts.modes[mode]];
+        if (mode === 'shot_type') {
+          const shot = selectedShot();
+          const hasShots = state.events.some((e) => e.kind === 'shot');
+          extra.push(fmt(texts.shot_type_status.unclassified, { n: state.unclassified }));
+          extra.push(
+            !hasShots
+              ? texts.shot_type_status.no_shots
+              : shot
+                ? fmt(texts.shot_type_status.current, {
+                    time: clock(shot.time_ms),
+                    player: fmt(texts.player, { n: shot.track_id + 1 }),
+                    shot_type: shot.shot_type
+                      ? texts.shot_types[shot.shot_type]
+                      : texts.shot_type_status.untyped,
+                  })
+                : texts.shot_type_status.none_selected,
+          );
+          const id = shot ? shot.id : null;
+          if (id !== clipShot) {
+            clipShot = id;
+            if (shot) {
+              video.currentTime = clipStart(shot) / 1000;
+              video.play();
+            }
+          }
+        } else {
+          clipShot = null;
+        }
+        for (const s of extra) {
+          const span = document.createElement('span');
+          span.textContent = s;
+          status.append(span);
+        }
+        const table = document.getElementById('progress');
+        table.innerHTML = '';
+        const target = cfg.shot_type.target_per_type;
+        for (const sc of cfg.shot_type.shortcuts) {
+          const n = state.shot_type_counts[sc.shot_type] || 0;
+          const tr = table.insertRow();
+          const k = document.createElement('kbd');
+          k.textContent = keyLabel(sc.key);
+          tr.insertCell().append(k);
+          tr.insertCell().textContent = texts.shot_types[sc.shot_type];
+          const cell = tr.insertCell();
+          const goal = sc.shot_type === 'unknown';
+          cell.textContent = goal
+            ? `${n} (${texts.shot_type_status.unknown_no_goal})`
+            : `${n} / ${target}`;
+          if (!goal && n >= target) cell.className = 'done';
+        }
+      }
+
+      const clipStart = (shot) => Math.max(0, shot.time_ms - cfg.shot_type.clip_before_ms);
+      const clipEnd = (shot) => shot.time_ms + cfg.shot_type.clip_after_ms;
+
+      function loopClip() {
+        if (mode !== 'shot_type' || !state) return;
+        const shot = selectedShot();
+        if (shot && nowMs() >= clipEnd(shot)) video.currentTime = clipStart(shot) / 1000;
+      }
+
+      function activeShortcuts() {
+        if (mode === 'timeline') return cfg.shortcuts;
+        const shared = cfg.shortcuts.filter((s) => cfg.shot_type_mode_actions.includes(s.action));
+        return [...cfg.shot_type.shortcuts, ...shared];
+      }
+
+      function renderShortcuts() {
+        const table = document.getElementById('shortcuts');
+        table.innerHTML = '';
+        for (const sc of activeShortcuts()) {
+          if (mode === 'shot_type' && sc.shot_type) continue;
+          const tr = table.insertRow();
+          const k = document.createElement('kbd');
+          k.textContent = keyLabel(sc.key);
+          tr.insertCell().append(k);
+          tr.insertCell().textContent = describeAction(sc);
+        }
       }
 
       function drawPlayhead() {
@@ -261,18 +367,34 @@
           video.playbackRate = cfg.timeline.playback_rates[rateIndex];
           render();
         },
+        toggle_mode: () => {
+          mode = mode === 'timeline' ? 'shot_type' : 'timeline';
+          video.pause();
+          render();
+        },
       };
 
       document.addEventListener('keydown', (ev) => {
         if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
-        const sc = cfg && cfg.shortcuts.find((s) => s.key === ev.key);
+        const sc = cfg && activeShortcuts().find((s) => s.key === ev.key);
         if (!sc) return;
         ev.preventDefault();
         if (playback[sc.action]) {
           playback[sc.action]();
           return;
         }
+        if (sc.shot_type) {
+          call('/api/action', {
+            action: 'classify_shot',
+            time_ms: nowMs(),
+            shot_type: sc.shot_type,
+            event_id: state.selected,
+            mode,
+          });
+          return;
+        }
         call('/api/action', {
+          mode,
           action: sc.action,
           time_ms: nowMs(),
           track_id: sc.track_id,
@@ -286,7 +408,10 @@
         video.currentTime = ((ev.clientX - r.left) / r.width) * (video.duration || 0);
       });
 
-      video.addEventListener('timeupdate', drawPlayhead);
+      video.addEventListener('timeupdate', () => {
+        loopClip();
+        drawPlayhead();
+      });
       video.addEventListener('seeked', drawPlayhead);
       video.addEventListener('loadedmetadata', () =>
         call('/api/duration', { duration_ms: Math.floor(video.duration * 1000) }),
@@ -304,14 +429,9 @@
         document.title = `${texts.title} · ${cfg.video_name}`;
         document.getElementById('h-events').textContent = texts.headings.events;
         document.getElementById('h-shortcuts').textContent = texts.headings.shortcuts;
-        const table = document.getElementById('shortcuts');
-        for (const sc of cfg.shortcuts) {
-          const tr = table.insertRow();
-          const k = document.createElement('kbd');
-          k.textContent = keyLabel(sc.key);
-          tr.insertCell().append(k);
-          tr.insertCell().textContent = describeAction(sc);
-        }
+        document.getElementById('h-progress').textContent = fmt(texts.headings.progress, {
+          target: cfg.shot_type.target_per_type,
+        });
         rateIndex = Math.max(0, cfg.timeline.playback_rates.indexOf(1));
         state = await (await fetch('/api/state')).json();
         render();

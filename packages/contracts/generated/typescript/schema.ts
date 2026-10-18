@@ -211,6 +211,84 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/clubs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List clubs
+     * @description Active clubs on the platform, ordered by name. Public: no credentials needed, so the web
+     *     and the app can show clubs before sign-in. Returns no personal data and no private
+     *     settings (CUIT, Mercado Pago account, contract terms).
+     */
+    get: operations['listClubs'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/clubs/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get a club with its courts, booking rules and charge settings
+     * @description Public detail of a club: courts with their booking rules (days, hours, durations,
+     *     prices, deposit, cancellation) and the charge settings players need to know (whether
+     *     there is a per-match extra and its price). No credentials needed. A club that is not
+     *     active returns `404 NOT_FOUND`.
+     */
+    get: operations['getClub'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/clubs/{id}/settings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Update the club's booking rules and charge settings (owner only)
+     * @description **Only the club owner** (an active `memberships` row with `role = owner` in this club,
+     *     section 12) may call it. Staff, coaches and players of the club get `403 FORBIDDEN`; a
+     *     user with no membership in the club gets `404 NOT_FOUND`, so the endpoint does not
+     *     reveal which clubs exist behind it. Every change is written to `audit_log`.
+     *
+     *     Partial update at the top level: `charges` and each listed court's `booking` replace
+     *     the current value as a whole; courts not listed keep their rules. Changes apply to
+     *     bookings created afterwards, never to existing ones. The plan (`loan` or `purchase`)
+     *     is part of the contract with us and is read-only here.
+     *
+     *     Errors: `VALIDATION_FAILED` with `details.issues`, both for schema errors and for fields
+     *     valid one by one but not together (overlapping rules, price bands with gaps or a missing
+     *     allowed duration, an enabled extra without a price, a monthly coach plan without a fee);
+     *     `NOT_FOUND` (club, or a `court_id` of another club); `FORBIDDEN` (not the owner).
+     */
+    patch: operations['updateClubSettings'];
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -440,6 +518,181 @@ export interface components {
       last_match_at: components['schemas']['Timestamp'] | null;
     };
     /**
+     * @description How the club got the camera kit: `loan` (comodato, we keep ownership) or `purchase`.
+     *     Set by the contract with us; read-only for the club.
+     * @enum {string}
+     */
+    ClubPlan: 'loan' | 'purchase';
+    /** @description A club in the public list. */
+    ClubSummary: {
+      id: components['schemas']['Uuid'];
+      name: string;
+      address: string;
+      city: string;
+      /** Format: uri */
+      logo_url: string | null;
+      courts_count: number;
+    };
+    ClubSummaryPage: components['schemas']['Page'] & {
+      items: components['schemas']['ClubSummary'][];
+    };
+    /** @description Public detail of a club with its courts and settings. */
+    Club: {
+      id: components['schemas']['Uuid'];
+      name: string;
+      address: string;
+      city: string;
+      /**
+       * @description IANA time zone of the club. Booking rule hours are local times in this zone.
+       * @example America/Argentina/Buenos_Aires
+       */
+      timezone: string;
+      /** Format: uri */
+      logo_url: string | null;
+      sponsor_name: string | null;
+      plan: components['schemas']['ClubPlan'];
+      courts: components['schemas']['Court'][];
+      charges: components['schemas']['ChargeSettings'];
+    };
+    /**
+     * @description `active` takes bookings; `maintenance` is temporarily closed (no new bookings);
+     *     `inactive` is out of service.
+     * @enum {string}
+     */
+    CourtStatus: 'active' | 'maintenance' | 'inactive';
+    Court: {
+      id: components['schemas']['Uuid'];
+      name: string;
+      /** @description True for an indoor (techada) court. */
+      covered: boolean;
+      status: components['schemas']['CourtStatus'];
+      booking: components['schemas']['CourtBookingSettings'];
+    };
+    /** @enum {string} */
+    Weekday: 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+    /**
+     * @description Local time `HH:MM` in the club's time zone. `24:00` is allowed as an end time and means
+     *     midnight at the end of the day.
+     * @example 18:00
+     */
+    LocalTime: string;
+    /**
+     * @description Allowed booking length in minutes.
+     * @enum {integer}
+     */
+    BookingDuration: 60 | 90 | 120;
+    DurationPrice: {
+      duration_minutes: components['schemas']['BookingDuration'];
+      amount_cents: components['schemas']['AmountCents'];
+    };
+    /**
+     * @description Price of a booking that starts in `[starts_at, ends_at)`, for example peak hours from
+     *     18:00 to 23:00. The bands of a rule must cover its opening hours without gaps or
+     *     overlaps, and have a price for every allowed duration.
+     */
+    PriceBand: {
+      starts_at: components['schemas']['LocalTime'];
+      ends_at: components['schemas']['LocalTime'];
+      prices: components['schemas']['DurationPrice'][];
+    };
+    /**
+     * @description Opening hours of a court on some weekdays (`booking_slots_rules`). A booking must start
+     *     on a step of `start_interval_minutes` from `opens_at` and end by `closes_at`. Rules of
+     *     one court must not overlap on the same day.
+     */
+    BookingRule: {
+      days: components['schemas']['Weekday'][];
+      opens_at: components['schemas']['LocalTime'];
+      closes_at: components['schemas']['LocalTime'];
+      allowed_durations: components['schemas']['BookingDuration'][];
+      /**
+       * @description Every how many minutes a booking may start (30 by default).
+       * @default 30
+       * @enum {integer}
+       */
+      start_interval_minutes: 15 | 30 | 60;
+      price_bands: components['schemas']['PriceBand'][];
+    };
+    /** @description No deposit; the booking is confirmed right away. */
+    DepositNone: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'none';
+    };
+    /** @description Deposit as a percent of the booking price, rounded down to whole cents. */
+    DepositPercent: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'percent';
+      percent: number;
+    };
+    /** @description Fixed deposit amount in ARS cents, capped at the booking price. */
+    DepositFixed: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'fixed';
+      amount_cents: number;
+    };
+    /** @description Deposit asked to confirm a booking, paid with Mercado Pago (section 9). */
+    Deposit:
+      | components['schemas']['DepositNone']
+      | components['schemas']['DepositPercent']
+      | components['schemas']['DepositFixed'];
+    /** @description Booking rules, deposit and cancellation policy of one court. */
+    CourtBookingSettings: {
+      /** @description Empty means the court takes no bookings from the app. */
+      rules: components['schemas']['BookingRule'][];
+      deposit: components['schemas']['Deposit'];
+      /**
+       * @description Cancelling at least this many hours before the start refunds the deposit (24 by
+       *     default). Later cancellations and `no_show` keep it.
+       * @default 24
+       */
+      cancellation_refund_hours: number;
+    };
+    /**
+     * @description Per-match extra charged to each player to unlock the full analysis (`player_extra`
+     *     payments). The money goes to the club's Mercado Pago account.
+     */
+    PlayerExtraSettings: {
+      /** @description False means everything is free for players. */
+      enabled: boolean;
+      /** @description Price per player and match in ARS cents. Required when `enabled` is true. */
+      amount_cents: number | null;
+    };
+    /**
+     * @description Who pays for the coach tools: `included` in the club's subscription, or
+     *     `coach_monthly`, a monthly fee each coach pays.
+     */
+    CoachPlan: {
+      /** @enum {string} */
+      type: 'included' | 'coach_monthly';
+      /** @description Monthly fee per coach in ARS cents. Required when `type` is `coach_monthly`. */
+      monthly_fee_cents?: number;
+    };
+    /** @description How the club charges players and coaches (section 10). */
+    ChargeSettings: {
+      player_extra: components['schemas']['PlayerExtraSettings'];
+      coach_plan: components['schemas']['CoachPlan'];
+      /** @description True lets the club's coaches charge their lessons in the app (`lesson` payments). */
+      lesson_payments_enabled: boolean;
+    };
+    CourtSettingsUpdate: {
+      court_id: components['schemas']['Uuid'];
+      booking: components['schemas']['CourtBookingSettings'];
+    };
+    /** @description Settings the owner may change. At least one field is required. */
+    ClubSettingsUpdate: {
+      charges?: components['schemas']['ChargeSettings'];
+      courts?: components['schemas']['CourtSettingsUpdate'][];
+    };
+    /**
      * @description Base of every paginated response. A list operation combines it with `allOf` and adds an
      *     `items` array of its own type.
      */
@@ -635,6 +888,8 @@ export interface components {
     Cursor: string;
     /** @description Maximum number of items in the page. */
     Limit: number;
+    /** @description Club id. */
+    ClubId: components['schemas']['Uuid'];
   };
   requestBodies: never;
   headers: {
@@ -681,6 +936,28 @@ export type SchemaSetScore = components['schemas']['SetScore'];
 export type SchemaMatchSummary = components['schemas']['MatchSummary'];
 export type SchemaMatchSummaryPage = components['schemas']['MatchSummaryPage'];
 export type SchemaUserStats = components['schemas']['UserStats'];
+export type SchemaClubPlan = components['schemas']['ClubPlan'];
+export type SchemaClubSummary = components['schemas']['ClubSummary'];
+export type SchemaClubSummaryPage = components['schemas']['ClubSummaryPage'];
+export type SchemaClub = components['schemas']['Club'];
+export type SchemaCourtStatus = components['schemas']['CourtStatus'];
+export type SchemaCourt = components['schemas']['Court'];
+export type SchemaWeekday = components['schemas']['Weekday'];
+export type SchemaLocalTime = components['schemas']['LocalTime'];
+export type SchemaBookingDuration = components['schemas']['BookingDuration'];
+export type SchemaDurationPrice = components['schemas']['DurationPrice'];
+export type SchemaPriceBand = components['schemas']['PriceBand'];
+export type SchemaBookingRule = components['schemas']['BookingRule'];
+export type SchemaDepositNone = components['schemas']['DepositNone'];
+export type SchemaDepositPercent = components['schemas']['DepositPercent'];
+export type SchemaDepositFixed = components['schemas']['DepositFixed'];
+export type SchemaDeposit = components['schemas']['Deposit'];
+export type SchemaCourtBookingSettings = components['schemas']['CourtBookingSettings'];
+export type SchemaPlayerExtraSettings = components['schemas']['PlayerExtraSettings'];
+export type SchemaCoachPlan = components['schemas']['CoachPlan'];
+export type SchemaChargeSettings = components['schemas']['ChargeSettings'];
+export type SchemaCourtSettingsUpdate = components['schemas']['CourtSettingsUpdate'];
+export type SchemaClubSettingsUpdate = components['schemas']['ClubSettingsUpdate'];
 export type SchemaPage = components['schemas']['Page'];
 export type SchemaError = components['schemas']['Error'];
 export type SchemaValidationIssue = components['schemas']['ValidationIssue'];
@@ -698,6 +975,7 @@ export type ResponseBadGateway = components['responses']['BadGateway'];
 export type ResponseServiceUnavailable = components['responses']['ServiceUnavailable'];
 export type ParameterCursor = components['parameters']['Cursor'];
 export type ParameterLimit = components['parameters']['Limit'];
+export type ParameterClubId = components['parameters']['ClubId'];
 export type HeaderXRequestId = components['headers']['X-Request-Id'];
 export type HeaderRateLimitLimit = components['headers']['RateLimit-Limit'];
 export type HeaderRateLimitRemaining = components['headers']['RateLimit-Remaining'];
@@ -1114,6 +1392,114 @@ export interface operations {
         };
       };
       401: components['responses']['Unauthorized'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listClubs: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor from a previous page's `next_cursor`. Omit it for the first page. */
+        cursor?: components['parameters']['Cursor'];
+        /** @description Maximum number of items in the page. */
+        limit?: components['parameters']['Limit'];
+        /** @description Case- and accent-insensitive search on the club name or city. */
+        q?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of clubs. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "items": [
+           *         {
+           *           "id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a60",
+           *           "name": "Club Demo Palermo",
+           *           "address": "Av. Santa Fe 4000",
+           *           "city": "CABA",
+           *           "logo_url": null,
+           *           "courts_count": 4
+           *         }
+           *       ],
+           *       "next_cursor": null
+           *     }
+           */
+          'application/json': components['schemas']['ClubSummaryPage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  getClub: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The club. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Club'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  updateClubSettings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ClubSettingsUpdate'];
+      };
+    };
+    responses: {
+      /** @description The club with the new settings. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Club'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
       429: components['responses']['TooManyRequests'];
       500: components['responses']['InternalError'];
     };

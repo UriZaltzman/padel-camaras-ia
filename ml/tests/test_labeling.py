@@ -226,7 +226,7 @@ def test_shot_and_bounce_need_their_argument(session: LabelingSession, tmp_path:
 
 def test_default_config_covers_every_action_and_surface() -> None:
     config = load_labeling_config()
-    assert {s.action for s in config.shortcuts} == set(Action)
+    assert {s.action for s in config.shortcuts} == set(Action) - {Action.CLASSIFY_SHOT}
     assert {s.surface for s in config.shortcuts if s.surface} == set(Surface)
 
 

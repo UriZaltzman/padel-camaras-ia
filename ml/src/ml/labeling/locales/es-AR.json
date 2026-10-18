@@ -48,11 +48,15 @@
     "move_to_playhead": "Mover el evento al cuadro actual",
     "delete_selected": "Borrar el evento seleccionado",
     "undo": "Deshacer",
-    "save": "Guardar"
+    "save": "Guardar",
+    "toggle_mode": "Cambiar entre línea de tiempo y tipo de golpe",
+    "next_unclassified": "Ir al próximo golpe sin tipo",
+    "classify_shot": "Tipo de golpe: {shot_type}"
   },
   "headings": {
     "events": "Eventos",
-    "shortcuts": "Atajos de teclado"
+    "shortcuts": "Atajos de teclado",
+    "progress": "Golpes por tipo (meta {target} por tipo)"
   },
   "empty": "Todavía no marcaste nada. Pausá en el golpe o bote y apretá su tecla.",
   "key_names": {
@@ -76,6 +80,32 @@
     "LABEL_FORBIDDEN_ORIGIN": "Esa página no puede usar la herramienta.",
     "LABEL_UNSUPPORTED_MEDIA_TYPE": "No pude leer el pedido.",
     "LABEL_BAD_REQUEST": "No pude aplicar esa acción.",
-    "NETWORK": "Se cortó la conexión con la herramienta. ¿Sigue abierta la terminal?"
+    "NETWORK": "Se cortó la conexión con la herramienta. ¿Sigue abierta la terminal?",
+    "LABEL_NOT_A_SHOT": "Solo se le puede poner tipo a un golpe, no a un bote."
+  },
+  "shot_types": {
+    "serve": "saque",
+    "forehand": "drive",
+    "backhand": "revés",
+    "forehand_volley": "volea de drive",
+    "backhand_volley": "volea de revés",
+    "bandeja": "bandeja",
+    "vibora": "víbora",
+    "smash": "remate",
+    "lob": "globo",
+    "off_the_wall": "salida de pared",
+    "unknown": "no se sabe"
+  },
+  "modes": {
+    "timeline": "Modo: línea de tiempo",
+    "shot_type": "Modo: tipo de golpe"
+  },
+  "shot_type_status": {
+    "unclassified": "Golpes sin tipo en este video: {n}",
+    "none_selected": "Elegí un golpe con ↑ ↓ o con la tecla de próximo sin tipo.",
+    "current": "Golpe en {time} · {player} · {shot_type}",
+    "untyped": "sin tipo",
+    "no_shots": "Este video no tiene golpes marcados. Marcalos primero en la línea de tiempo.",
+    "unknown_no_goal": "sin meta"
   }
 }

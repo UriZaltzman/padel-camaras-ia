@@ -7,7 +7,8 @@ two-camera recording; the camera of the video being labeled is stamped on every 
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections import Counter
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -22,11 +23,12 @@ from ml.labels import (
     LabelSetInfo,
     MatchLabels,
     ShotLabel,
+    ShotTypeLabel,
     list_label_set_versions,
     read_label_set,
     write_label_set,
 )
-from ml.schemas import Camera, CourtSide, Surface
+from ml.schemas import Camera, CourtSide, ShotType, Surface
 
 type Event = ShotLabel | BounceLabel
 
@@ -44,6 +46,7 @@ class ErrorCode(StrEnum):
     EVENT_NOT_FOUND = "LABEL_EVENT_NOT_FOUND"
     NOTHING_TO_UNDO = "LABEL_NOTHING_TO_UNDO"
     NOTHING_TO_SAVE = "LABEL_NOTHING_TO_SAVE"
+    NOT_A_SHOT = "LABEL_NOT_A_SHOT"
 
 
 class LabelingError(ValueError):
@@ -67,6 +70,13 @@ def _retimed[T: (ShotLabel, BounceLabel)](
 class _Snapshot:
     shots: tuple[ShotLabel, ...]
     bounces: tuple[BounceLabel, ...]
+    shot_types: tuple[ShotTypeLabel, ...] = ()
+
+
+def count_shot_types(labels: Iterable[ShotTypeLabel]) -> dict[ShotType, int]:
+    """How many shots of each type (every type present, zero if none)."""
+    counts = Counter(label.shot_type for label in labels)
+    return {shot_type: counts[shot_type] for shot_type in ShotType}
 
 
 @dataclass(frozen=True)
@@ -86,7 +96,8 @@ class LabelingSession:
 
     If ``base`` is given (a stored version of the label set), editing starts from it and
     saving stores a new version; shot types and points from the base are kept, except the
-    shot types of shots removed here.
+    shot types of shots removed here. Shot types are edited here too (shot-type mode) and
+    share the same undo history.
     """
 
     def __init__(
@@ -104,7 +115,9 @@ class LabelingSession:
         self.base = base
         self._new_id = id_factory
         self._state = _Snapshot(
-            shots=base.shots if base else (), bounces=base.bounces if base else ()
+            shots=base.shots if base else (),
+            bounces=base.bounces if base else (),
+            shot_types=base.shot_types if base else (),
         )
         self._history: list[_Snapshot] = []
         self._saved_state = self._state
@@ -121,6 +134,17 @@ class LabelingSession:
     @property
     def bounces(self) -> tuple[BounceLabel, ...]:
         return self._state.bounces
+
+    @property
+    def shot_types(self) -> tuple[ShotTypeLabel, ...]:
+        return self._state.shot_types
+
+    def shot_type_of(self, shot_id: UUID) -> ShotType | None:
+        return next((t.shot_type for t in self.shot_types if t.shot_id == shot_id), None)
+
+    def shot_type_counts(self) -> dict[ShotType, int]:
+        """Shots of this match per type, as they stand (saved or not)."""
+        return count_shot_types(self.shot_types)
 
     @property
     def dirty(self) -> bool:
@@ -197,6 +221,7 @@ class LabelingSession:
             _Snapshot(
                 shots=tuple(s for s in self.shots if s.id != event_id),
                 bounces=tuple(b for b in self.bounces if b.id != event_id),
+                shot_types=tuple(t for t in self.shot_types if t.shot_id != event_id),
             )
         )
         if self.selected == event_id:
@@ -206,7 +231,8 @@ class LabelingSession:
         self._check_time(time_ms)
         self._find(event_id)
         self._commit(
-            _Snapshot(
+            replace(
+                self._state,
                 shots=_retimed(self.shots, event_id, time_ms),
                 bounces=_retimed(self.bounces, event_id, time_ms),
             )
@@ -222,6 +248,54 @@ class LabelingSession:
         self._state = self._history.pop()
         if self.selected is not None and self.selected not in {e.id for e in self.events()}:
             self.selected = None
+
+    def classify(self, shot_id: UUID, shot_type: ShotType) -> None:
+        """Set (or change) the type of a shot, then select the next shot in time.
+
+        Classifying with the type it already has changes nothing and adds no undo step.
+        """
+        if not any(shot.id == shot_id for shot in self.shots):
+            self._find(shot_id)
+            raise LabelingError(ErrorCode.NOT_A_SHOT, str(shot_id))
+        if self.shot_type_of(shot_id) is not shot_type:
+            label = ShotTypeLabel(shot_id=shot_id, shot_type=shot_type)
+            others = tuple(t for t in self.shot_types if t.shot_id != shot_id)
+            self._commit(replace(self._state, shot_types=(*others, label)))
+        self.selected = self._next_shot(shot_id, unclassified=False) or shot_id
+
+    def _shots_in_order(self) -> list[ShotLabel]:
+        return sorted(self.shots, key=lambda s: (s.time_ms, str(s.id)))
+
+    def _next_shot(self, after: UUID | None, *, unclassified: bool) -> UUID | None:
+        ordered = self._shots_in_order()
+        ids = [s.id for s in ordered]
+        start = ids.index(after) + 1 if after in ids else 0
+        rotated = ordered[start:] + ordered[:start] if unclassified else ordered[start:]
+        for shot in rotated:
+            if not unclassified or self.shot_type_of(shot.id) is None:
+                return shot.id
+        return None
+
+    def select_next_unclassified(self) -> UUID | None:
+        """Select the next shot without a type after the selected one, wrapping around."""
+        found = self._next_shot(self.selected, unclassified=True)
+        if found is not None:
+            self.selected = found
+        return found
+
+    def select_shot_step(self, step: int, time_ms: int) -> UUID | None:
+        """Like ``select_step`` but only over shots (shot-type mode)."""
+        ordered = self._shots_in_order()
+        if not ordered:
+            self.selected = None
+            return None
+        ids = [s.id for s in ordered]
+        if self.selected not in ids:
+            self.selected = min(ordered, key=lambda s: abs(s.time_ms - time_ms)).id
+            return self.selected
+        index = min(max(ids.index(self.selected) + step, 0), len(ids) - 1)
+        self.selected = ids[index]
+        return self.selected
 
     # -- selection ---------------------------------------------------------------------
 
@@ -255,7 +329,12 @@ class LabelingSession:
             ),
             shots=tuple(sorted(self.shots, key=lambda s: s.time_ms)),
             bounces=tuple(sorted(self.bounces, key=lambda b: b.time_ms)),
-            shot_types=tuple(t for t in base.shot_types if t.shot_id in shot_ids) if base else (),
+            shot_types=tuple(
+                sorted(
+                    (t for t in self.shot_types if t.shot_id in shot_ids),
+                    key=lambda t: str(t.shot_id),
+                )
+            ),
             points=base.points if base else (),
         )
 
@@ -280,3 +359,20 @@ def open_session(labels_root: Path, match_id: UUID, camera: Camera) -> LabelingS
         else None
     )
     return LabelingSession(match_id, camera, base)
+
+
+def stored_shot_type_counts(labels_root: Path, exclude: UUID | None = None) -> dict[ShotType, int]:
+    """Shot types in the latest version of every match stored under ``labels_root``.
+
+    ``exclude`` leaves out the match being labeled, whose counts come from its session.
+    """
+    labels: list[ShotTypeLabel] = []
+    if labels_root.is_dir():
+        for match_dir in sorted(p for p in labels_root.iterdir() if p.is_dir()):
+            try:
+                match_id = UUID(match_dir.name)
+            except ValueError:
+                continue
+            if match_id != exclude and list_label_set_versions(labels_root, match_id):
+                labels.extend(read_label_set(labels_root, match_id).shot_types)
+    return count_shot_types(labels)
