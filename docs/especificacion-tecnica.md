@@ -207,17 +207,19 @@ Todo se calcula a partir de puntos, golpes y botes ya validados, con fórmulas f
 
 ## 8. Datos y entrenamiento de modelos
 
-Los modelos se entrenan con partidos propios, porque la luz, los vidrios y los ángulos de nuestras canchas no están en los datos públicos. La fase 0 junta 100 partidos y cada corrección de un jugador en la app agrega datos nuevos.
+Los modelos se entrenan primero con videos de pádel existentes cuya licencia permita uso comercial y entrenamiento (ADR 0002). Después se ajustan con partidos propios, porque la luz, los vidrios y los ángulos de nuestras canchas no están en esos videos. La fase 0 junta 20 a 30 partidos propios, que se usan solo para ajustar y medir, y cada corrección de un jugador en la app agrega datos nuevos.
 
 **Qué se etiqueta y cuánto:**
 
-| Dato | Herramienta | Cantidad para la primera versión |
+| Dato | Herramienta | Cantidad propia para la primera versión |
 | --- | --- | --- |
-| Recuadros de jugadores | CVAT, con pre-etiquetado del detector genérico | 5.000 cuadros de 30 partidos, de día y de noche |
+| Recuadros de jugadores | CVAT, con pre-etiquetado del detector genérico | 5.000 cuadros de 20 a 30 partidos, de día y de noche |
 | Posición de la pelota | CVAT, un punto por cuadro | 30.000 cuadros de 20 partidos |
 | Golpes y botes con superficie | Herramienta propia en la consola sobre la línea de tiempo | 20 partidos completos |
 | Tipo de golpe | Herramienta propia, sobre clips de 1 segundo | 3.000 golpes, al menos 150 por tipo |
-| Ganador de cada punto | Herramienta propia | 100 partidos (los de la fase 0) |
+| Ganador de cada punto | Herramienta propia | 20 a 30 partidos (los de la fase 0) |
+
+El resto de los datos de entrenamiento sale de videos existentes, con las etiquetas que traigan o etiquetados con las mismas herramientas. Golpes y botes con superficie se etiquetan sobre partidos propios, porque dependen de nuestras 2 cámaras.
 
 **Métricas mínimas para pasar al piloto pago:**
 
@@ -231,7 +233,9 @@ Los modelos se entrenan con partidos propios, porque la luz, los vidrios y los �
 | Tipo de golpe | Precisión promedio | 0,80 |
 | Puntos | Ganador correcto sin correcciones | 9 de cada 10 puntos |
 
-**Reglas de entrenamiento:** 15 partidos quedan siempre fuera del entrenamiento y sirven solo para medir. Cada modelo se guarda con su versión, sus datos y sus métricas (MLflow), y solo se instala en los clubes si mejora o iguala todas las métricas sobre esos 15 partidos. Los puntos corregidos por jugadores entran a una cola de revisión y, una vez validados, al siguiente entrenamiento. El entrenamiento corre en GPU por hora en la nube.
+**Reglas de entrenamiento:** 15 partidos propios, grabados con nuestras 2 cámaras, quedan siempre fuera del entrenamiento y sirven solo para medir. Cada modelo se guarda con su versión, sus datos y sus métricas (MLflow), y solo se instala en los clubes si mejora o iguala todas las métricas sobre esos 15 partidos. Los puntos corregidos por jugadores entran a una cola de revisión y, una vez validados, al siguiente entrenamiento. El entrenamiento corre en GPU por hora en la nube.
+
+**Qué nunca entra al entrenamiento (ADR 0002):** videos de jugadores que eligieron "no usar mis videos para entrenar" (propios, o existentes donde se los pueda identificar); partidos con menores sin permiso del adulto responsable; datasets, videos y pesos preentrenados con licencia AGPL o GPL, solo para uso no comercial, o con términos poco claros.
 
 ## 9. Reservas
 

@@ -286,13 +286,13 @@ El Orquestador trabaja en todas las fases.
 
 ## Hoja de ruta de desarrollo
 
-La versión completa se puede tener en un piloto pago a los 7 meses con el equipo de 8 agentes de IA y ustedes aprobando cada entrega. La plataforma y la IA se construyen en paralelo, y lo primero es grabar partidos reales, porque sin datos propios no se entrena ni se mide la IA.
+La versión completa se puede tener en un piloto pago a los 7 meses con el equipo de 8 agentes de IA y ustedes aprobando cada entrega. La plataforma y la IA se construyen en paralelo, y lo primero es grabar partidos reales, porque sin datos propios no se ajusta ni se mide la IA.
 
 &#91;embedded content: hoja de ruta · 5 fases en 7 meses\]
 
 | Fase | Qué se entrega | Cuándo está lista |
 | --- | --- | --- |
-| 0. Grabar partidos reales | 1 cancha de un club amigo con el equipo final, 100 partidos grabados y etiquetados | El hardware graba bien de día y de noche |
+| 0. Grabar partidos reales | 1 cancha de un club amigo con el equipo final, 20 a 30 partidos propios grabados y etiquetados (el entrenamiento arranca con videos de pádel existentes) | El hardware graba bien de día y de noche, y se midió la velocidad del pipeline en la GPU del club |
 | 1. Grabación y plataforma | Equipo del club, subida, reservas, app y web del jugador, QR, botón de clips, panel del club, Mercado Pago, WhatsApp | Un jugador recibe su video y sus clips sin ayuda |
 | 2. IA y marcador | Calibración, jugadores, pelota, golpes, botes y marcador automático | Medido contra los partidos etiquetados de la fase 0 |
 | 3. Estadísticas y entrenador | Estadísticas, insights en frases, reel vertical, modo clase y cobro de clases del entrenador | Los jugadores del club piloto entienden y usan las estadísticas |
