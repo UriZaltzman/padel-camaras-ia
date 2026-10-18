@@ -99,8 +99,12 @@ model User {
   createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  authIdentities AuthIdentity[]
-  memberships    Membership[]
+  authIdentities     AuthIdentity[]
+  memberships        Membership[]
+  bookingsCreated    Booking[]       @relation("BookingCreatedBy")
+  bookingsAsGuardian Booking[]       @relation("BookingGuardian")
+  bookingPlayers     BookingPlayer[] @relation("BookingPlayerUser")
+  bookingInvitesSent BookingPlayer[] @relation("BookingPlayerInvitedBy")
 
   @@map("users")
 }
@@ -178,9 +182,13 @@ model Club {
   createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  memberships Membership[]
-  courts      Court[]
-  contracts   Contract[]
+  memberships           Membership[]
+  courts                Court[]
+  contracts             Contract[]
+  bookingSlotsRules     BookingSlotsRule[]
+  bookingRulePriceBands BookingRulePriceBand[]
+  bookings              Booking[]
+  bookingPlayers        BookingPlayer[]
 
   @@map("clubs")
 }
@@ -196,7 +204,9 @@ model Court {
   createdAt            DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  club Club @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  club              Club               @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  bookingSlotsRules BookingSlotsRule[]
+  bookings          Booking[]
 
   @@unique([clubId, name])
   @@map("courts")
@@ -220,4 +230,157 @@ model Contract {
 
   @@index([clubId, startsOn])
   @@map("contracts")
+}
+
+// ---------------------------------------------------------------- Bookings (§9)
+
+/// Values must match `BookingStatus` in packages/contracts (state machine §3).
+enum BookingStatus {
+  held
+  confirmed
+  completed
+  cancelled
+  no_show
+  expired
+
+  @@map("booking_status")
+}
+
+enum BookingOrigin {
+  app
+  panel
+
+  @@map("booking_origin")
+}
+
+enum DepositKind {
+  /// No deposit: the booking is confirmed immediately.
+  none
+  /// Fixed amount in `deposit_amount_cents`.
+  fixed
+  /// Share of the price in `deposit_bps`.
+  percent
+
+  @@map("deposit_kind")
+}
+
+/// Booking rules of one court. A court may have several rules (e.g. weekdays vs weekend);
+/// the application must not create overlapping rules for the same weekday.
+/// CHECK constraints (durations, interval, deposit) live in the migration SQL.
+model BookingSlotsRule {
+  id                      String      @id @db.Uuid
+  clubId                  String      @map("club_id") @db.Uuid
+  courtId                 String      @map("court_id") @db.Uuid
+  /// ISO weekdays the rule applies to: 1 = Monday ... 7 = Sunday.
+  daysOfWeek              Int[]       @map("days_of_week") @db.SmallInt
+  /// Local time in the club's timezone. `closes_at` <= `opens_at` means it closes after midnight.
+  opensAt                 DateTime    @map("opens_at") @db.Time(0)
+  closesAt                DateTime    @map("closes_at") @db.Time(0)
+  /// Subset of {60, 90, 120}.
+  allowedDurationsMinutes Int[]       @map("allowed_durations_minutes") @db.SmallInt
+  /// Possible starts every N minutes from `opens_at` (e.g. 30).
+  startIntervalMinutes    Int         @map("start_interval_minutes") @db.SmallInt
+  depositKind             DepositKind @default(none) @map("deposit_kind")
+  depositAmountCents      Int?        @map("deposit_amount_cents")
+  depositBps              Int?        @map("deposit_bps")
+  /// A player can cancel (and get the deposit back) up to N hours before the start.
+  cancellationHours       Int         @default(24) @map("cancellation_hours") @db.SmallInt
+  active                  Boolean     @default(true)
+  createdAt               DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club       Club                   @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  court      Court                  @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  priceBands BookingRulePriceBand[]
+
+  @@index([courtId])
+  @@index([clubId])
+  @@map("booking_slots_rules")
+}
+
+/// Price per time band inside a rule (e.g. 08:00-17:00 off-peak, 17:00-closing peak), one row
+/// per allowed duration. A booking takes the price of the band its start falls into.
+model BookingRulePriceBand {
+  id              String   @id @db.Uuid
+  clubId          String   @map("club_id") @db.Uuid
+  ruleId          String   @map("rule_id") @db.Uuid
+  startsAt        DateTime @map("starts_at") @db.Time(0)
+  endsAt          DateTime @map("ends_at") @db.Time(0)
+  durationMinutes Int      @map("duration_minutes") @db.SmallInt
+  /// Price of the whole slot for this duration, ARS cents.
+  priceCents      Int      @map("price_cents")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club Club             @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  rule BookingSlotsRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, startsAt, durationMinutes])
+  @@index([clubId])
+  @@map("booking_rule_price_bands")
+}
+
+/// The non-overlap guarantee (exclusion constraint on court_id + tstzrange(starts_at, ends_at)
+/// for status held/confirmed) is added in #39; the columns it needs are already here.
+model Booking {
+  id                   String        @id @db.Uuid
+  clubId               String        @map("club_id") @db.Uuid
+  courtId              String        @map("court_id") @db.Uuid
+  startsAt             DateTime      @map("starts_at") @db.Timestamptz(3)
+  endsAt               DateTime      @map("ends_at") @db.Timestamptz(3)
+  status               BookingStatus @default(held)
+  /// Price fixed at booking time, ARS cents.
+  priceCents           Int           @map("price_cents")
+  depositPaidCents     Int           @default(0) @map("deposit_paid_cents")
+  origin               BookingOrigin
+  /// Required while `held` (10 minutes after creation, §9).
+  holdExpiresAt        DateTime?     @map("hold_expires_at") @db.Timestamptz(3)
+  /// Player who booked (app) or staff member who loaded it (panel).
+  createdByUserId      String?       @map("created_by_user_id") @db.Uuid
+  cancelledAt          DateTime?     @map("cancelled_at") @db.Timestamptz(3)
+  // Minors (§12): never recorded without a guardian permission stored on the booking.
+  includesMinors       Boolean       @default(false) @map("includes_minors")
+  guardianUserId       String?       @map("guardian_user_id") @db.Uuid
+  guardianPermissionAt DateTime?     @map("guardian_permission_at") @db.Timestamptz(3)
+  /// "Do not record" (kids' classes by default, §12); the edge scheduler skips these bookings.
+  noRecord             Boolean       @default(false) @map("no_record")
+  createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club      Club            @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  court     Court           @relation(fields: [courtId], references: [id], onDelete: Restrict)
+  createdBy User?           @relation("BookingCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  guardian  User?           @relation("BookingGuardian", fields: [guardianUserId], references: [id], onDelete: SetNull)
+  players   BookingPlayer[]
+
+  @@index([courtId, startsAt])
+  @@index([clubId, startsAt])
+  @@index([status, holdExpiresAt])
+  @@map("bookings")
+}
+
+model BookingPlayer {
+  id              String    @id @db.Uuid
+  clubId          String    @map("club_id") @db.Uuid
+  bookingId       String    @map("booking_id") @db.Uuid
+  /// 1 = whoever booked; 2..4 = invited (CHECK 1..4 in the migration SQL).
+  position        Int       @db.SmallInt
+  /// Null until the invitation link is accepted.
+  userId          String?   @map("user_id") @db.Uuid
+  invitedByUserId String?   @map("invited_by_user_id") @db.Uuid
+  accepted        Boolean   @default(false)
+  acceptedAt      DateTime? @map("accepted_at") @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club      Club    @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user      User?   @relation("BookingPlayerUser", fields: [userId], references: [id], onDelete: SetNull)
+  invitedBy User?   @relation("BookingPlayerInvitedBy", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([bookingId, position])
+  @@unique([bookingId, userId])
+  @@index([userId])
+  @@index([clubId])
+  @@map("booking_players")
 }
