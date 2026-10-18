@@ -161,6 +161,15 @@ class RatingThresholds(_Section):
     min_matches_to_show: PositiveInt
 
 
+class PerformanceThresholds(_Section):
+    min_realtime_factor: PositiveFloat
+    analysis_fps: PositiveInt
+    synthetic_duration_s: PositiveFloat
+    synthetic_width_px: PositiveInt
+    synthetic_height_px: PositiveInt
+    synthetic_channels: PositiveInt
+
+
 class Thresholds(_Section):
     """All thresholds of the pipeline, grouped by the spec section that uses them."""
 
@@ -180,6 +189,7 @@ class Thresholds(_Section):
     reel: ReelThresholds
     lesson_mode: LessonModeThresholds
     rating: RatingThresholds
+    performance: PerformanceThresholds
 
 
 def load_thresholds(path: Path = DEFAULT_THRESHOLDS_PATH) -> Thresholds:

@@ -117,3 +117,13 @@ lesson_mode:
 # Section 7: player level (Glicko-2).
 rating:
   min_matches_to_show: 5
+
+# Section 4: sizing. Each camera must be analysed at least min_realtime_factor times faster
+# than real time on an RTX 4060 class GPU, at analysis_fps. synthetic_* feed ml.bench.
+performance:
+  min_realtime_factor: 6.0
+  analysis_fps: 25
+  synthetic_duration_s: 10.0
+  synthetic_width_px: 1280
+  synthetic_height_px: 720
+  synthetic_channels: 3
