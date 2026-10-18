@@ -4,6 +4,9 @@ import { createApiClient } from '@app/contracts';
 
 import type { StoredTokens, TokenStore } from './token-store';
 
+/** New tokens, `invalid` (REFRESH_TOKEN_INVALID: sign in again) or `transient` (retry later). */
+export type RefreshResult = StoredTokens | 'invalid' | 'transient';
+
 export type Fetch = (input: Request) => Promise<Response>;
 
 export interface AuthedFetchOptions {
@@ -20,24 +23,32 @@ export function createTokenRefresher({
   store,
 }: Omit<AuthedFetchOptions, 'onSessionLost'>) {
   const raw = createApiClient({ baseUrl, fetch: baseFetch });
-  let inFlight: Promise<StoredTokens | null> | null = null;
+  let inFlight: Promise<RefreshResult> | null = null;
 
-  async function rotate(): Promise<StoredTokens | null> {
+  async function rotate(): Promise<RefreshResult> {
     const current = await store.load();
-    if (!current) return null;
-    const { data } = await raw.POST('/auth/refresh', {
-      body: { refresh_token: current.refresh_token },
-    });
-    if (!data) {
-      await store.clear();
-      return null;
+    if (!current) return 'invalid';
+    try {
+      const { data, error } = await raw.POST('/auth/refresh', {
+        body: { refresh_token: current.refresh_token },
+      });
+      if (!data) {
+        // Only a rejected refresh token ends the session; 5xx or 429 keep it for a retry.
+        if (error?.code === 'REFRESH_TOKEN_INVALID') {
+          await store.clear();
+          return 'invalid';
+        }
+        return 'transient';
+      }
+      const next = { access_token: data.access_token, refresh_token: data.refresh_token };
+      await store.save(next);
+      return next;
+    } catch {
+      return 'transient'; // network error
     }
-    const next = { access_token: data.access_token, refresh_token: data.refresh_token };
-    await store.save(next);
-    return next;
   }
 
-  return function refresh(): Promise<StoredTokens | null> {
+  return function refresh(): Promise<RefreshResult> {
     inFlight ??= rotate().finally(() => {
       inFlight = null;
     });
@@ -69,10 +80,8 @@ export function createAuthedFetch(options: AuthedFetchOptions): Fetch {
     if (!tokens || !(await isExpiredToken(response))) return response;
 
     const next = await refresh();
-    if (!next) {
-      onSessionLost();
-      return response;
-    }
+    if (next === 'invalid') onSessionLost();
+    if (typeof next === 'string') return response;
     retry.headers.set('Authorization', `Bearer ${next.access_token}`);
     return baseFetch(retry);
   };

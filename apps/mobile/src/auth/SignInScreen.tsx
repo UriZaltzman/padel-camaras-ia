@@ -128,10 +128,12 @@ export function SignInScreen() {
 
   function onProvider(kind: 'google' | 'apple') {
     const back = step;
+    if (!providers) return;
+    const social = providers;
     void (async () => {
       let token;
       try {
-        token = await providers[kind]();
+        token = await social[kind]();
       } catch (e) {
         if (!(e instanceof ProviderCancelledError)) setError(t('signIn.errors.provider'));
         return;
@@ -190,20 +192,28 @@ export function SignInScreen() {
               disabled={busy || !phoneInput.trim()}
             />
             <Text style={styles.divider}>{t('signIn.or')}</Text>
-            <Button
-              testID="google-sign-in"
-              variant="secondary"
-              label={t('signIn.google')}
-              onPress={() => onProvider('google')}
-              disabled={busy}
-            />
-            <Button
-              testID="apple-sign-in"
-              variant="secondary"
-              label={t('signIn.apple')}
-              onPress={() => onProvider('apple')}
-              disabled={busy}
-            />
+            {providers ? (
+              <>
+                <Button
+                  testID="google-sign-in"
+                  variant="secondary"
+                  label={t('signIn.google')}
+                  onPress={() => onProvider('google')}
+                  disabled={busy}
+                />
+                <Button
+                  testID="apple-sign-in"
+                  variant="secondary"
+                  label={t('signIn.apple')}
+                  onPress={() => onProvider('apple')}
+                  disabled={busy}
+                />
+              </>
+            ) : (
+              <Text testID="social-unavailable" style={styles.body}>
+                {t('signIn.socialUnavailable')}
+              </Text>
+            )}
           </>
         )}
 

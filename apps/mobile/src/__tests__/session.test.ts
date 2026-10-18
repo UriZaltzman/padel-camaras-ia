@@ -4,6 +4,7 @@ import { createAuthedFetch } from '../auth/authed-fetch';
 import { createMockAuthServer } from '../auth/mock-api';
 import type { StoredTokens, TokenStore } from '../auth/token-store';
 import { toE164 } from '../auth/phone';
+import { defaultSocialProviders, shouldUseMockApi } from '../auth/session';
 
 const baseUrl = 'http://mock.test/v1';
 
@@ -101,5 +102,53 @@ describe('toE164', () => {
   it('rejects garbage', () => {
     expect(toE164('abc')).toBeNull();
     expect(toE164('12')).toBeNull();
+  });
+});
+
+const unavailable = () =>
+  Promise.resolve(
+    new Response(JSON.stringify({ code: 'SERVICE_UNAVAILABLE', message: 'x' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  );
+const offline = () => Promise.reject(new TypeError('Network request failed'));
+
+describe('transient refresh failures keep the session', () => {
+  it.each([
+    ['a 503', unavailable],
+    ['a network error', offline],
+  ])('does not sign out on %s', async (_label, failure) => {
+    const { server, store } = await signedIn();
+    const before = store.value;
+    const onSessionLost = jest.fn();
+    const baseFetch = (input: Request) =>
+      input.url.endsWith('/auth/refresh') ? failure() : server.fetch(input);
+    const client = createApiClient({
+      baseUrl,
+      fetch: createAuthedFetch({ baseUrl, baseFetch, store, onSessionLost }),
+    });
+    server.expireAccessToken();
+    const { response } = await client.GET('/me');
+    expect(response.status).toBe(401);
+    expect(onSessionLost).not.toHaveBeenCalled();
+    expect(store.value).toEqual(before);
+  });
+});
+
+describe('dev-only fakes', () => {
+  it('uses the contract mock only in dev builds with the flag', () => {
+    expect(shouldUseMockApi('true', true)).toBe(true);
+    expect(shouldUseMockApi('false', true)).toBe(false);
+    expect(shouldUseMockApi(undefined, true)).toBe(false);
+  });
+
+  it('fails closed in release builds even with the flag set', () => {
+    expect(shouldUseMockApi('true', false)).toBe(false);
+  });
+
+  it('never gives release builds the fake Google/Apple providers', () => {
+    expect(defaultSocialProviders(false)).toBeNull();
+    expect(defaultSocialProviders(true)).not.toBeNull();
   });
 });

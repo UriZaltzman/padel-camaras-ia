@@ -174,6 +174,17 @@ describe('SignInScreen', () => {
     expect(screen.queryByTestId('sign-in-error')).toBeNull();
   });
 
+  it('hides Google and Apple and says they are unavailable when the build has no providers', async () => {
+    await render(
+      <SessionProvider fetch={createMockAuthServer().fetch} providers={null}>
+        <SignInScreen />
+      </SessionProvider>,
+    );
+    expect(screen.queryByTestId('google-sign-in')).toBeNull();
+    expect(screen.queryByTestId('apple-sign-in')).toBeNull();
+    expect(screen.getByText(esAR.signIn.socialUnavailable)).toBeTruthy();
+  });
+
   it('takes every text from i18n, none hardcoded', async () => {
     await act(() => i18n.changeLanguage('cimode'));
     const server = createMockAuthServer();

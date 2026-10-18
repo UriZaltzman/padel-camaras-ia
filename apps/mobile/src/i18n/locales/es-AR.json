@@ -17,6 +17,7 @@
     "or": "o",
     "google": "Seguir con Google",
     "apple": "Seguir con Apple",
+    "socialUnavailable": "Entrar con Google o Apple todavía no está disponible. Por ahora entrá con WhatsApp.",
     "code": {
       "title": "Poné el código",
       "body": "Te lo mandamos por WhatsApp al {phone}. Vence en 5 minutos.",

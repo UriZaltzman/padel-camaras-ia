@@ -18,7 +18,8 @@ export type SessionStatus = 'loading' | 'signedIn' | 'signedOut';
 interface SessionContextValue {
   status: SessionStatus;
   user: Schema<'User'> | null;
-  providers: SocialAuthProviders;
+  /** null when sign-in with Google/Apple is not available in this build. */
+  providers: SocialAuthProviders | null;
   startSession(session: Schema<'AuthSession'>): Promise<void>;
   signOut(): Promise<void>;
 }
@@ -33,11 +34,24 @@ export function useSession(): SessionContextValue {
 
 const mockSchema = z.object({ EXPO_PUBLIC_API_MOCK: z.enum(['true', 'false']).default('false') });
 
+/**
+ * The contract mock (fixed code 123456) runs only in dev builds with EXPO_PUBLIC_API_MOCK=true.
+ * Release builds fail closed: they always talk to the real API, whatever the flag says.
+ */
+export function shouldUseMockApi(flag: string | undefined, isDev: boolean): boolean {
+  if (!isDev) return false;
+  return mockSchema.parse({ EXPO_PUBLIC_API_MOCK: flag }).EXPO_PUBLIC_API_MOCK === 'true';
+}
+
+/** Fake Google/Apple only in dev builds; release builds get none until the real SDKs exist. */
+export function defaultSocialProviders(isDev: boolean): SocialAuthProviders | null {
+  return isDev ? createFakeProviders() : null;
+}
+
 function defaultFetch(): Fetch {
-  const { EXPO_PUBLIC_API_MOCK } = mockSchema.parse({
-    EXPO_PUBLIC_API_MOCK: process.env.EXPO_PUBLIC_API_MOCK,
-  });
-  if (EXPO_PUBLIC_API_MOCK === 'true') return createMockAuthServer().fetch;
+  if (shouldUseMockApi(process.env.EXPO_PUBLIC_API_MOCK, __DEV__)) {
+    return createMockAuthServer().fetch;
+  }
   return (input) => globalThis.fetch(input);
 }
 
@@ -47,14 +61,16 @@ interface SessionProviderProps {
   /** Injected in tests: the contract mock. */
   fetch?: Fetch;
   /** Google/Apple SDKs. Fake until the real credentials exist. */
-  providers?: SocialAuthProviders;
+  providers?: SocialAuthProviders | null;
 }
 
 export function SessionProvider({ children, store, fetch, providers }: SessionProviderProps) {
   const tokenStore = store ?? secureTokenStore;
   const [status, setStatus] = useState<SessionStatus>('loading');
   const [user, setUser] = useState<Schema<'User'> | null>(null);
-  const [social] = useState(() => providers ?? createFakeProviders());
+  const [social] = useState(() =>
+    providers !== undefined ? providers : defaultSocialProviders(__DEV__),
+  );
 
   const [client] = useState(() => {
     const baseUrl = apiBaseUrl();
