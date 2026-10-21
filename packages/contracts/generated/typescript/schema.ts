@@ -25,6 +25,150 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/device/schedule': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Turns to record in the next 48 hours (club device)
+     * @description The `scheduler` process calls this every minute and stores the answer in its local
+     *     SQLite, so it keeps recording from the stored copy for up to 48 hours without internet
+     *     (section 4). The device is identified by its client certificate (mTLS); it only gets
+     *     its own club's courts. Recording starts at `record_from` (2 minutes before the turn)
+     *     and ends at `record_until` (2 minutes after). Turns with `no_record: true` are listed
+     *     so the device knows the court is busy, but must not be recorded.
+     *
+     *     Not paginated: 48 hours of a club fit in one response. `ETag` / `If-None-Match` avoid
+     *     resending an unchanged schedule (`304`).
+     *
+     *     Errors: `DEVICE_CERTIFICATE_INVALID` (401).
+     */
+    get: operations['getDeviceSchedule'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/device/heartbeat': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Health report every 60 seconds (club device)
+     * @description The `health` process reports free disk, GPU temperature, each camera and the queues
+     *     (section 4). Three missed heartbeats mark the device offline and emit `device.offline`;
+     *     a camera down for more than 5 minutes during a turn alerts the club and support. The
+     *     response carries the server time (to detect clock drift beyond NTP) and the software
+     *     version the `updater` should run.
+     *
+     *     Errors: `DEVICE_CERTIFICATE_INVALID` (401), `DEVICE_CLUB_MISMATCH` (403, a camera of
+     *     another club), `VALIDATION_FAILED` (400).
+     */
+    post: operations['postDeviceHeartbeat'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/device/matches/{id}/results': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Upload the pipeline results of a match (club device)
+     * @description The `uploader` sends this first, before clips and video (priority 1, section 4). The
+     *     body is the `MatchResults` format shared by `ml` (which produces it) and
+     *     `services/edge-agent` (which sends it); its full example is `MatchResultsExample`.
+     *
+     *     - The match moves `processing` → `published` (or `failed` with `status: failed`), and
+     *       `match.processed` is emitted. The cloud stores points, shots and bounces, takes the
+     *       device stats as a first version and recomputes them with the same versioned formulas
+     *       after any score correction.
+     *     - Idempotent by `run_id`: resending the same run returns `202` without changes. A new
+     *       `run_id` (reprocess) replaces the previous results.
+     *     - Media is referenced by the `media_id` returned by `POST /device/uploads`; uploads may
+     *       finish after the results.
+     *
+     *     Errors: `DEVICE_CERTIFICATE_INVALID` (401), `DEVICE_CLUB_MISMATCH` (403),
+     *     `INVALID_STATE_TRANSITION` (409, the match is not `recorded` or `processing`),
+     *     `VALIDATION_FAILED` (400), `NOT_FOUND`.
+     */
+    post: operations['postMatchResults'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/device/uploads': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Get signed multipart upload links for a video, clip, reel or thumbnail
+     * @description Starts a resumable multipart upload to private storage (section 4, `uploader`). The
+     *     device uploads each part with `PUT` to its signed `url` (valid 1 hour; call again with
+     *     the same `upload_id` to get fresh links for missing parts), then calls
+     *     `POST /device/uploads/{id}/complete`. Idempotent by `sha256` + `match_id` + `kind`.
+     *     The device never receives permanent links.
+     *
+     *     Errors: `DEVICE_CERTIFICATE_INVALID` (401), `DEVICE_CLUB_MISMATCH` (403),
+     *     `VALIDATION_FAILED` (400), `NOT_FOUND` (match or upload).
+     */
+    post: operations['createDeviceUpload'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/device/uploads/{id}/complete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Finish a multipart upload
+     * @description Closes the multipart upload with the `ETag` of each part. The API checks size and
+     *     `sha256`, marks the media `ready` and, for clips, emits `clip.created`. After this the
+     *     device may delete its original once the analysis is done (section 4, disk).
+     *
+     *     Errors: `DEVICE_CLUB_MISMATCH` (403), `VALIDATION_FAILED` (400, missing part or checksum
+     *     mismatch), `NOT_FOUND`.
+     */
+    post: operations['completeDeviceUpload'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/auth/otp/whatsapp': {
     parameters: {
       query?: never;
@@ -524,6 +668,322 @@ export interface components {
      * @enum {string}
      */
     SettlementStatus: 'draft' | 'approved' | 'invoiced' | 'paid';
+    /** @description How the match is scored (section 6), from the club settings at booking time. */
+    ScoringRules: {
+      /** @description True plays golden point at 40-40; false plays advantage. */
+      golden_point: boolean;
+      /**
+       * @description A normal set with tie-break at 6-6, or a super tie-break to 10.
+       * @enum {string}
+       */
+      third_set: 'set' | 'super_tiebreak';
+    };
+    DeviceScheduleItem: {
+      match_id: components['schemas']['Uuid'];
+      /** @description `null` for a recording started by hand from the panel. */
+      booking_id: components['schemas']['Uuid'] | null;
+      court_id: components['schemas']['Uuid'];
+      /** @enum {string} */
+      match_type: 'match' | 'lesson';
+      starts_at: components['schemas']['Timestamp'];
+      ends_at: components['schemas']['Timestamp'];
+      record_from: components['schemas']['Timestamp'];
+      record_until: components['schemas']['Timestamp'];
+      no_record: boolean;
+      scoring: components['schemas']['ScoringRules'];
+      updated_at: components['schemas']['Timestamp'];
+    };
+    DeviceSchedule: {
+      club_id: components['schemas']['Uuid'];
+      generated_at: components['schemas']['Timestamp'];
+      /** @description End of the 48-hour window. */
+      valid_until: components['schemas']['Timestamp'];
+      /** @description Ordered by `record_from`. A cancelled turn disappears from the list. */
+      items: components['schemas']['DeviceScheduleItem'][];
+    };
+    DeviceCameraHealth: {
+      camera_id: components['schemas']['Uuid'];
+      online: boolean;
+      fps: number | null;
+      recording: boolean;
+    };
+    DeviceHeartbeat: {
+      sent_at: components['schemas']['Timestamp'];
+      software_version: string;
+      uptime_seconds: number;
+      disk_free_bytes: number;
+      disk_total_bytes: number;
+      gpu_temp_c: number | null;
+      cpu_temp_c?: number | null;
+      cameras: components['schemas']['DeviceCameraHealth'][];
+      upload_queue: {
+        items: number;
+        bytes: number;
+        eta_minutes: number;
+      };
+      /** @description Local analysis backlog. Over 6 hours the oldest matches go to the cloud GPU. */
+      processing_backlog_minutes: number;
+    };
+    DeviceHeartbeatAck: {
+      server_time: components['schemas']['Timestamp'];
+      /** @description Version the `updater` installs between 4 and 6 a.m. */
+      desired_software_version: string;
+    };
+    /**
+     * @description End of the court (camera end, or the side a team starts on).
+     * @enum {string}
+     */
+    CourtEnd: 'A' | 'B';
+    /**
+     * @description Position in meters (see the format note above). `z` is `null` without 3D (the ball is
+     *     triangulated only when both cameras see it). Values outside the court (lobs, exits,
+     *     players behind the glass) are allowed within the 1.5 m mask and beyond for the ball.
+     */
+    CourtPosition: {
+      x: number;
+      y: number;
+      z?: number | null;
+    };
+    /**
+     * @description One of the 4 tracks (section 5, step 3).
+     * @enum {integer}
+     */
+    PipelinePosition: 1 | 2 | 3 | 4;
+    /** @enum {integer} */
+    PipelineTeam: 1 | 2;
+    /**
+     * @description Section 5, step 9. `unknown` under 0.6 confidence.
+     * @enum {string}
+     */
+    PipelineShotType:
+      | 'serve'
+      | 'forehand'
+      | 'backhand'
+      | 'forehand_volley'
+      | 'backhand_volley'
+      | 'bandeja'
+      | 'vibora'
+      | 'smash'
+      | 'lob'
+      | 'wall_exit'
+      | 'unknown';
+    /**
+     * @description Section 5, step 8.
+     * @enum {string}
+     */
+    BounceSurface: 'floor' | 'back_glass' | 'side_glass' | 'fence' | 'net';
+    /**
+     * @description Rule of section 6 that closed the point, in evaluation order.
+     * @enum {string}
+     */
+    PipelinePointEndReason:
+      | 'double_fault'
+      | 'own_floor_before_net'
+      | 'net'
+      | 'rival_wall_before_floor'
+      | 'double_bounce'
+      | 'out_after_bounce'
+      | 'ball_lost';
+    ResultPlayer: {
+      position: components['schemas']['PipelinePosition'];
+      team: components['schemas']['PipelineTeam'];
+      initial_side: components['schemas']['CourtEnd'];
+      /** @description Thumbnail for "este soy yo", from `POST /device/uploads`. */
+      thumbnail_media_id: components['schemas']['Uuid'] | null;
+      /** @description Share of rally frames where this track was seen. */
+      track_coverage_pct: number;
+    };
+    ResultEventRef: {
+      /** @enum {string} */
+      kind: 'shot' | 'bounce';
+      /** @description Index in `shots` or `bounces`. */
+      index: number;
+    };
+    ResultPoint: {
+      /** @description 1-based, consecutive over the match. */
+      number: number;
+      set: number;
+      /** @description 1-based within the set; the tie-break is game 13. */
+      game: number;
+      server_position: components['schemas']['PipelinePosition'];
+      serve_faults: number;
+      winner_team: components['schemas']['PipelineTeam'];
+      end_reason: components['schemas']['PipelinePointEndReason'];
+      /** @description The event that closed the point; `null` for `ball_lost`. */
+      deciding_event: components['schemas']['ResultEventRef'] | null;
+      /** @description Product of the confidence of the deciding events (section 6, layer 2). */
+      confidence: number;
+      /** @description Confidence under the review threshold of `ml/config/thresholds.yaml` (0.7). */
+      needs_review: boolean;
+      start_ms: number;
+      end_ms: number;
+    };
+    ResultShot: {
+      point_number: number;
+      t_ms: number;
+      player_position: components['schemas']['PipelinePosition'];
+      shot_type: components['schemas']['PipelineShotType'];
+      shot_type_confidence: number;
+      /** @description Player's foot point at contact. */
+      player_at: components['schemas']['CourtPosition'];
+      /** @description Ball at contact. */
+      ball_at: components['schemas']['CourtPosition'];
+      /** @description Estimated, only with 3D positions. */
+      speed_kmh: number | null;
+      after_bounce: boolean;
+      /** @description The ball came off a wall before the shot (salida de pared). */
+      off_wall: boolean;
+      camera: components['schemas']['CourtEnd'];
+    };
+    ResultBounce: {
+      point_number: number;
+      t_ms: number;
+      surface: components['schemas']['BounceSurface'];
+      ball_at: components['schemas']['CourtPosition'];
+      confidence: number;
+    };
+    /** @description A point changed by serve coherence (section 6, layer 1). */
+    ResultCorrection: {
+      /** @enum {string} */
+      layer: 'serve_coherence';
+      point_number: number;
+      from_winner_team: components['schemas']['PipelineTeam'];
+      to_winner_team: components['schemas']['PipelineTeam'];
+    };
+    /**
+     * @description Stats of one position computed on the device with the versioned formulas of section 7.
+     *     `values` keys are the metric names of `ml` (for example `points_won`, `winners`,
+     *     `net_time_pct`, `distance_m`); the cloud recomputes them after a score correction.
+     */
+    ResultStats: {
+      position: components['schemas']['PipelinePosition'];
+      formula_version: string;
+      values: {
+        [key: string]: number;
+      };
+    };
+    ResultHighlight: {
+      point_number: number;
+      /** @description Highlight score of section 7. */
+      score: number;
+      start_ms: number;
+      end_ms: number;
+      clip_media_id: components['schemas']['Uuid'] | null;
+    };
+    ResultCalibration: {
+      camera: components['schemas']['CourtEnd'];
+      calibration_id: components['schemas']['Uuid'];
+      reprojection_error_cm: number;
+    };
+    ResultModelVersions: {
+      player_detector: string;
+      ball_tracker: string;
+      pose: string;
+      shot_classifier: string;
+      reid: string;
+    };
+    /**
+     * @description Output of the club pipeline for one match (schema version 1). `points`, `shots` and
+     *     `bounces` are each ordered by time; shots and bounces link to their point by
+     *     `point_number`. On `status: failed` only the run metadata and `failure` are sent.
+     */
+    MatchResults: {
+      /** @constant */
+      schema_version: 1;
+      run_id: components['schemas']['Uuid'];
+      match_id: components['schemas']['Uuid'];
+      /** @enum {string} */
+      status: 'succeeded' | 'failed';
+      failure?: {
+        /** @example ball_tracking */
+        stage: string;
+        code: string;
+      } | null;
+      /** @enum {string} */
+      processed_on: 'club' | 'cloud';
+      pipeline_version: string;
+      model_versions: components['schemas']['ResultModelVersions'];
+      /** @description Hash of `ml/config/thresholds.yaml` used in the run. */
+      thresholds_sha256: string;
+      started_at: components['schemas']['Timestamp'];
+      finished_at: components['schemas']['Timestamp'];
+      video: {
+        duration_ms: number;
+        fps: number;
+        /** @description Fine offset of camera B relative to A, from ball trajectory alignment. */
+        camera_offset_ms: number;
+      };
+      calibrations: components['schemas']['ResultCalibration'][];
+      scoring: components['schemas']['ScoringRules'];
+      players: components['schemas']['ResultPlayer'][];
+      points: components['schemas']['ResultPoint'][];
+      shots: components['schemas']['ResultShot'][];
+      bounces: components['schemas']['ResultBounce'][];
+      score: {
+        sets: components['schemas']['SetScore'][];
+        winner_team: components['schemas']['PipelineTeam'] | null;
+        /** @description False when the turn ended before the match did. */
+        completed: boolean;
+      };
+      corrections: components['schemas']['ResultCorrection'][];
+      stats: components['schemas']['ResultStats'][];
+      highlights: components['schemas']['ResultHighlight'][];
+    };
+    MatchResultsAck: {
+      match_id: components['schemas']['Uuid'];
+      run_id: components['schemas']['Uuid'];
+      match_status: components['schemas']['MatchStatus'];
+    };
+    /** @enum {string} */
+    DeviceUploadKind: 'full' | 'clip' | 'reel' | 'thumbnail';
+    DeviceUploadRequest: {
+      match_id: components['schemas']['Uuid'];
+      kind: components['schemas']['DeviceUploadKind'];
+      /** @enum {string} */
+      content_type: 'video/mp4' | 'image/jpeg';
+      size_bytes: number;
+      sha256: string;
+      duration_ms?: number | null;
+      /** @description Required for `kind: clip`. */
+      clip?: {
+        start_ms: number;
+        end_ms: number;
+        /** @enum {string} */
+        source: 'app' | 'button' | 'auto';
+        /** @description The player who tapped in the app, from the court channel. */
+        requested_by_user_id?: components['schemas']['Uuid'] | null;
+      } | null;
+      /** @description Resume an existing upload and get fresh part links. */
+      upload_id?: components['schemas']['Uuid'] | null;
+    };
+    DeviceUploadPart: {
+      number: number;
+      /**
+       * Format: uri
+       * @description Signed `PUT` link for this part, valid 1 hour.
+       */
+      url: string;
+    };
+    DeviceUpload: {
+      upload_id: components['schemas']['Uuid'];
+      media_id: components['schemas']['Uuid'];
+      part_size_bytes: number;
+      /** @description Links for the parts not uploaded yet. */
+      parts: components['schemas']['DeviceUploadPart'][];
+      expires_at: components['schemas']['Timestamp'];
+    };
+    DeviceUploadComplete: {
+      parts: {
+        number: number;
+        etag: string;
+      }[];
+    };
+    DeviceUploadDone: {
+      upload_id: components['schemas']['Uuid'];
+      media_id: components['schemas']['Uuid'];
+      /** @enum {string} */
+      status: 'ready';
+    };
     /** @description Liveness result. */
     HealthStatus: {
       /** @enum {string} */
@@ -1215,6 +1675,10 @@ export interface components {
     ClubId: components['schemas']['Uuid'];
     /** @description Court id. */
     CourtId: components['schemas']['Uuid'];
+    /** @description Match id (must belong to the device's club). */
+    DeviceMatchId: components['schemas']['Uuid'];
+    /** @description Upload id from `POST /device/uploads`. */
+    DeviceUploadId: components['schemas']['Uuid'];
     /** @description Booking id. */
     BookingId: components['schemas']['Uuid'];
   };
@@ -1241,6 +1705,37 @@ export type SchemaBookingStatus = components['schemas']['BookingStatus'];
 export type SchemaProcessingJobStatus = components['schemas']['ProcessingJobStatus'];
 export type SchemaPaymentStatus = components['schemas']['PaymentStatus'];
 export type SchemaSettlementStatus = components['schemas']['SettlementStatus'];
+export type SchemaScoringRules = components['schemas']['ScoringRules'];
+export type SchemaDeviceScheduleItem = components['schemas']['DeviceScheduleItem'];
+export type SchemaDeviceSchedule = components['schemas']['DeviceSchedule'];
+export type SchemaDeviceCameraHealth = components['schemas']['DeviceCameraHealth'];
+export type SchemaDeviceHeartbeat = components['schemas']['DeviceHeartbeat'];
+export type SchemaDeviceHeartbeatAck = components['schemas']['DeviceHeartbeatAck'];
+export type SchemaCourtEnd = components['schemas']['CourtEnd'];
+export type SchemaCourtPosition = components['schemas']['CourtPosition'];
+export type SchemaPipelinePosition = components['schemas']['PipelinePosition'];
+export type SchemaPipelineTeam = components['schemas']['PipelineTeam'];
+export type SchemaPipelineShotType = components['schemas']['PipelineShotType'];
+export type SchemaBounceSurface = components['schemas']['BounceSurface'];
+export type SchemaPipelinePointEndReason = components['schemas']['PipelinePointEndReason'];
+export type SchemaResultPlayer = components['schemas']['ResultPlayer'];
+export type SchemaResultEventRef = components['schemas']['ResultEventRef'];
+export type SchemaResultPoint = components['schemas']['ResultPoint'];
+export type SchemaResultShot = components['schemas']['ResultShot'];
+export type SchemaResultBounce = components['schemas']['ResultBounce'];
+export type SchemaResultCorrection = components['schemas']['ResultCorrection'];
+export type SchemaResultStats = components['schemas']['ResultStats'];
+export type SchemaResultHighlight = components['schemas']['ResultHighlight'];
+export type SchemaResultCalibration = components['schemas']['ResultCalibration'];
+export type SchemaResultModelVersions = components['schemas']['ResultModelVersions'];
+export type SchemaMatchResults = components['schemas']['MatchResults'];
+export type SchemaMatchResultsAck = components['schemas']['MatchResultsAck'];
+export type SchemaDeviceUploadKind = components['schemas']['DeviceUploadKind'];
+export type SchemaDeviceUploadRequest = components['schemas']['DeviceUploadRequest'];
+export type SchemaDeviceUploadPart = components['schemas']['DeviceUploadPart'];
+export type SchemaDeviceUpload = components['schemas']['DeviceUpload'];
+export type SchemaDeviceUploadComplete = components['schemas']['DeviceUploadComplete'];
+export type SchemaDeviceUploadDone = components['schemas']['DeviceUploadDone'];
 export type SchemaHealthStatus = components['schemas']['HealthStatus'];
 export type SchemaPhoneNumber = components['schemas']['PhoneNumber'];
 export type SchemaSignUpConsent = components['schemas']['SignUpConsent'];
@@ -1322,6 +1817,8 @@ export type ParameterCursor = components['parameters']['Cursor'];
 export type ParameterLimit = components['parameters']['Limit'];
 export type ParameterClubId = components['parameters']['ClubId'];
 export type ParameterCourtId = components['parameters']['CourtId'];
+export type ParameterDeviceMatchId = components['parameters']['DeviceMatchId'];
+export type ParameterDeviceUploadId = components['parameters']['DeviceUploadId'];
 export type ParameterBookingId = components['parameters']['BookingId'];
 export type HeaderXRequestId = components['headers']['X-Request-Id'];
 export type HeaderRateLimitLimit = components['headers']['RateLimit-Limit'];
@@ -1356,6 +1853,281 @@ export interface operations {
       };
       429: components['responses']['TooManyRequests'];
       503: components['responses']['ServiceUnavailable'];
+    };
+  };
+  getDeviceSchedule: {
+    parameters: {
+      query?: never;
+      header?: {
+        'If-None-Match'?: string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The schedule. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          ETag?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "club_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a60",
+           *       "generated_at": "2026-10-23T21:00:00Z",
+           *       "valid_until": "2026-10-25T21:00:00Z",
+           *       "items": [
+           *         {
+           *           "match_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b",
+           *           "booking_id": "0192b1e4-5a6b-7c8d-9e0f-1a2b3c4d5e6f",
+           *           "court_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61",
+           *           "match_type": "match",
+           *           "starts_at": "2026-10-23T22:00:00Z",
+           *           "ends_at": "2026-10-23T23:30:00Z",
+           *           "record_from": "2026-10-23T21:58:00Z",
+           *           "record_until": "2026-10-23T23:32:00Z",
+           *           "no_record": false,
+           *           "scoring": {
+           *             "golden_point": true,
+           *             "third_set": "super_tiebreak"
+           *           },
+           *           "updated_at": "2026-10-22T15:04:00Z"
+           *         }
+           *       ]
+           *     }
+           */
+          'application/json': components['schemas']['DeviceSchedule'];
+        };
+      };
+      /** @description Unchanged since the given `ETag`. */
+      304: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  postDeviceHeartbeat: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "sent_at": "2026-10-23T22:41:00Z",
+         *       "software_version": "0.4.2",
+         *       "uptime_seconds": 86400,
+         *       "disk_free_bytes": 1374389534720,
+         *       "disk_total_bytes": 2000398934016,
+         *       "gpu_temp_c": 71,
+         *       "cpu_temp_c": 58.5,
+         *       "cameras": [
+         *         {
+         *           "camera_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a90",
+         *           "online": true,
+         *           "fps": 25,
+         *           "recording": true
+         *         },
+         *         {
+         *           "camera_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a91",
+         *           "online": true,
+         *           "fps": 24.9,
+         *           "recording": true
+         *         }
+         *       ],
+         *       "upload_queue": {
+         *         "items": 14,
+         *         "bytes": 5368709120,
+         *         "eta_minutes": 95
+         *       },
+         *       "processing_backlog_minutes": 40
+         *     }
+         */
+        'application/json': components['schemas']['DeviceHeartbeat'];
+      };
+    };
+    responses: {
+      /** @description Heartbeat stored. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "server_time": "2026-10-23T22:41:00Z",
+           *       "desired_software_version": "0.4.2"
+           *     }
+           */
+          'application/json': components['schemas']['DeviceHeartbeatAck'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  postMatchResults: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Match id (must belong to the device's club). */
+        id: components['parameters']['DeviceMatchId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MatchResults'];
+      };
+    };
+    responses: {
+      /** @description Results accepted. */
+      202: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "match_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b",
+           *       "run_id": "0192f0a0-1b2c-7d3e-8f4a-5b6c7d8e9f00",
+           *       "match_status": "published"
+           *     }
+           */
+          'application/json': components['schemas']['MatchResultsAck'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  createDeviceUpload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "match_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b",
+         *       "kind": "full",
+         *       "content_type": "video/mp4",
+         *       "size_bytes": 1073741824,
+         *       "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+         *       "duration_ms": 5520000
+         *     }
+         */
+        'application/json': components['schemas']['DeviceUploadRequest'];
+      };
+    };
+    responses: {
+      /** @description The upload with its signed part links. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "upload_id": "0192f0b0-1b2c-7d3e-8f4a-5b6c7d8e9f01",
+           *       "media_id": "0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a55",
+           *       "part_size_bytes": 67108864,
+           *       "parts": [
+           *         {
+           *           "number": 1,
+           *           "url": "https://storage.example.com/full/0192af6e.mp4?partNumber=1&uploadId=abc&X-Amz-Signature=1a2b"
+           *         }
+           *       ],
+           *       "expires_at": "2026-10-24T05:00:00Z"
+           *     }
+           */
+          'application/json': components['schemas']['DeviceUpload'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  completeDeviceUpload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Upload id from `POST /device/uploads`. */
+        id: components['parameters']['DeviceUploadId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "parts": [
+         *         {
+         *           "number": 1,
+         *           "etag": "\"a54357aff0632cce46d942af68356b38\""
+         *         }
+         *       ]
+         *     }
+         */
+        'application/json': components['schemas']['DeviceUploadComplete'];
+      };
+    };
+    responses: {
+      /** @description Upload completed. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "upload_id": "0192f0b0-1b2c-7d3e-8f4a-5b6c7d8e9f01",
+           *       "media_id": "0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a55",
+           *       "status": "ready"
+           *     }
+           */
+          'application/json': components['schemas']['DeviceUploadDone'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
     };
   };
   requestWhatsappOtp: {
