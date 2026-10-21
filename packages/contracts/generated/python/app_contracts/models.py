@@ -691,6 +691,223 @@ class UserStats(BaseModel):
     last_match_at: Timestamp | None
 
 
+class LessonKind(StrEnum):
+    """
+    `private` or `group` lesson, or a `school` (escuelita), which is "do not record" by
+    default (section 12).
+
+    """
+
+    private = "private"
+    group = "group"
+    school = "school"
+
+
+class LessonStudent(BaseModel):
+    user: EntityRef
+    accepted: bool
+    payment_status: PaymentStatus | None
+    """
+    Status of this student's lesson payment, or `null` if not charged or not started.
+    """
+
+
+class PointItem(RootModel[float]):
+    root: Annotated[float, Field(ge=0.0, le=1.0)]
+
+
+class Point(RootModel[list[PointItem]]):
+    root: Annotated[list[PointItem], Field(max_length=2, min_length=2)]
+
+
+class DrawingStroke(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    color: Annotated[str, Field(pattern="^#[0-9A-Fa-f]{6}$")]
+    width: Annotated[float, Field(gt=0.0, le=0.1)]
+    """
+    Stroke width as a fraction of the frame width.
+    """
+    points: Annotated[list[Point], Field(max_length=500, min_length=2)]
+    """
+    `[x, y]` pairs, each 0..1 relative to the video frame.
+    """
+
+
+class Drawing(BaseModel):
+    """
+    A drawing over one video frame.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    strokes: Annotated[list[DrawingStroke], Field(max_length=50)]
+
+
+class LessonNoteCreate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    text: Annotated[str, Field(max_length=2000, min_length=1)]
+    at_ms: Annotated[int | None, Field(ge=0)] = None
+    """
+    Moment of the lesson video the note refers to, or `null` for the whole lesson.
+    """
+    student_id: Uuid | None = None
+    """
+    The student the note is for, or `null` for all of them.
+    """
+    drawing: Drawing | None = None
+    """
+    Requires `at_ms`.
+    """
+    is_plan: bool | None = None
+    """
+    True marks the note as a plan item for the next lessons.
+    """
+    visible_to_students: bool | None = None
+    """
+    Defaults to true.
+    """
+
+
+class LessonNote(BaseModel):
+    id: Uuid
+    lesson_id: Uuid
+    text: str
+    at_ms: Annotated[int | None, Field(ge=0)]
+    student_id: Uuid | None
+    drawing: Drawing | None
+    is_plan: bool
+    visible_to_students: bool
+    created_at: Timestamp
+
+
+class CoachAccess(StrEnum):
+    """
+    What the student shares with the coach: `lessons_only` (the lessons this coach taught)
+    or `matches_and_lessons` (also their matches and stats, section 12).
+
+    """
+
+    lessons_only = "lessons_only"
+    matches_and_lessons = "matches_and_lessons"
+
+
+class CoachStudent(BaseModel):
+    user: EntityRef
+    access: CoachAccess
+    lessons_count: Annotated[int, Field(ge=0)]
+    last_lesson_at: Timestamp | None
+    pending_payment_cents: AmountCents
+
+
+class PaymentConcept(StrEnum):
+    """
+    `payments.concept`. Players pay `deposit`, `player_extra` and `lesson` through checkout;
+    `subscription` is the club's monthly fee, charged by a Mercado Pago subscription in our
+    company's name (never through checkout).
+
+    """
+
+    deposit = "deposit"
+    player_extra = "player_extra"
+    lesson = "lesson"
+    subscription = "subscription"
+
+
+class CheckoutDeposit(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    concept: Literal["deposit"]
+    booking_id: Uuid
+
+
+class CheckoutPlayerExtra(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    concept: Literal["player_extra"]
+    match_id: Uuid
+
+
+class CheckoutLesson(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    concept: Literal["lesson"]
+    lesson_id: Uuid
+
+
+class CheckoutRequest(RootModel[CheckoutDeposit | CheckoutPlayerExtra | CheckoutLesson]):
+    root: Annotated[
+        CheckoutDeposit | CheckoutPlayerExtra | CheckoutLesson, Field(discriminator="concept")
+    ]
+    """
+    What is being paid. The amount comes from the server, never from the client.
+    """
+
+
+class Payee(StrEnum):
+    """
+    Whose Mercado Pago account receives the money: the `club`, the `coach`, or
+    `platform` when the club or coach has not connected an account yet (we transfer in
+    the monthly settlement).
+
+    """
+
+    club = "club"
+    coach = "coach"
+    platform = "platform"
+
+
+class Checkout(BaseModel):
+    payment_id: Uuid
+    concept: PaymentConcept
+    status: PaymentStatus
+    amount_cents: AmountCents
+    marketplace_fee_cents: AmountCents
+    payee: Payee
+    """
+    Whose Mercado Pago account receives the money: the `club`, the `coach`, or
+    `platform` when the club or coach has not connected an account yet (we transfer in
+    the monthly settlement).
+
+    """
+    checkout_url: AnyUrl
+    """
+    Mercado Pago checkout (`init_point`) to open in the browser or app.
+    """
+    expires_at: Timestamp | None
+    """
+    For deposits, the end of the 10-minute hold.
+    """
+
+
+class Data(BaseModel):
+    id: str
+
+
+class MercadoPagoNotification(BaseModel):
+    """
+    Body Mercado Pago sends (webhooks v1). Only `type` and `data.id` are used; amounts and
+    status are always read back from Mercado Pago's API.
+
+    """
+
+    id: int | None = None
+    live_mode: bool | None = None
+    type: Annotated[str, Field(examples=["payment"])]
+    date_created: str | None = None
+    user_id: int | None = None
+    api_version: str | None = None
+    action: Annotated[str | None, Field(examples=["payment.created", "payment.updated"])] = None
+    data: Data
+
+
 class ClubPlan(StrEnum):
     """
     How the club got the camera kit: `loan` (comodato, we keep ownership) or `purchase`.
@@ -1363,6 +1580,64 @@ class MatchDetail(BaseModel):
     The caller's vertical reel, or `null` until generated.
     """
     published_at: Timestamp | None
+
+
+class LessonCreate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    court_id: Uuid
+    starts_at: Timestamp
+    duration_minutes: BookingDuration
+    kind: LessonKind
+    student_ids: Annotated[list[Uuid] | None, Field(max_length=12)] = None
+    """
+    Students with an account. Others join with the invite link.
+    """
+    price_cents: Annotated[int | None, Field(ge=1)] = None
+    """
+    Price per student in ARS cents, or `null` if the lesson is not charged in the app.
+    """
+    record: bool | None = None
+    """
+    Record the lesson. Defaults to true, and to false for `school`. A minor without a
+    guardian permission is never recorded.
+
+    """
+    focus: Annotated[str | None, Field(max_length=200)] = None
+    """
+    What the lesson works on, shown to the students.
+    """
+
+
+class Lesson(BaseModel):
+    id: Uuid
+    club: EntityRef
+    court: EntityRef
+    coach: EntityRef
+    kind: LessonKind
+    starts_at: Timestamp
+    ends_at: Timestamp
+    booking_id: Uuid
+    booking_status: BookingStatus
+    match_id: Uuid | None
+    """
+    The recorded lesson (`type: lesson`), once recording started.
+    """
+    students: list[LessonStudent]
+    price_cents: Annotated[int | None, Field(ge=1)]
+    no_record: bool
+    no_record_reason: NoRecordReason | None
+    focus: str | None
+    notes_count: Annotated[int, Field(ge=0)]
+
+
+class LessonPage(Page):
+    items: list[Lesson]
+
+
+class CoachStudentPage(Page):
+    items: list[CoachStudent]
 
 
 class ClubSummaryPage(Page):
