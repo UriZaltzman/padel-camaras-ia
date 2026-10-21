@@ -3,6 +3,7 @@
 Dueño: `arquitecto`.
 
 - `openapi/openapi.yaml`: contrato OpenAPI 3.1 de `/v1` (sección 11 de la especificación).
+- `realtime/court-channel.schema.json`: canal WebSocket por cancha (`wss://…/v1/realtime/courts/{court_id}`): toque de clip de la app al equipo del club y estado de grabación hacia la app. La app se autentica con el mensaje `auth`; el equipo del club con su certificado mTLS. Cada mensaje tiene esquema y ejemplo (`test/court-channel.test.mjs`).
 - `events/`: esquemas JSON de los eventos, con `event_id`, `occurred_at` y `schema_version`.
 - `pnpm contracts:generate` genera los tipos de TypeScript y los modelos Pydantic. Los tipos nunca se escriben a mano.
 
