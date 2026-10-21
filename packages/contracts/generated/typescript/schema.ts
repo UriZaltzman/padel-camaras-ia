@@ -211,6 +211,187 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/matches/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get a match with its players, score, stats and clips
+     * @description Visible to the match players (any status), to coaches the player gave access to, and to
+     *     the club staff and owner. Staff and owner get the match without personal stats: every
+     *     `players[].stats` and `insights` is `null` for them (section 12).
+     *
+     *     Before the match is published, `sets`, `points_to_review`, `insights` and stats are empty
+     *     or `null`. The four `players` positions exist from `published` on, one per tracked
+     *     player, each with a `thumbnail_media_id`; the app shows them for "este soy yo"
+     *     (`POST /matches/{id}/claim-player`). Media is referenced by id only and fetched with
+     *     `GET /media/{id}/url`: no field here is a permanent video URL.
+     *
+     *     Errors: `NOT_FOUND` (also when the caller may not see the match),
+     *     `COACH_ACCESS_NOT_GRANTED` (403).
+     */
+    get: operations['getMatch'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/matches/{id}/claim-player': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Claim a player position ("este soy yo")
+     * @description The signed-in user says which of the four tracked players they are (section 5, step 4).
+     *     No facial recognition: the user picks the thumbnail. Each confirmation narrows the
+     *     options of the others. Stats of an unclaimed position stay stored until someone claims
+     *     it. A user who was in the booking (`booking_players`) or scanned the court QR may claim;
+     *     so may anyone with the match invite link.
+     *
+     *     Errors: `MATCH_NOT_PUBLISHED` (409, positions exist only after the analysis),
+     *     `MATCH_PLAYER_SLOT_TAKEN` (409), `MATCH_ALREADY_JOINED` (409, the user already holds
+     *     another position), `TERMS_NOT_ACCEPTED` (403), `NOT_FOUND`.
+     */
+    post: operations['claimMatchPlayer'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/matches/{id}/score-correction': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Correct the score (final result or a doubtful point)
+     * @description A confirmed player of the match corrects the score (section 6, correction layers 2
+     *     and 3):
+     *
+     *     - `point_winner`: confirms who won one point flagged in `points_to_review`
+     *       (confidence under 0.7).
+     *     - `final_score`: loads the real result (for example 6-4 6-3); a Viterbi-style alignment
+     *       picks the most likely sequence of point winners that ends in that result.
+     *
+     *     The match moves `published` → `needs_review` and back to `published` when the stats are
+     *     recomputed; `match.score_corrected` is emitted. Every correction is stored and used to
+     *     retrain the models. The response is `202` because the recomputation is asynchronous.
+     *
+     *     Errors: `MATCH_NOT_PUBLISHED` (409), `INVALID_STATE_TRANSITION` (409, a correction is
+     *     already being applied), `FORBIDDEN` (the caller is not a confirmed player),
+     *     `VALIDATION_FAILED` (400, impossible score or unknown point), `NOT_FOUND`.
+     */
+    post: operations['correctMatchScore'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/matches/{id}/clips': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List the clips of a match
+     * @description Clips of the match (app taps, court button and automatic highlights), in video order.
+     *     Visible to whoever may see the match. Each clip references its media by id.
+     */
+    get: operations['listMatchClips'];
+    put?: never;
+    /**
+     * Cut a clip from the match video in the app
+     * @description A player of the match cuts a clip after the fact, choosing start and end on the video
+     *     (at most 60 seconds). Live taps during the turn travel over the court WebSocket channel
+     *     instead. The clip is cut by the club device, or in the cloud if the full video is
+     *     already there; it starts `processing` and `clip.created` is emitted when its media is
+     *     `ready`.
+     *
+     *     Errors: `MATCH_NOT_PUBLISHED` (409), `MEDIA_EXPIRED` (410, the full video was deleted
+     *     after 30 days), `VALIDATION_FAILED` (400, `end_ms` not after `start_ms`, longer than
+     *     60 s or past the end of the video), `FORBIDDEN` (not a player), `NOT_FOUND`.
+     */
+    post: operations['createMatchClip'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/media/{id}/url': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get a signed link to a video, clip, reel or thumbnail (valid 1 hour)
+     * @description Videos are private in storage. This returns a signed link that expires in at most 1 hour
+     *     (`expires_at`); clients request a new one when it expires and never store it. It is the
+     *     only way to reach media: no other response carries a media URL.
+     *
+     *     Support staff get a link only with a permission registered in `audit_log` (section 12).
+     *
+     *     Errors: `MEDIA_NOT_READY` (409), `MEDIA_EXPIRED` (410), `NOT_FOUND` (also when the
+     *     caller may not see the media).
+     */
+    get: operations['getMediaUrl'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/media/{id}/download': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Ask for a downloadable file of a video, clip or reel
+     * @description Returns a signed download link (`Content-Disposition: attachment`) valid for 1 hour when
+     *     the file is in the cloud (`status: ready`). When the full video stayed in the club
+     *     because its upload is slow (section 4), this asks the club device to upload it with top
+     *     priority and returns `status: preparing` with `url: null`; the player gets a WhatsApp
+     *     notice when it is ready and calls this again. Calling it again while `preparing` is
+     *     safe.
+     *
+     *     Errors: `MEDIA_EXPIRED` (410), `CLUB_FEATURE_DISABLED` (403, full video download is an
+     *     extra the club has not enabled), `NOT_FOUND`.
+     */
+    post: operations['requestMediaDownload'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/clubs': {
     parameters: {
       query?: never;
@@ -783,6 +964,280 @@ export interface components {
     };
     MatchSummaryPage: components['schemas']['Page'] & {
       items: components['schemas']['MatchSummary'][];
+    };
+    /**
+     * @description One of the four tracked players of a match (the 4 tracks of section 5).
+     * @enum {integer}
+     */
+    MatchPosition: 1 | 2 | 3 | 4;
+    /**
+     * @description Team 1 or 2, fixed by the side of the net at the first serve.
+     * @enum {integer}
+     */
+    Team: 1 | 2;
+    /**
+     * @description One of the 9 zones of each half (section 7): width `left`, `center`, `right` by depth
+     *     `net` (0 to 3 m from the net), `mid` (3 to 6.95 m) and `back` (6.95 to 10 m).
+     * @enum {string}
+     */
+    CourtZone:
+      | 'net_left'
+      | 'net_center'
+      | 'net_right'
+      | 'mid_left'
+      | 'mid_center'
+      | 'mid_right'
+      | 'back_left'
+      | 'back_center'
+      | 'back_right';
+    /**
+     * @description Shot type from the classifier (section 5, step 9). `unknown` when confidence is under
+     *     0.6; it does not count in per-type stats.
+     * @enum {string}
+     */
+    ShotType:
+      | 'serve'
+      | 'forehand'
+      | 'backhand'
+      | 'forehand_volley'
+      | 'backhand_volley'
+      | 'bandeja'
+      | 'vibora'
+      | 'smash'
+      | 'lob'
+      | 'wall_exit'
+      | 'unknown';
+    /** @description Count and outcome of one shot type for a player. */
+    ShotTypeStats: {
+      shot_type: components['schemas']['ShotType'];
+      count: number;
+      winners: number;
+      errors: number;
+    };
+    /** @description Points lost whose decisive event was in a zone (section 7, "dónde se fue el partido"). */
+    ZoneCount: {
+      zone: components['schemas']['CourtZone'];
+      points: number;
+    };
+    /**
+     * @description One player's stats for one match (`match_stats`), computed with fixed, versioned formulas
+     *     (section 7). Percentages are 0 to 100. `max_ball_speed_kmh` is an estimate and is `null`
+     *     without 3D ball positions.
+     */
+    PlayerMatchStats: {
+      /** @example 1.0.0 */
+      formula_version: string;
+      points_won: number;
+      winners: number;
+      forced_errors: number;
+      unforced_errors: number;
+      net_time_pct: number;
+      net_approaches: number;
+      distance_m: number;
+      serve_points_won_pct: number | null;
+      first_serve_in_pct: number | null;
+      max_ball_speed_kmh: number | null;
+      shots_by_type: components['schemas']['ShotTypeStats'][];
+      lost_points_by_zone: components['schemas']['ZoneCount'][];
+    };
+    /**
+     * @description One of the four tracked players. `user` is `null` until someone claims the position.
+     *     `stats` is `null` for club staff and owner, and before the match is published.
+     */
+    MatchPlayer: {
+      position: components['schemas']['MatchPosition'];
+      team: components['schemas']['Team'];
+      user: components['schemas']['MatchPlayerUser'] | null;
+      /** @description True when the user confirmed the position ("este soy yo"). */
+      confirmed: boolean;
+      /**
+       * @description True when this position is suggested to the caller because they scanned the court QR
+       *     and were the closest player to the camera at that moment.
+       */
+      suggested?: boolean;
+      /** @description Thumbnail used to pick "este soy yo". Fetch it with `GET /media/{id}/url`. */
+      thumbnail_media_id: components['schemas']['Uuid'] | null;
+      stats: components['schemas']['PlayerMatchStats'] | null;
+    };
+    /** @description Public view of a player inside a match they share with the caller. */
+    MatchPlayerUser: {
+      id: components['schemas']['Uuid'];
+      display_name: string;
+      /**
+       * Format: uri
+       * @description Profile photo (not a video).
+       */
+      photo_url: string | null;
+    };
+    /**
+     * @description Rule of section 6 that closed the point.
+     * @enum {string}
+     */
+    PointEndReason:
+      | 'double_fault'
+      | 'own_floor_before_net'
+      | 'net'
+      | 'rival_wall_before_floor'
+      | 'double_bounce'
+      | 'out_after_bounce'
+      | 'ball_lost';
+    /**
+     * @description A point with confidence under 0.7 (section 6, layer 2). The app shows its clip so the
+     *     players confirm who won it.
+     */
+    PointToReview: {
+      id: components['schemas']['Uuid'];
+      number: number;
+      set: number;
+      game: number;
+      winner_team: components['schemas']['Team'];
+      end_reason: components['schemas']['PointEndReason'];
+      confidence: number;
+      clip_media_id: components['schemas']['Uuid'] | null;
+    };
+    /**
+     * @description One sentence about the caller's match (section 7), written from a computed fact, with a
+     *     tip for the next match. Text is `es-AR`, produced by the insights pipeline.
+     */
+    Insight: {
+      id: components['schemas']['Uuid'];
+      /** @example net_uncovered */
+      kind: string;
+      text: string;
+      tip: string | null;
+      order: number;
+    };
+    /** @enum {string} */
+    MediaKind: 'full' | 'clip' | 'reel' | 'thumbnail';
+    /**
+     * @description `processing` while it is cut, encoded or uploaded; `ready` when a signed link can be
+     *     issued; `in_club` when the full video stayed in the club (ask with
+     *     `POST /media/{id}/download`); `expired` after it was deleted (full videos after 30 days).
+     * @enum {string}
+     */
+    MediaStatus: 'processing' | 'in_club' | 'ready' | 'expired';
+    /** @description A video, clip, reel or thumbnail, by id. Never carries its storage path or URL. */
+    MediaAsset: {
+      id: components['schemas']['Uuid'];
+      kind: components['schemas']['MediaKind'];
+      status: components['schemas']['MediaStatus'];
+      /** @description `null` for thumbnails. */
+      duration_ms: number | null;
+      /** @description When the media is deleted (full video 30 days after the match), or `null`. */
+      expires_at: components['schemas']['Timestamp'] | null;
+    };
+    /**
+     * @description `app` (tap or cut in the app), `button` (court button) or `auto` (highlight).
+     * @enum {string}
+     */
+    ClipSource: 'app' | 'button' | 'auto';
+    Clip: {
+      id: components['schemas']['Uuid'];
+      match_id: components['schemas']['Uuid'];
+      source: components['schemas']['ClipSource'];
+      /** @description Offset from the start of the match video. */
+      start_ms: number;
+      end_ms: number;
+      /** @description Automatic highlight score (section 7); `null` for app and button clips. */
+      highlight_score: number | null;
+      /** @description `null` for button clips and automatic highlights. */
+      created_by_user_id: components['schemas']['Uuid'] | null;
+      media: components['schemas']['MediaAsset'];
+      thumbnail_media_id: components['schemas']['Uuid'] | null;
+      created_at: components['schemas']['Timestamp'];
+    };
+    ClipPage: components['schemas']['Page'] & {
+      items: components['schemas']['Clip'][];
+    };
+    ClipCreate: {
+      start_ms: number;
+      /** @description After `start_ms`, at most 60 000 ms later. */
+      end_ms: number;
+    };
+    /** @description A match seen by the caller. See `GET /matches/{id}` for what each role gets. */
+    MatchDetail: {
+      id: components['schemas']['Uuid'];
+      /** @enum {string} */
+      type: 'match' | 'lesson';
+      status: components['schemas']['MatchStatus'];
+      starts_at: components['schemas']['Timestamp'];
+      ends_at: components['schemas']['Timestamp'];
+      club: components['schemas']['EntityRef'];
+      court: components['schemas']['EntityRef'];
+      /** @description `null` for a recording started by hand from the club panel. */
+      booking_id: components['schemas']['Uuid'] | null;
+      /** @description True plays golden point at deuce; false plays advantage. */
+      golden_point: boolean;
+      /** @description Score per set; empty until published. */
+      sets: components['schemas']['SetScore'][];
+      winner_team: components['schemas']['Team'] | null;
+      /** @description The four positions; empty until published. */
+      players: components['schemas']['MatchPlayer'][];
+      /** @description Points under 0.7 confidence, for the players to confirm. Empty for staff. */
+      points_to_review: components['schemas']['PointToReview'][];
+      /** @description The caller's 3 insights; `null` for staff and owner or when not a player. */
+      insights: components['schemas']['Insight'][] | null;
+      full_video: components['schemas']['MediaAsset'] | null;
+      /** @description The caller's vertical reel, or `null` until generated. */
+      reel: components['schemas']['MediaAsset'] | null;
+      published_at: components['schemas']['Timestamp'] | null;
+    };
+    ClaimPlayerRequest: {
+      position: components['schemas']['MatchPosition'];
+    };
+    ScoreCorrectionFinalScore: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'final_score';
+      sets: components['schemas']['SetScore'][];
+    };
+    ScoreCorrectionPointWinner: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'point_winner';
+      point_id: components['schemas']['Uuid'];
+      winner_team: components['schemas']['Team'];
+    };
+    ScoreCorrectionRequest:
+      | components['schemas']['ScoreCorrectionFinalScore']
+      | components['schemas']['ScoreCorrectionPointWinner'];
+    ScoreCorrection: {
+      id: components['schemas']['Uuid'];
+      match_id: components['schemas']['Uuid'];
+      /** @enum {string} */
+      type: 'final_score' | 'point_winner';
+      match_status: components['schemas']['MatchStatus'];
+      created_at: components['schemas']['Timestamp'];
+    };
+    /** @description A signed, temporary link. Never store it; ask again when it expires. */
+    SignedMediaUrl: {
+      media_id: components['schemas']['Uuid'];
+      /**
+       * Format: uri
+       * @description Signed storage URL, valid until `expires_at` (at most 1 hour).
+       */
+      url: string;
+      expires_at: components['schemas']['Timestamp'];
+      /**
+       * @example video/mp4
+       * @example image/jpeg
+       */
+      content_type: string;
+    };
+    MediaDownload: {
+      media_id: components['schemas']['Uuid'];
+      /** @enum {string} */
+      status: 'ready' | 'preparing';
+      /**
+       * Format: uri
+       * @description Signed download link valid at most 1 hour; `null` while `preparing`.
+       */
+      url: string | null;
+      expires_at: components['schemas']['Timestamp'] | null;
     };
     /** @description Aggregate stats over the user's published matches. */
     UserStats: {
@@ -1471,6 +1926,10 @@ export interface components {
     CourtId: components['schemas']['Uuid'];
     /** @description Booking id. */
     BookingId: components['schemas']['Uuid'];
+    /** @description Match id. */
+    MatchId: components['schemas']['Uuid'];
+    /** @description Media asset id (video, clip, reel or thumbnail). */
+    MediaId: components['schemas']['Uuid'];
   };
   requestBodies: never;
   headers: {
@@ -1516,6 +1975,33 @@ export type SchemaEntityRef = components['schemas']['EntityRef'];
 export type SchemaSetScore = components['schemas']['SetScore'];
 export type SchemaMatchSummary = components['schemas']['MatchSummary'];
 export type SchemaMatchSummaryPage = components['schemas']['MatchSummaryPage'];
+export type SchemaMatchPosition = components['schemas']['MatchPosition'];
+export type SchemaTeam = components['schemas']['Team'];
+export type SchemaCourtZone = components['schemas']['CourtZone'];
+export type SchemaShotType = components['schemas']['ShotType'];
+export type SchemaShotTypeStats = components['schemas']['ShotTypeStats'];
+export type SchemaZoneCount = components['schemas']['ZoneCount'];
+export type SchemaPlayerMatchStats = components['schemas']['PlayerMatchStats'];
+export type SchemaMatchPlayer = components['schemas']['MatchPlayer'];
+export type SchemaMatchPlayerUser = components['schemas']['MatchPlayerUser'];
+export type SchemaPointEndReason = components['schemas']['PointEndReason'];
+export type SchemaPointToReview = components['schemas']['PointToReview'];
+export type SchemaInsight = components['schemas']['Insight'];
+export type SchemaMediaKind = components['schemas']['MediaKind'];
+export type SchemaMediaStatus = components['schemas']['MediaStatus'];
+export type SchemaMediaAsset = components['schemas']['MediaAsset'];
+export type SchemaClipSource = components['schemas']['ClipSource'];
+export type SchemaClip = components['schemas']['Clip'];
+export type SchemaClipPage = components['schemas']['ClipPage'];
+export type SchemaClipCreate = components['schemas']['ClipCreate'];
+export type SchemaMatchDetail = components['schemas']['MatchDetail'];
+export type SchemaClaimPlayerRequest = components['schemas']['ClaimPlayerRequest'];
+export type SchemaScoreCorrectionFinalScore = components['schemas']['ScoreCorrectionFinalScore'];
+export type SchemaScoreCorrectionPointWinner = components['schemas']['ScoreCorrectionPointWinner'];
+export type SchemaScoreCorrectionRequest = components['schemas']['ScoreCorrectionRequest'];
+export type SchemaScoreCorrection = components['schemas']['ScoreCorrection'];
+export type SchemaSignedMediaUrl = components['schemas']['SignedMediaUrl'];
+export type SchemaMediaDownload = components['schemas']['MediaDownload'];
 export type SchemaUserStats = components['schemas']['UserStats'];
 export type SchemaClubPlan = components['schemas']['ClubPlan'];
 export type SchemaClubSummary = components['schemas']['ClubSummary'];
@@ -1595,6 +2081,8 @@ export type ParameterClubIdQuery = components['parameters']['ClubIdQuery'];
 export type ParameterClubId = components['parameters']['ClubId'];
 export type ParameterCourtId = components['parameters']['CourtId'];
 export type ParameterBookingId = components['parameters']['BookingId'];
+export type ParameterMatchId = components['parameters']['MatchId'];
+export type ParameterMediaId = components['parameters']['MediaId'];
 export type HeaderXRequestId = components['headers']['X-Request-Id'];
 export type HeaderRateLimitLimit = components['headers']['RateLimit-Limit'];
 export type HeaderRateLimitRemaining = components['headers']['RateLimit-Remaining'];
@@ -2011,6 +2499,286 @@ export interface operations {
         };
       };
       401: components['responses']['Unauthorized'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  getMatch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Match id. */
+        id: components['parameters']['MatchId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The match. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MatchDetail'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  claimMatchPlayer: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Match id. */
+        id: components['parameters']['MatchId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "position": 3
+         *     }
+         */
+        'application/json': components['schemas']['ClaimPlayerRequest'];
+      };
+    };
+    responses: {
+      /** @description The match, with the caller in the claimed position. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MatchDetail'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  correctMatchScore: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Match id. */
+        id: components['parameters']['MatchId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ScoreCorrectionRequest'];
+      };
+    };
+    responses: {
+      /** @description Correction accepted; the match is `needs_review` until stats are recomputed. */
+      202: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "id": "0192d1e4-5a6b-7c8d-9e0f-1a2b3c4d5e70",
+           *       "match_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b",
+           *       "type": "final_score",
+           *       "match_status": "needs_review",
+           *       "created_at": "2026-10-16T01:10:00Z"
+           *     }
+           */
+          'application/json': components['schemas']['ScoreCorrection'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listMatchClips: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor from a previous page's `next_cursor`. Omit it for the first page. */
+        cursor?: components['parameters']['Cursor'];
+        /** @description Maximum number of items in the page. */
+        limit?: components['parameters']['Limit'];
+      };
+      header?: never;
+      path: {
+        /** @description Match id. */
+        id: components['parameters']['MatchId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of clips. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ClipPage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  createMatchClip: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Match id. */
+        id: components['parameters']['MatchId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "start_ms": 1835000,
+         *       "end_ms": 1850000
+         *     }
+         */
+        'application/json': components['schemas']['ClipCreate'];
+      };
+    };
+    responses: {
+      /** @description The clip, `processing` until its media is ready. */
+      202: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "id": "0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a50",
+           *       "match_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b",
+           *       "source": "app",
+           *       "start_ms": 1835000,
+           *       "end_ms": 1850000,
+           *       "highlight_score": null,
+           *       "created_by_user_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f",
+           *       "media": {
+           *         "id": "0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a51",
+           *         "kind": "clip",
+           *         "status": "processing",
+           *         "duration_ms": 15000,
+           *         "expires_at": null
+           *       },
+           *       "thumbnail_media_id": null,
+           *       "created_at": "2026-10-16T00:05:00Z"
+           *     }
+           */
+          'application/json': components['schemas']['Clip'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      410: components['responses']['Gone'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  getMediaUrl: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Media asset id (video, clip, reel or thumbnail). */
+        id: components['parameters']['MediaId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The signed link. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          /** @description Always `private, no-store`. */
+          'Cache-Control'?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "media_id": "0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a51",
+           *       "url": "https://media.example.com/clips/0192af6e.mp4?X-Amz-Expires=3600&X-Amz-Signature=3f9a",
+           *       "expires_at": "2026-10-16T01:05:00Z",
+           *       "content_type": "video/mp4"
+           *     }
+           */
+          'application/json': components['schemas']['SignedMediaUrl'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      410: components['responses']['Gone'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  requestMediaDownload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Media asset id (video, clip, reel or thumbnail). */
+        id: components['parameters']['MediaId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The download, ready or being prepared. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MediaDownload'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      410: components['responses']['Gone'];
       429: components['responses']['TooManyRequests'];
       500: components['responses']['InternalError'];
     };

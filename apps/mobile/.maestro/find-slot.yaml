@@ -1,0 +1,24 @@
+# Find a club and pick a free slot against the contract mock (issue #86).
+# Run with the app started with EXPO_PUBLIC_API_MOCK=true: `maestro test .maestro/find-slot.yaml`.
+# Signs in first (see sign-in.yaml), then opens the flow by deep link until home links to it.
+appId: ${APP_ID}
+env:
+  APP_ID: ar.rebote.app
+  SCHEME: rebote
+---
+- runFlow: sign-in.yaml
+- openLink: ${SCHEME}://book
+- assertVisible:
+    id: find-slot-screen
+- tapOn:
+    id: club-search
+- inputText: Palermo
+- tapOn: Club Demo Palermo
+- assertVisible:
+    id: club-slots-screen
+- tapOn:
+    id: duration-60
+- tapOn:
+    id: slot-first
+- assertVisible:
+    id: slot-selected

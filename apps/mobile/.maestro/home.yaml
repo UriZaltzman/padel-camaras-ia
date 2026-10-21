@@ -1,0 +1,14 @@
+# Home shows the next booking and the last match from the contract mock (issue #85).
+# Run with the app started with EXPO_PUBLIC_API_MOCK=true: `maestro test .maestro/home.yaml`.
+appId: ${APP_ID}
+env:
+  APP_ID: ar.rebote.app
+---
+- runFlow: sign-in.yaml
+- assertVisible:
+    id: home-screen
+- assertVisible:
+    id: home-next-booking-slot
+- assertVisible:
+    id: home-last-match-result
+- assertVisible: '6-4 3-6 7-5'
