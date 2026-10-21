@@ -115,5 +115,22 @@
       "network": "No hay conexión. Revisá tu internet y probá de nuevo.",
       "generic": "Algo salió mal. Probá de nuevo en un rato."
     }
+  },
+  "settings": {
+    "dataLabel": "Jugador · Ajustes",
+    "title": "Ajustes",
+    "notifications": {
+      "title": "Avisos",
+      "reminders": {
+        "label": "Recordatorio de turno",
+        "body": "Te avisamos 1 hora antes de cada turno que reservaste."
+      },
+      "permissionDenied": "Tu teléfono no nos deja mandarte avisos. Activalos desde los ajustes del teléfono."
+    },
+    "privacy": {
+      "title": "Privacidad",
+      "optOutOn": "Listo, no vamos a usar tus videos para entrenar.",
+      "optOutOff": "Listo, tus videos pueden ayudar a mejorar la IA."
+    }
   }
 }
