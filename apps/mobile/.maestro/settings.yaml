@@ -1,0 +1,26 @@
+# Privacy settings against the contract mock (issue #93): opt out of training, then delete the
+# account. Run with the app started with EXPO_PUBLIC_API_MOCK=true:
+# `maestro test .maestro/settings.yaml`. Opens settings by deep link until home links to it.
+appId: ${APP_ID}
+env:
+  APP_ID: ar.rebote.app
+  SCHEME: rebote
+---
+- runFlow: sign-in.yaml
+- openLink: ${SCHEME}://settings
+- assertVisible:
+    id: settings-screen
+- tapOn:
+    id: settings-training-opt-out
+- assertVisible:
+    id: settings-opt-out-saved
+- tapOn:
+    id: profile-delete
+- assertVisible:
+    id: profile-delete-confirm
+- tapOn:
+    id: profile-delete-confirm-button
+- assertVisible:
+    id: profile-deleted
+- tapOn:
+    id: profile-deleted-exit

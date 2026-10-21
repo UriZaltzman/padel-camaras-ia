@@ -12,8 +12,6 @@ import { Button, Card, DataLabel } from '@app/ui/native';
 import { theme } from '@app/ui/tokens';
 
 import { useApi } from '../api/client';
-import { useSession } from '../auth/session';
-import { defaultLocale } from '../i18n';
 import { fonts } from '../theme/fonts';
 import {
   CATEGORIES,
@@ -22,10 +20,10 @@ import {
   ProfileApiError,
   errorKey,
   formFromUser,
-  formatDeletionDate,
   validateProfile,
   type ProfileForm,
 } from './profile-form';
+import { AccountDeleted, DeleteAccount, useDeleteAccount } from './DeleteAccount';
 
 const colors = theme.light;
 const ME_KEY = ['me'] as const;
@@ -72,7 +70,6 @@ export function ProfileScreen() {
   const { t } = useTranslation();
   const api = useApi();
   const queryClient = useQueryClient();
-  const { signOut } = useSession();
 
   const me = useQuery({
     queryKey: ME_KEY,
@@ -86,7 +83,6 @@ export function ProfileScreen() {
   const [form, setForm] = useState<ProfileForm | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof ProfileForm, string>>>({});
   const [saved, setSaved] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (me.data && !form) setForm(formFromUser(me.data));
@@ -105,14 +101,7 @@ export function ProfileScreen() {
     },
   });
 
-  const remove = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await api.DELETE('/me');
-      if (!data) throw new ProfileApiError(error?.code ?? 'INTERNAL_ERROR');
-      return data;
-    },
-    onSuccess: () => setConfirmingDelete(false),
-  });
+  const remove = useDeleteAccount();
 
   function update<K extends keyof ProfileForm>(key: K, value: ProfileForm[K]) {
     setForm((current) => (current ? { ...current, [key]: value } : current));
@@ -130,25 +119,7 @@ export function ProfileScreen() {
     save.mutate(result.body);
   }
 
-  if (remove.data) {
-    return (
-      <SafeAreaView style={styles.screen} testID="profile-deleted">
-        <View style={styles.centered}>
-          <Text style={styles.title}>{t('profile.delete.doneTitle')}</Text>
-          <Text style={styles.body}>
-            {t('profile.delete.doneBody', {
-              date: formatDeletionDate(remove.data.deletion_scheduled_for, defaultLocale),
-            })}
-          </Text>
-          <Button
-            label={t('profile.delete.exit')}
-            onPress={() => void signOut()}
-            testID="profile-deleted-exit"
-          />
-        </View>
-      </SafeAreaView>
-    );
-  }
+  if (remove.data) return <AccountDeleted deletion={remove.data} />;
 
   if (me.isError) {
     return (
@@ -271,40 +242,7 @@ export function ProfileScreen() {
         />
 
         <View style={styles.danger}>
-          {confirmingDelete ? (
-            <View testID="profile-delete-confirm">
-              <Card>
-                <Text style={styles.label}>{t('profile.delete.confirmTitle')}</Text>
-                <Text style={styles.body}>{t('profile.delete.confirmBody')}</Text>
-                {remove.isError ? (
-                  <Text style={styles.error} testID="profile-delete-error">
-                    {t(errorKey(remove.error))}
-                  </Text>
-                ) : null}
-                <View style={styles.confirmActions}>
-                  <Button
-                    label={t('profile.delete.confirm')}
-                    onPress={() => remove.mutate()}
-                    disabled={remove.isPending}
-                    testID="profile-delete-confirm-button"
-                  />
-                  <Button
-                    label={t('profile.delete.cancel')}
-                    variant="secondary"
-                    onPress={() => setConfirmingDelete(false)}
-                    testID="profile-delete-cancel"
-                  />
-                </View>
-              </Card>
-            </View>
-          ) : (
-            <Button
-              label={t('profile.delete.entry')}
-              variant="secondary"
-              onPress={() => setConfirmingDelete(true)}
-              testID="profile-delete"
-            />
-          )}
+          <DeleteAccount remove={remove} />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -352,5 +290,4 @@ const styles = StyleSheet.create({
   error: { fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.danger },
   success: { fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.primary },
   danger: { marginTop: 16 },
-  confirmActions: { gap: 8, marginTop: 12 },
 });

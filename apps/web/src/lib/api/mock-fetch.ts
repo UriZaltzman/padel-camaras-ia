@@ -3,6 +3,7 @@ import type { Schema } from '@app/contracts';
 import { t } from '@/i18n';
 
 import { demoClub } from './mock-data';
+import { handlePlayerRequest, newPlayerMockState, type PlayerMockState } from './mock-player';
 
 /**
  * Stand-in for the API while endpoints do not exist yet, only used when `NEXT_PUBLIC_API_MOCK` is
@@ -10,13 +11,18 @@ import { demoClub } from './mock-data';
  * contract; any other request gets the contract's `Error` body with 503, so screens can be built
  * against the typed client and its error path.
  */
-export function createMockFetch(seed: Schema<'Club'> = demoClub): typeof fetch {
+export function createMockFetch(
+  seed: Schema<'Club'> = demoClub,
+  player: PlayerMockState = newPlayerMockState(),
+): typeof fetch {
   // In-memory copy, so a PATCH is seen by the next GET in the same session.
   let club: Schema<'Club'> = structuredClone(seed);
 
   return async (input, init) => {
     const request = input instanceof Request ? input : new Request(input, init);
     const { pathname } = new URL(request.url);
+    const answer = await handlePlayerRequest(request, player, () => club, json);
+    if (answer) return answer;
     const match = /\/clubs\/([^/]+)(\/settings)?$/.exec(pathname);
 
     if (match && match[1] === club.id && !match[2] && request.method === 'GET') {
@@ -43,7 +49,10 @@ export function createMockFetch(seed: Schema<'Club'> = demoClub): typeof fetch {
   };
 }
 
-export const mockFetch: typeof fetch = createMockFetch();
+// One instance per server process: kept on globalThis so dev reloads and the separate server
+// bundles (pages and server actions) share the same in-memory data.
+const store = globalThis as typeof globalThis & { __apiMockFetch?: typeof fetch };
+export const mockFetch: typeof fetch = (store.__apiMockFetch ??= createMockFetch());
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
