@@ -6,6 +6,8 @@
 // DELETE /me (AccountDeletion 30 days ahead), with VALIDATION_FAILED on invalid updates.
 import type { Schema } from '@app/contracts';
 
+import { handleBookingMock } from '../booking/mock-api';
+
 type ErrorCode = Schema<'ErrorCode'>;
 
 export interface MockAuthOptions {
@@ -138,6 +140,12 @@ export function createMockAuthServer(options: MockAuthOptions = {}): MockAuthSer
     if (failure) {
       failures.delete(path);
       return error(failure.status, failure.code);
+    }
+
+    // Public club and availability endpoints (no credentials).
+    if (input.method === 'GET') {
+      const booking = handleBookingMock(new URL(input.url), path);
+      if (booking) return booking;
     }
 
     switch (path) {

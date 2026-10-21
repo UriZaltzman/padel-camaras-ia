@@ -99,3 +99,14 @@ rules:
       function: casing
       functionOptions:
         type: snake
+
+  no-permanent-media-urls:
+    description: |
+      Media (video, clip, reel, thumbnail) is referenced by id and reached only through the
+      signed 1-hour link of `GET /media/{id}/url`. No schema exposes a permanent media URL.
+    severity: error
+    given: $..properties[*]~
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: '^(video|full_video|clip|reel|thumbnail|media|storage|download)_(url|path)$'
