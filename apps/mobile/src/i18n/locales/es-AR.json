@@ -2,8 +2,20 @@
   "home": {
     "dataLabel": "Cancha · Jugadores · Pelota",
     "title": "{brand}",
-    "subtitle": "Tu partido, visto entero.",
-    "body": "Escaneá el QR de tu cancha y mirá tu partido apenas salís.",
+    "loading": "Cargando…",
+    "error": "No pudimos cargar esto. Probá de nuevo en un rato.",
+    "nextBooking": {
+      "label": "Próximo turno",
+      "place": "{club} · {court} · {minutes} min",
+      "empty": "No tenés turnos reservados."
+    },
+    "lastMatch": {
+      "label": "Último partido",
+      "won": "Ganaste",
+      "lost": "Perdiste",
+      "place": "{club} · {court} · {when}",
+      "empty": "Todavía no jugaste partidos grabados."
+    },
     "primaryAction": "Buscar club y turno"
   },
   "signIn": {
@@ -114,6 +126,46 @@
       "UNAUTHENTICATED": "Tu sesión terminó. Entrá de nuevo.",
       "network": "No hay conexión. Revisá tu internet y probá de nuevo.",
       "generic": "Algo salió mal. Probá de nuevo en un rato."
+    }
+  },
+  "findSlot": {
+    "dataLabel": "Reservar · Club y turno",
+    "title": "Buscá club y turno",
+    "searchLabel": "Buscar club",
+    "searchPlaceholder": "Nombre del club o ciudad",
+    "noClubs": "No encontramos clubes con ese nombre. Probá con otra búsqueda.",
+    "clubMeta_one": "{address}, {city} · {count} cancha",
+    "clubMeta_other": "{address}, {city} · {count} canchas",
+    "back": "Elegir otro club",
+    "duration": "Duración",
+    "minutes": "{minutes} min",
+    "day": "Día",
+    "noCourts": "Este club no tiene canchas para reservar ahora.",
+    "noSlots": "No quedan turnos libres ese día. Probá otro día u otra duración.",
+    "selected": "{court} · {day} a las {time} · {minutes} min",
+    "price": "Total {amount} · Seña {deposit}",
+    "errors": {
+      "NOT_FOUND": "Ese club ya no está disponible.",
+      "RATE_LIMITED": "Hiciste muchas búsquedas seguidas. Esperá un momento y probá de nuevo.",
+      "generic": "Algo salió mal. Probá de nuevo en un rato.",
+      "network": "No pudimos conectarnos. Revisá tu conexión y probá de nuevo."
+    }
+  },
+  "settings": {
+    "dataLabel": "Jugador · Ajustes",
+    "title": "Ajustes",
+    "notifications": {
+      "title": "Avisos",
+      "reminders": {
+        "label": "Recordatorio de turno",
+        "body": "Te avisamos 1 hora antes de cada turno que reservaste."
+      },
+      "permissionDenied": "Tu teléfono no nos deja mandarte avisos. Activalos desde los ajustes del teléfono."
+    },
+    "privacy": {
+      "title": "Privacidad",
+      "optOutOn": "Listo, no vamos a usar tus videos para entrenar.",
+      "optOutOff": "Listo, tus videos pueden ayudar a mejorar la IA."
     }
   }
 }

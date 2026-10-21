@@ -805,6 +805,319 @@ class MatchSummary(BaseModel):
     """
 
 
+class MatchPosition(IntEnum):
+    """
+    One of the four tracked players of a match (the 4 tracks of section 5).
+    """
+
+    integer_1 = 1
+    integer_2 = 2
+    integer_3 = 3
+    integer_4 = 4
+
+
+class Team1(IntEnum):
+    """
+    Team 1 or 2, fixed by the side of the net at the first serve.
+    """
+
+    integer_1 = 1
+    integer_2 = 2
+
+
+class CourtZone(StrEnum):
+    """
+    One of the 9 zones of each half (section 7): width `left`, `center`, `right` by depth
+    `net` (0 to 3 m from the net), `mid` (3 to 6.95 m) and `back` (6.95 to 10 m).
+
+    """
+
+    net_left = "net_left"
+    net_center = "net_center"
+    net_right = "net_right"
+    mid_left = "mid_left"
+    mid_center = "mid_center"
+    mid_right = "mid_right"
+    back_left = "back_left"
+    back_center = "back_center"
+    back_right = "back_right"
+
+
+class ShotType(StrEnum):
+    """
+    Shot type from the classifier (section 5, step 9). `unknown` when confidence is under
+    0.6; it does not count in per-type stats.
+
+    """
+
+    serve = "serve"
+    forehand = "forehand"
+    backhand = "backhand"
+    forehand_volley = "forehand_volley"
+    backhand_volley = "backhand_volley"
+    bandeja = "bandeja"
+    vibora = "vibora"
+    smash = "smash"
+    lob = "lob"
+    wall_exit = "wall_exit"
+    unknown = "unknown"
+
+
+class ShotTypeStats(BaseModel):
+    """
+    Count and outcome of one shot type for a player.
+    """
+
+    shot_type: ShotType
+    count: Annotated[int, Field(ge=0)]
+    winners: Annotated[int, Field(ge=0)]
+    errors: Annotated[int, Field(ge=0)]
+
+
+class ZoneCount(BaseModel):
+    """
+    Points lost whose decisive event was in a zone (section 7, "dónde se fue el partido").
+    """
+
+    zone: CourtZone
+    points: Annotated[int, Field(ge=0)]
+
+
+class PlayerMatchStats(BaseModel):
+    """
+    One player's stats for one match (`match_stats`), computed with fixed, versioned formulas
+    (section 7). Percentages are 0 to 100. `max_ball_speed_kmh` is an estimate and is `null`
+    without 3D ball positions.
+
+    """
+
+    formula_version: Annotated[str, Field(examples=["1.0.0"])]
+    points_won: Annotated[int, Field(ge=0)]
+    winners: Annotated[int, Field(ge=0)]
+    forced_errors: Annotated[int, Field(ge=0)]
+    unforced_errors: Annotated[int, Field(ge=0)]
+    net_time_pct: Annotated[float, Field(ge=0.0, le=100.0)]
+    net_approaches: Annotated[int, Field(ge=0)]
+    distance_m: Annotated[float, Field(ge=0.0)]
+    serve_points_won_pct: Annotated[float | None, Field(ge=0.0, le=100.0)]
+    first_serve_in_pct: Annotated[float | None, Field(ge=0.0, le=100.0)]
+    max_ball_speed_kmh: Annotated[float | None, Field(ge=0.0)]
+    shots_by_type: list[ShotTypeStats]
+    lost_points_by_zone: list[ZoneCount]
+
+
+class MatchPlayerUser(BaseModel):
+    """
+    Public view of a player inside a match they share with the caller.
+    """
+
+    id: Uuid
+    display_name: str
+    photo_url: AnyUrl | None
+    """
+    Profile photo (not a video).
+    """
+
+
+class PointEndReason(StrEnum):
+    """
+    Rule of section 6 that closed the point.
+    """
+
+    double_fault = "double_fault"
+    own_floor_before_net = "own_floor_before_net"
+    net = "net"
+    rival_wall_before_floor = "rival_wall_before_floor"
+    double_bounce = "double_bounce"
+    out_after_bounce = "out_after_bounce"
+    ball_lost = "ball_lost"
+
+
+class PointToReview(BaseModel):
+    """
+    A point with confidence under 0.7 (section 6, layer 2). The app shows its clip so the
+    players confirm who won it.
+
+    """
+
+    id: Uuid
+    number: Annotated[int, Field(ge=1)]
+    set: Annotated[int, Field(ge=1)]
+    game: Annotated[int, Field(ge=1)]
+    winner_team: Team1
+    end_reason: PointEndReason
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    clip_media_id: Uuid | None
+
+
+class Insight(BaseModel):
+    """
+    One sentence about the caller's match (section 7), written from a computed fact, with a
+    tip for the next match. Text is `es-AR`, produced by the insights pipeline.
+
+    """
+
+    id: Uuid
+    kind: Annotated[str, Field(examples=["net_uncovered"])]
+    text: Annotated[str, Field(max_length=200)]
+    tip: str | None
+    order: Annotated[int, Field(ge=1)]
+
+
+class MediaKind(StrEnum):
+    full = "full"
+    clip = "clip"
+    reel = "reel"
+    thumbnail = "thumbnail"
+
+
+class MediaStatus(StrEnum):
+    """
+    `processing` while it is cut, encoded or uploaded; `ready` when a signed link can be
+    issued; `in_club` when the full video stayed in the club (ask with
+    `POST /media/{id}/download`); `expired` after it was deleted (full videos after 30 days).
+
+    """
+
+    processing = "processing"
+    in_club = "in_club"
+    ready = "ready"
+    expired = "expired"
+
+
+class MediaAsset(BaseModel):
+    """
+    A video, clip, reel or thumbnail, by id. Never carries its storage path or URL.
+    """
+
+    id: Uuid
+    kind: MediaKind
+    status: MediaStatus
+    duration_ms: Annotated[int | None, Field(ge=0)]
+    """
+    `null` for thumbnails.
+    """
+    expires_at: Timestamp | None
+    """
+    When the media is deleted (full video 30 days after the match), or `null`.
+    """
+
+
+class ClipSource(StrEnum):
+    """
+    `app` (tap or cut in the app), `button` (court button) or `auto` (highlight).
+    """
+
+    app = "app"
+    button = "button"
+    auto = "auto"
+
+
+class Clip1(BaseModel):
+    id: Uuid
+    match_id: Uuid
+    source: ClipSource
+    start_ms: Annotated[int, Field(ge=0)]
+    """
+    Offset from the start of the match video.
+    """
+    end_ms: Annotated[int, Field(ge=0)]
+    highlight_score: Annotated[float | None, Field(ge=0.0, le=1.0)]
+    """
+    Automatic highlight score (section 7); `null` for app and button clips.
+    """
+    created_by_user_id: Uuid | None
+    """
+    `null` for button clips and automatic highlights.
+    """
+    media: MediaAsset
+    thumbnail_media_id: Uuid | None
+    created_at: Timestamp
+
+
+class ClipCreate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    start_ms: Annotated[int, Field(ge=0)]
+    end_ms: Annotated[int, Field(ge=1)]
+    """
+    After `start_ms`, at most 60 000 ms later.
+    """
+
+
+class ClaimPlayerRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    position: MatchPosition
+
+
+class ScoreCorrectionFinalScore(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    type: Literal["final_score"]
+    sets: Annotated[list[SetScore], Field(max_length=3, min_length=1)]
+
+
+class ScoreCorrectionPointWinner(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    type: Literal["point_winner"]
+    point_id: Uuid
+    winner_team: Team1
+
+
+class ScoreCorrectionRequest(RootModel[ScoreCorrectionFinalScore | ScoreCorrectionPointWinner]):
+    root: Annotated[
+        ScoreCorrectionFinalScore | ScoreCorrectionPointWinner, Field(discriminator="type")
+    ]
+
+
+class Type2(StrEnum):
+    final_score = "final_score"
+    point_winner = "point_winner"
+
+
+class ScoreCorrection(BaseModel):
+    id: Uuid
+    match_id: Uuid
+    type: Type2
+    match_status: MatchStatus
+    created_at: Timestamp
+
+
+class SignedMediaUrl(BaseModel):
+    """
+    A signed, temporary link. Never store it; ask again when it expires.
+    """
+
+    media_id: Uuid
+    url: AnyUrl
+    """
+    Signed storage URL, valid until `expires_at` (at most 1 hour).
+    """
+    expires_at: Timestamp
+    content_type: Annotated[str, Field(examples=["video/mp4", "image/jpeg"])]
+
+
+class Status3(StrEnum):
+    ready = "ready"
+    preparing = "preparing"
+
+
+class MediaDownload(BaseModel):
+    media_id: Uuid
+    status: Status3
+    url: AnyUrl | None
+    """
+    Signed download link valid at most 1 hour; `null` while `preparing`.
+    """
+    expires_at: Timestamp | None
+
+
 class UserStats(BaseModel):
     """
     Aggregate stats over the user's published matches.
@@ -937,7 +1250,7 @@ class BookingRule(BaseModel):
     price_bands: Annotated[list[PriceBand], Field(max_length=12, min_length=1)]
 
 
-class Type1(StrEnum):
+class Type3(StrEnum):
     none = "none"
 
 
@@ -952,7 +1265,7 @@ class DepositNone(BaseModel):
     type: Literal["none"]
 
 
-class Type2(StrEnum):
+class Type4(StrEnum):
     percent = "percent"
 
 
@@ -968,7 +1281,7 @@ class DepositPercent(BaseModel):
     percent: Annotated[int, Field(ge=1, le=100)]
 
 
-class Type3(StrEnum):
+class Type5(StrEnum):
     fixed = "fixed"
 
 
@@ -1032,7 +1345,7 @@ class PlayerExtraSettings(BaseModel):
     """
 
 
-class Type4(StrEnum):
+class Type6(StrEnum):
     included = "included"
     coach_monthly = "coach_monthly"
 
@@ -1047,7 +1360,7 @@ class CoachPlan(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    type: Type4
+    type: Type6
     monthly_fee_cents: Annotated[int | None, Field(ge=1)] = None
     """
     Monthly fee per coach in ARS cents. Required when `type` is `coach_monthly`.
@@ -1463,6 +1776,82 @@ class AuthSession(TokenPair):
 
 class MatchSummaryPage(Page):
     items: list[MatchSummary]
+
+
+class MatchPlayer(BaseModel):
+    """
+    One of the four tracked players. `user` is `null` until someone claims the position.
+    `stats` is `null` for club staff and owner, and before the match is published.
+
+    """
+
+    position: MatchPosition
+    team: Team1
+    user: MatchPlayerUser | None
+    confirmed: bool
+    """
+    True when the user confirmed the position ("este soy yo").
+    """
+    suggested: bool | None = None
+    """
+    True when this position is suggested to the caller because they scanned the court QR
+    and were the closest player to the camera at that moment.
+
+    """
+    thumbnail_media_id: Uuid | None
+    """
+    Thumbnail used to pick "este soy yo". Fetch it with `GET /media/{id}/url`.
+    """
+    stats: PlayerMatchStats | None
+
+
+class ClipPage(Page):
+    items: list[Clip1]
+
+
+class MatchDetail(BaseModel):
+    """
+    A match seen by the caller. See `GET /matches/{id}` for what each role gets.
+    """
+
+    id: Uuid
+    type: Type
+    status: MatchStatus
+    starts_at: Timestamp
+    ends_at: Timestamp
+    club: EntityRef
+    court: EntityRef
+    booking_id: Uuid | None
+    """
+    `null` for a recording started by hand from the club panel.
+    """
+    golden_point: bool
+    """
+    True plays golden point at deuce; false plays advantage.
+    """
+    sets: list[SetScore]
+    """
+    Score per set; empty until published.
+    """
+    winner_team: Team1 | None
+    players: Annotated[list[MatchPlayer], Field(max_length=4)]
+    """
+    The four positions; empty until published.
+    """
+    points_to_review: list[PointToReview]
+    """
+    Points under 0.7 confidence, for the players to confirm. Empty for staff.
+    """
+    insights: list[Insight] | None
+    """
+    The caller's 3 insights; `null` for staff and owner or when not a player.
+    """
+    full_video: MediaAsset | None
+    reel: MediaAsset | None
+    """
+    The caller's vertical reel, or `null` until generated.
+    """
+    published_at: Timestamp | None
 
 
 class ClubSummaryPage(Page):

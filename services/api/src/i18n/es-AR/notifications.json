@@ -1,0 +1,5 @@
+{
+  "booking_confirmed": "¡Listo! Tu turno en {club} quedó confirmado para el {when}. Cancha: {court}. — {brand}",
+  "booking_reminder": "Te recordamos que dentro de 1 hora jugás en {club} ({when}). ¡Nos vemos en la cancha! — {brand}",
+  "match_published": "Tu partido en {club} ya está disponible: video, marcador y estadísticas. Miralo acá: {link} — {brand}"
+}

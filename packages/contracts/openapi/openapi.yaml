@@ -77,6 +77,10 @@ tags:
     description: Sign-in with a WhatsApp code, Google or Apple, and session renewal.
   - name: Users
     description: The signed-in user's profile, matches, stats and account deletion.
+  - name: Matches
+    description: Match detail, "este soy yo", score corrections and clips cut in the app.
+  - name: Media
+    description: Signed 1-hour links and downloads of videos, clips, reels and thumbnails.
   - name: Clubs
     description: Clubs, their courts and booking rules, and the owner's club settings.
   - name: Bookings
@@ -836,6 +840,380 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /matches/{id}:
+    get:
+      operationId: getMatch
+      tags: [Matches]
+      summary: Get a match with its players, score, stats and clips
+      description: |
+        Visible to the match players (any status), to coaches the player gave access to, and to
+        the club staff and owner. Staff and owner get the match without personal stats: every
+        `players[].stats` and `insights` is `null` for them (section 12).
+
+        Before the match is published, `sets`, `points_to_review`, `insights` and stats are empty
+        or `null`. The four `players` positions exist from `published` on, one per tracked
+        player, each with a `thumbnail_media_id`; the app shows them for "este soy yo"
+        (`POST /matches/{id}/claim-player`). Media is referenced by id only and fetched with
+        `GET /media/{id}/url`: no field here is a permanent video URL.
+
+        Errors: `NOT_FOUND` (also when the caller may not see the match),
+        `COACH_ACCESS_NOT_GRANTED` (403).
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+      responses:
+        '200':
+          description: The match.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchDetail'
+              examples:
+                published:
+                  $ref: '#/components/examples/MatchDetailExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /matches/{id}/claim-player:
+    post:
+      operationId: claimMatchPlayer
+      tags: [Matches]
+      summary: Claim a player position ("este soy yo")
+      description: |
+        The signed-in user says which of the four tracked players they are (section 5, step 4).
+        No facial recognition: the user picks the thumbnail. Each confirmation narrows the
+        options of the others. Stats of an unclaimed position stay stored until someone claims
+        it. A user who was in the booking (`booking_players`) or scanned the court QR may claim;
+        so may anyone with the match invite link.
+
+        Errors: `MATCH_NOT_PUBLISHED` (409, positions exist only after the analysis),
+        `MATCH_PLAYER_SLOT_TAKEN` (409), `MATCH_ALREADY_JOINED` (409, the user already holds
+        another position), `TERMS_NOT_ACCEPTED` (403), `NOT_FOUND`.
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimPlayerRequest'
+            example:
+              position: 3
+      responses:
+        '200':
+          description: The match, with the caller in the claimed position.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /matches/{id}/score-correction:
+    post:
+      operationId: correctMatchScore
+      tags: [Matches]
+      summary: Correct the score (final result or a doubtful point)
+      description: |
+        A confirmed player of the match corrects the score (section 6, correction layers 2
+        and 3):
+
+        - `point_winner`: confirms who won one point flagged in `points_to_review`
+          (confidence under 0.7).
+        - `final_score`: loads the real result (for example 6-4 6-3); a Viterbi-style alignment
+          picks the most likely sequence of point winners that ends in that result.
+
+        The match moves `published` → `needs_review` and back to `published` when the stats are
+        recomputed; `match.score_corrected` is emitted. Every correction is stored and used to
+        retrain the models. The response is `202` because the recomputation is asynchronous.
+
+        Errors: `MATCH_NOT_PUBLISHED` (409), `INVALID_STATE_TRANSITION` (409, a correction is
+        already being applied), `FORBIDDEN` (the caller is not a confirmed player),
+        `VALIDATION_FAILED` (400, impossible score or unknown point), `NOT_FOUND`.
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScoreCorrectionRequest'
+            examples:
+              final_score:
+                summary: The players load the real result
+                value:
+                  type: final_score
+                  sets:
+                    - team_1: 6
+                      team_2: 4
+                    - team_1: 6
+                      team_2: 3
+              point_winner:
+                summary: Confirm the winner of a doubtful point
+                value:
+                  type: point_winner
+                  point_id: 0192d1e4-5a6b-7c8d-9e0f-1a2b3c4d5e6f
+                  winner_team: 2
+      responses:
+        '202':
+          description: Correction accepted; the match is `needs_review` until stats are recomputed.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoreCorrection'
+              example:
+                id: 0192d1e4-5a6b-7c8d-9e0f-1a2b3c4d5e70
+                match_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b
+                type: final_score
+                match_status: needs_review
+                created_at: '2026-10-16T01:10:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /matches/{id}/clips:
+    get:
+      operationId: listMatchClips
+      tags: [Matches]
+      summary: List the clips of a match
+      description: |
+        Clips of the match (app taps, court button and automatic highlights), in video order.
+        Visible to whoever may see the match. Each clip references its media by id.
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of clips.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClipPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createMatchClip
+      tags: [Matches]
+      summary: Cut a clip from the match video in the app
+      description: |
+        A player of the match cuts a clip after the fact, choosing start and end on the video
+        (at most 60 seconds). Live taps during the turn travel over the court WebSocket channel
+        instead. The clip is cut by the club device, or in the cloud if the full video is
+        already there; it starts `processing` and `clip.created` is emitted when its media is
+        `ready`.
+
+        Errors: `MATCH_NOT_PUBLISHED` (409), `MEDIA_EXPIRED` (410, the full video was deleted
+        after 30 days), `VALIDATION_FAILED` (400, `end_ms` not after `start_ms`, longer than
+        60 s or past the end of the video), `FORBIDDEN` (not a player), `NOT_FOUND`.
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClipCreate'
+            example:
+              start_ms: 1835000
+              end_ms: 1850000
+      responses:
+        '202':
+          description: The clip, `processing` until its media is ready.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clip'
+              example:
+                id: 0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a50
+                match_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b
+                source: app
+                start_ms: 1835000
+                end_ms: 1850000
+                highlight_score: null
+                created_by_user_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f
+                media:
+                  id: 0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a51
+                  kind: clip
+                  status: processing
+                  duration_ms: 15000
+                  expires_at: null
+                thumbnail_media_id: null
+                created_at: '2026-10-16T00:05:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /media/{id}/url:
+    get:
+      operationId: getMediaUrl
+      tags: [Media]
+      summary: Get a signed link to a video, clip, reel or thumbnail (valid 1 hour)
+      description: |
+        Videos are private in storage. This returns a signed link that expires in at most 1 hour
+        (`expires_at`); clients request a new one when it expires and never store it. It is the
+        only way to reach media: no other response carries a media URL.
+
+        Support staff get a link only with a permission registered in `audit_log` (section 12).
+
+        Errors: `MEDIA_NOT_READY` (409), `MEDIA_EXPIRED` (410), `NOT_FOUND` (also when the
+        caller may not see the media).
+      parameters:
+        - $ref: '#/components/parameters/MediaId'
+      responses:
+        '200':
+          description: The signed link.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            Cache-Control:
+              description: Always `private, no-store`.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignedMediaUrl'
+              example:
+                media_id: 0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a51
+                url: https://media.example.com/clips/0192af6e.mp4?X-Amz-Expires=3600&X-Amz-Signature=3f9a
+                expires_at: '2026-10-16T01:05:00Z'
+                content_type: video/mp4
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /media/{id}/download:
+    post:
+      operationId: requestMediaDownload
+      tags: [Media]
+      summary: Ask for a downloadable file of a video, clip or reel
+      description: |
+        Returns a signed download link (`Content-Disposition: attachment`) valid for 1 hour when
+        the file is in the cloud (`status: ready`). When the full video stayed in the club
+        because its upload is slow (section 4), this asks the club device to upload it with top
+        priority and returns `status: preparing` with `url: null`; the player gets a WhatsApp
+        notice when it is ready and calls this again. Calling it again while `preparing` is
+        safe.
+
+        Errors: `MEDIA_EXPIRED` (410), `CLUB_FEATURE_DISABLED` (403, full video download is an
+        extra the club has not enabled), `NOT_FOUND`.
+      parameters:
+        - $ref: '#/components/parameters/MediaId'
+      responses:
+        '200':
+          description: The download, ready or being prepared.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaDownload'
+              examples:
+                ready:
+                  summary: The file is in the cloud
+                  value:
+                    media_id: 0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a51
+                    status: ready
+                    url: https://media.example.com/clips/0192af6e.mp4?response-content-disposition=attachment&X-Amz-Signature=8c1d
+                    expires_at: '2026-10-16T01:05:00Z'
+                preparing:
+                  summary: The full video is still in the club
+                  value:
+                    media_id: 0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a55
+                    status: preparing
+                    url: null
+                    expires_at: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /clubs:
     get:
       operationId: listClubs
@@ -1435,6 +1813,21 @@ components:
       schema:
         $ref: '#/components/schemas/Uuid'
 
+    MatchId:
+      name: id
+      in: path
+      required: true
+      description: Match id.
+      schema:
+        $ref: '#/components/schemas/Uuid'
+
+    MediaId:
+      name: id
+      in: path
+      required: true
+      description: Media asset id (video, clip, reel or thumbnail).
+      schema:
+        $ref: '#/components/schemas/Uuid'
   headers:
     X-Request-Id:
       description: Unique id of the request, also present in the structured logs.
@@ -2657,6 +3050,563 @@ components:
               items:
                 $ref: '#/components/schemas/MatchSummary'
 
+    # Matches and media (section 11). Media is always referenced by id; the only URL to a video,
+    # clip, reel or thumbnail is the signed one of `GET /media/{id}/url`, valid 1 hour.
+    MatchPosition:
+      type: integer
+      enum: [1, 2, 3, 4]
+      description: One of the four tracked players of a match (the 4 tracks of section 5).
+
+    Team:
+      type: integer
+      enum: [1, 2]
+      description: Team 1 or 2, fixed by the side of the net at the first serve.
+
+    CourtZone:
+      type: string
+      description: |
+        One of the 9 zones of each half (section 7): width `left`, `center`, `right` by depth
+        `net` (0 to 3 m from the net), `mid` (3 to 6.95 m) and `back` (6.95 to 10 m).
+      enum:
+        - net_left
+        - net_center
+        - net_right
+        - mid_left
+        - mid_center
+        - mid_right
+        - back_left
+        - back_center
+        - back_right
+
+    ShotType:
+      type: string
+      description: |
+        Shot type from the classifier (section 5, step 9). `unknown` when confidence is under
+        0.6; it does not count in per-type stats.
+      enum:
+        - serve
+        - forehand
+        - backhand
+        - forehand_volley
+        - backhand_volley
+        - bandeja
+        - vibora
+        - smash
+        - lob
+        - wall_exit
+        - unknown
+
+    ShotTypeStats:
+      type: object
+      description: Count and outcome of one shot type for a player.
+      required: [shot_type, count, winners, errors]
+      properties:
+        shot_type:
+          $ref: '#/components/schemas/ShotType'
+        count:
+          type: integer
+          minimum: 0
+        winners:
+          type: integer
+          minimum: 0
+        errors:
+          type: integer
+          minimum: 0
+
+    ZoneCount:
+      type: object
+      description: Points lost whose decisive event was in a zone (section 7, "dónde se fue el partido").
+      required: [zone, points]
+      properties:
+        zone:
+          $ref: '#/components/schemas/CourtZone'
+        points:
+          type: integer
+          minimum: 0
+
+    PlayerMatchStats:
+      type: object
+      description: |
+        One player's stats for one match (`match_stats`), computed with fixed, versioned formulas
+        (section 7). Percentages are 0 to 100. `max_ball_speed_kmh` is an estimate and is `null`
+        without 3D ball positions.
+      required:
+        - formula_version
+        - points_won
+        - winners
+        - forced_errors
+        - unforced_errors
+        - net_time_pct
+        - net_approaches
+        - distance_m
+        - serve_points_won_pct
+        - first_serve_in_pct
+        - max_ball_speed_kmh
+        - shots_by_type
+        - lost_points_by_zone
+      properties:
+        formula_version:
+          type: string
+          examples: ['1.0.0']
+        points_won:
+          type: integer
+          minimum: 0
+        winners:
+          type: integer
+          minimum: 0
+        forced_errors:
+          type: integer
+          minimum: 0
+        unforced_errors:
+          type: integer
+          minimum: 0
+        net_time_pct:
+          type: number
+          minimum: 0
+          maximum: 100
+        net_approaches:
+          type: integer
+          minimum: 0
+        distance_m:
+          type: number
+          minimum: 0
+        serve_points_won_pct:
+          type:
+            - number
+            - 'null'
+          minimum: 0
+          maximum: 100
+        first_serve_in_pct:
+          type:
+            - number
+            - 'null'
+          minimum: 0
+          maximum: 100
+        max_ball_speed_kmh:
+          type:
+            - number
+            - 'null'
+          minimum: 0
+        shots_by_type:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShotTypeStats'
+        lost_points_by_zone:
+          type: array
+          items:
+            $ref: '#/components/schemas/ZoneCount'
+
+    MatchPlayer:
+      type: object
+      description: |
+        One of the four tracked players. `user` is `null` until someone claims the position.
+        `stats` is `null` for club staff and owner, and before the match is published.
+      required: [position, team, user, confirmed, thumbnail_media_id, stats]
+      properties:
+        position:
+          $ref: '#/components/schemas/MatchPosition'
+        team:
+          $ref: '#/components/schemas/Team'
+        user:
+          oneOf:
+            - $ref: '#/components/schemas/MatchPlayerUser'
+            - type: 'null'
+        confirmed:
+          type: boolean
+          description: True when the user confirmed the position ("este soy yo").
+        suggested:
+          type: boolean
+          description: |
+            True when this position is suggested to the caller because they scanned the court QR
+            and were the closest player to the camera at that moment.
+        thumbnail_media_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+          description: Thumbnail used to pick "este soy yo". Fetch it with `GET /media/{id}/url`.
+        stats:
+          oneOf:
+            - $ref: '#/components/schemas/PlayerMatchStats'
+            - type: 'null'
+
+    MatchPlayerUser:
+      type: object
+      description: Public view of a player inside a match they share with the caller.
+      required: [id, display_name, photo_url]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        display_name:
+          type: string
+        photo_url:
+          type:
+            - string
+            - 'null'
+          format: uri
+          description: Profile photo (not a video).
+
+    PointEndReason:
+      type: string
+      description: Rule of section 6 that closed the point.
+      enum:
+        - double_fault
+        - own_floor_before_net
+        - net
+        - rival_wall_before_floor
+        - double_bounce
+        - out_after_bounce
+        - ball_lost
+
+    PointToReview:
+      type: object
+      description: |
+        A point with confidence under 0.7 (section 6, layer 2). The app shows its clip so the
+        players confirm who won it.
+      required: [id, number, set, game, winner_team, end_reason, confidence, clip_media_id]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        number:
+          type: integer
+          minimum: 1
+        set:
+          type: integer
+          minimum: 1
+        game:
+          type: integer
+          minimum: 1
+        winner_team:
+          $ref: '#/components/schemas/Team'
+        end_reason:
+          $ref: '#/components/schemas/PointEndReason'
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        clip_media_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+
+    Insight:
+      type: object
+      description: |
+        One sentence about the caller's match (section 7), written from a computed fact, with a
+        tip for the next match. Text is `es-AR`, produced by the insights pipeline.
+      required: [id, kind, text, tip, order]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        kind:
+          type: string
+          examples: [net_uncovered]
+        text:
+          type: string
+          maxLength: 200
+        tip:
+          type:
+            - string
+            - 'null'
+        order:
+          type: integer
+          minimum: 1
+
+    MediaKind:
+      type: string
+      enum: [full, clip, reel, thumbnail]
+
+    MediaStatus:
+      type: string
+      description: |
+        `processing` while it is cut, encoded or uploaded; `ready` when a signed link can be
+        issued; `in_club` when the full video stayed in the club (ask with
+        `POST /media/{id}/download`); `expired` after it was deleted (full videos after 30 days).
+      enum: [processing, in_club, ready, expired]
+
+    MediaAsset:
+      type: object
+      description: A video, clip, reel or thumbnail, by id. Never carries its storage path or URL.
+      required: [id, kind, status, duration_ms, expires_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        kind:
+          $ref: '#/components/schemas/MediaKind'
+        status:
+          $ref: '#/components/schemas/MediaStatus'
+        duration_ms:
+          type:
+            - integer
+            - 'null'
+          minimum: 0
+          description: '`null` for thumbnails.'
+        expires_at:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+          description: When the media is deleted (full video 30 days after the match), or `null`.
+
+    ClipSource:
+      type: string
+      description: '`app` (tap or cut in the app), `button` (court button) or `auto` (highlight).'
+      enum: [app, button, auto]
+
+    Clip:
+      type: object
+      required:
+        - id
+        - match_id
+        - source
+        - start_ms
+        - end_ms
+        - highlight_score
+        - created_by_user_id
+        - media
+        - thumbnail_media_id
+        - created_at
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        match_id:
+          $ref: '#/components/schemas/Uuid'
+        source:
+          $ref: '#/components/schemas/ClipSource'
+        start_ms:
+          type: integer
+          minimum: 0
+          description: Offset from the start of the match video.
+        end_ms:
+          type: integer
+          minimum: 0
+        highlight_score:
+          type:
+            - number
+            - 'null'
+          minimum: 0
+          maximum: 1
+          description: Automatic highlight score (section 7); `null` for app and button clips.
+        created_by_user_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+          description: '`null` for button clips and automatic highlights.'
+        media:
+          $ref: '#/components/schemas/MediaAsset'
+        thumbnail_media_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    ClipPage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Clip'
+
+    ClipCreate:
+      type: object
+      required: [start_ms, end_ms]
+      additionalProperties: false
+      properties:
+        start_ms:
+          type: integer
+          minimum: 0
+        end_ms:
+          type: integer
+          minimum: 1
+          description: After `start_ms`, at most 60 000 ms later.
+
+    MatchDetail:
+      type: object
+      description: A match seen by the caller. See `GET /matches/{id}` for what each role gets.
+      required:
+        - id
+        - type
+        - status
+        - starts_at
+        - ends_at
+        - club
+        - court
+        - booking_id
+        - golden_point
+        - sets
+        - winner_team
+        - players
+        - points_to_review
+        - insights
+        - full_video
+        - reel
+        - published_at
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        type:
+          type: string
+          enum: [match, lesson]
+        status:
+          $ref: '#/components/schemas/MatchStatus'
+        starts_at:
+          $ref: '#/components/schemas/Timestamp'
+        ends_at:
+          $ref: '#/components/schemas/Timestamp'
+        club:
+          $ref: '#/components/schemas/EntityRef'
+        court:
+          $ref: '#/components/schemas/EntityRef'
+        booking_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+          description: '`null` for a recording started by hand from the club panel.'
+        golden_point:
+          type: boolean
+          description: True plays golden point at deuce; false plays advantage.
+        sets:
+          type: array
+          description: Score per set; empty until published.
+          items:
+            $ref: '#/components/schemas/SetScore'
+        winner_team:
+          oneOf:
+            - $ref: '#/components/schemas/Team'
+            - type: 'null'
+        players:
+          type: array
+          description: The four positions; empty until published.
+          maxItems: 4
+          items:
+            $ref: '#/components/schemas/MatchPlayer'
+        points_to_review:
+          type: array
+          description: Points under 0.7 confidence, for the players to confirm. Empty for staff.
+          items:
+            $ref: '#/components/schemas/PointToReview'
+        insights:
+          type:
+            - array
+            - 'null'
+          description: The caller's 3 insights; `null` for staff and owner or when not a player.
+          items:
+            $ref: '#/components/schemas/Insight'
+        full_video:
+          oneOf:
+            - $ref: '#/components/schemas/MediaAsset'
+            - type: 'null'
+        reel:
+          oneOf:
+            - $ref: '#/components/schemas/MediaAsset'
+            - type: 'null'
+          description: The caller's vertical reel, or `null` until generated.
+        published_at:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+
+    ClaimPlayerRequest:
+      type: object
+      required: [position]
+      additionalProperties: false
+      properties:
+        position:
+          $ref: '#/components/schemas/MatchPosition'
+
+    ScoreCorrectionFinalScore:
+      type: object
+      required: [type, sets]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          const: final_score
+        sets:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/SetScore'
+
+    ScoreCorrectionPointWinner:
+      type: object
+      required: [type, point_id, winner_team]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          const: point_winner
+        point_id:
+          $ref: '#/components/schemas/Uuid'
+        winner_team:
+          $ref: '#/components/schemas/Team'
+
+    ScoreCorrectionRequest:
+      oneOf:
+        - $ref: '#/components/schemas/ScoreCorrectionFinalScore'
+        - $ref: '#/components/schemas/ScoreCorrectionPointWinner'
+      discriminator:
+        propertyName: type
+        mapping:
+          final_score: '#/components/schemas/ScoreCorrectionFinalScore'
+          point_winner: '#/components/schemas/ScoreCorrectionPointWinner'
+
+    ScoreCorrection:
+      type: object
+      required: [id, match_id, type, match_status, created_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        match_id:
+          $ref: '#/components/schemas/Uuid'
+        type:
+          type: string
+          enum: [final_score, point_winner]
+        match_status:
+          $ref: '#/components/schemas/MatchStatus'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    SignedMediaUrl:
+      type: object
+      description: A signed, temporary link. Never store it; ask again when it expires.
+      required: [media_id, url, expires_at, content_type]
+      properties:
+        media_id:
+          $ref: '#/components/schemas/Uuid'
+        url:
+          type: string
+          format: uri
+          description: Signed storage URL, valid until `expires_at` (at most 1 hour).
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+        content_type:
+          type: string
+          examples: [video/mp4, image/jpeg]
+
+    MediaDownload:
+      type: object
+      required: [media_id, status, url, expires_at]
+      properties:
+        media_id:
+          $ref: '#/components/schemas/Uuid'
+        status:
+          type: string
+          enum: [ready, preparing]
+        url:
+          type:
+            - string
+            - 'null'
+          format: uri
+          description: Signed download link valid at most 1 hour; `null` while `preparing`.
+        expires_at:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
     UserStats:
       type: object
       description: Aggregate stats over the user's published matches.
@@ -4240,6 +5190,90 @@ components:
             start_ms: 197500
             end_ms: 206500
             clip_media_id: 0192f0c0-00cb-7d3e-8f4a-5b6c7d8e00cb
+
+    MatchDetailExample:
+      summary: A published match seen by one of its players
+      value:
+        id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b
+        type: match
+        status: published
+        starts_at: '2026-10-15T22:00:00Z'
+        ends_at: '2026-10-15T23:30:00Z'
+        club:
+          id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a60
+          name: Club Demo Palermo
+        court:
+          id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61
+          name: Cancha 1
+        booking_id: 0192b1e4-5a6b-7c8d-9e0f-1a2b3c4d5e6f
+        golden_point: true
+        sets:
+          - team_1: 6
+            team_2: 4
+          - team_1: 7
+            team_2: 5
+        winner_team: 1
+        players:
+          - position: 1
+            team: 1
+            user:
+              id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f
+              display_name: Sofía Pérez
+              photo_url: null
+            confirmed: true
+            suggested: false
+            thumbnail_media_id: 0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a61
+            stats:
+              formula_version: '1.0.0'
+              points_won: 48
+              winners: 9
+              forced_errors: 4
+              unforced_errors: 7
+              net_time_pct: 41.5
+              net_approaches: 22
+              distance_m: 2130.4
+              serve_points_won_pct: 62.5
+              first_serve_in_pct: 88.0
+              max_ball_speed_kmh: 104.2
+              shots_by_type:
+                - shot_type: bandeja
+                  count: 31
+                  winners: 2
+                  errors: 3
+              lost_points_by_zone:
+                - zone: net_left
+                  points: 7
+          - position: 2
+            team: 1
+            user: null
+            confirmed: false
+            suggested: false
+            thumbnail_media_id: 0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a62
+            stats: null
+        points_to_review:
+          - id: 0192d1e4-5a6b-7c8d-9e0f-1a2b3c4d5e6f
+            number: 57
+            set: 2
+            game: 9
+            winner_team: 2
+            end_reason: ball_lost
+            confidence: 0.52
+            clip_media_id: 0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a63
+        insights:
+          - id: 0192e1e4-5a6b-7c8d-9e0f-1a2b3c4d5e70
+            kind: net_uncovered
+            text: Perdiste 7 de 10 puntos cuando tu compañero quedó solo en la red.
+            tip: Subí a la red junto con tu compañero después de la bandeja.
+            order: 1
+        full_video:
+          id: 0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a55
+          kind: full
+          status: ready
+          duration_ms: 5400000
+          expires_at: '2026-11-14T23:30:00Z'
+        reel: null
+        published_at: '2026-10-16T00:40:00Z'
+
   responses:
     BadRequest:
       description: Malformed request (`VALIDATION_FAILED`, `INVALID_CURSOR`).
