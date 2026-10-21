@@ -1698,7 +1698,7 @@ export interface components {
     };
     /**
      * @description Monthly summary of a club (section 10). All amounts in ARS cents.
-     *     `net_payable_by_club_cents` = subscription + commissions − `collected_by_platform_cents`
+     *     `net_payable_by_club_cents` = subscription + commissions minus `collected_by_platform_cents`
      *     (money we collected because the club had not connected its Mercado Pago account, which
      *     we owe the club), floored at 0; when we owe more than the club does, we transfer the
      *     difference to the club.
