@@ -105,6 +105,9 @@ model User {
   bookingsAsGuardian Booking[]       @relation("BookingGuardian")
   bookingPlayers     BookingPlayer[] @relation("BookingPlayerUser")
   bookingInvitesSent BookingPlayer[] @relation("BookingPlayerInvitedBy")
+  matchPlayers       MatchPlayer[]
+  matchStats         MatchStat[]
+  insights           Insight[]
 
   @@map("users")
 }
@@ -192,6 +195,12 @@ model Club {
   devices               Device[]
   cameras               Camera[]
   calibrations          Calibration[]
+  matches               Match[]
+  matchPlayers          MatchPlayer[]
+  points                Point[]
+  shots                 Shot[]
+  matchStats            MatchStat[]
+  insights              Insight[]
 
   @@map("clubs")
 }
@@ -213,6 +222,7 @@ model Court {
   bookingSlotsRules  BookingSlotsRule[]
   bookings           Booking[]
   cameras            Camera[]
+  matches            Match[]
 
   @@unique([clubId, name])
   @@map("courts")
@@ -467,6 +477,7 @@ model Booking {
   createdBy User?           @relation("BookingCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   guardian  User?           @relation("BookingGuardian", fields: [guardianUserId], references: [id], onDelete: SetNull)
   players   BookingPlayer[]
+  matches   Match[]
 
   @@index([courtId, startsAt])
   @@index([clubId, startsAt])
@@ -498,4 +509,253 @@ model BookingPlayer {
   @@index([userId])
   @@index([clubId])
   @@map("booking_players")
+}
+
+// ---------------------------------------------------------------- Matches (§2, §5, §6, §7)
+
+/// Values must match `MatchStatus` in packages/contracts (state machine §3).
+enum MatchStatus {
+  scheduled
+  recording
+  recorded
+  processing
+  published
+  needs_review
+  archived
+  failed
+  cancelled
+
+  @@map("match_status")
+}
+
+enum MatchType {
+  match
+  lesson
+
+  @@map("match_type")
+}
+
+/// Values must match `PointEndReason` in ml/src/ml/labels.py (rules of §6).
+enum PointEndReason {
+  double_fault
+  own_floor
+  net
+  direct_wall
+  double_bounce
+  out_of_court
+  ball_lost
+  other
+
+  @@map("point_end_reason")
+}
+
+/// Values must match `ShotType` in ml/src/ml/schemas.py (§5.9). `unknown` = confidence < 0.6.
+enum ShotType {
+  serve
+  forehand
+  backhand
+  forehand_volley
+  backhand_volley
+  bandeja
+  vibora
+  smash
+  lob
+  off_the_wall
+  unknown
+
+  @@map("shot_type")
+}
+
+/// A recorded session on a court: a match or a lesson. Usually comes from a booking; a recording
+/// started by hand from the panel has no booking.
+model Match {
+  id            String      @id @db.Uuid
+  clubId        String      @map("club_id") @db.Uuid
+  courtId       String      @map("court_id") @db.Uuid
+  bookingId     String?     @map("booking_id") @db.Uuid
+  type          MatchType   @default(match)
+  status        MatchStatus @default(scheduled)
+  startsAt      DateTime    @map("starts_at") @db.Timestamptz(3)
+  endsAt        DateTime    @map("ends_at") @db.Timestamptz(3)
+  /// Golden point at 40-40 (true) or advantage (false).
+  goldenPoint   Boolean     @default(true) @map("golden_point")
+  /// Sets to win the match (CHECK 1..3).
+  bestOfSets    Int         @default(3) @map("best_of_sets") @db.SmallInt
+  /// The deciding set is a super tie-break to 10.
+  superTiebreak Boolean     @default(false) @map("super_tiebreak")
+  /// Final score, one entry per set: [{"team_1": 6, "team_2": 4, "tiebreak": null}, ...].
+  /// Null until published.
+  finalScore    Json?       @map("final_score")
+  /// Winning team (1 or 2); null until published or for lessons.
+  winnerTeam    Int?        @map("winner_team") @db.SmallInt
+  /// Version of the vision models that produced points and shots, e.g. `2026.10.1`.
+  modelVersion  String?     @map("model_version")
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club     Club          @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  court    Court         @relation(fields: [courtId], references: [id], onDelete: Restrict)
+  booking  Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  players  MatchPlayer[]
+  points   Point[]
+  shots    Shot[]
+  stats    MatchStat[]
+  insights Insight[]
+
+  @@index([courtId, startsAt])
+  @@index([clubId, startsAt])
+  @@index([bookingId])
+  @@index([status])
+  @@map("matches")
+}
+
+/// One of the 4 tracked players of a match (§5.3, §5.4). `user_id` stays null until someone
+/// taps "this is me" or it comes from the booking; stats of an unclaimed slot are kept.
+model MatchPlayer {
+  id           String    @id @db.Uuid
+  clubId       String    @map("club_id") @db.Uuid
+  matchId      String    @map("match_id") @db.Uuid
+  userId       String?   @map("user_id") @db.Uuid
+  /// 1 or 2 (CHECK).
+  team         Int       @db.SmallInt
+  /// Side of the net at the first serve: `a` (y < 10 m) or `b`.
+  initialSide  CameraEnd @map("initial_side")
+  /// Track index assigned by the tracker, 0..3 (CHECK).
+  trackIndex   Int       @map("track_index") @db.SmallInt
+  /// Thumbnail shown in "this is me".
+  thumbnailUrl String?   @map("thumbnail_url")
+  confirmed    Boolean   @default(false)
+  confirmedAt  DateTime? @map("confirmed_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club   Club    @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  match  Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  shots  Shot[]
+  serves Point[] @relation("PointServer")
+
+  @@unique([matchId, trackIndex])
+  /// §2: a player cannot be twice in the same match.
+  @@unique([matchId, userId])
+  @@index([userId])
+  @@index([clubId])
+  @@map("match_players")
+}
+
+model Point {
+  id              String         @id @db.Uuid
+  clubId          String         @map("club_id") @db.Uuid
+  matchId         String         @map("match_id") @db.Uuid
+  /// 1-based order in the match.
+  number          Int
+  /// 1-based set and game numbers.
+  setNumber       Int            @map("set_number") @db.SmallInt
+  gameNumber      Int            @map("game_number") @db.SmallInt
+  serverPlayerId  String?        @map("server_player_id") @db.Uuid
+  /// Winning team, 1 or 2 (CHECK).
+  winnerTeam      Int            @map("winner_team") @db.SmallInt
+  endReason       PointEndReason @map("end_reason")
+  /// Time range in the match video, milliseconds from the start.
+  startMs         Int            @map("start_ms")
+  endMs           Int            @map("end_ms")
+  /// Product of the deciding events' confidences, 0..1 (CHECK). Below 0.7 goes to review (§6).
+  confidence      Decimal        @db.Decimal(4, 3)
+  /// A player corrected the winner (kept for retraining, §6).
+  correctedByUser Boolean        @default(false) @map("corrected_by_user")
+  correctedAt     DateTime?      @map("corrected_at") @db.Timestamptz(3)
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club   Club         @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  match  Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  server MatchPlayer? @relation("PointServer", fields: [serverPlayerId], references: [id], onDelete: SetNull)
+  shots  Shot[]
+
+  @@unique([matchId, number])
+  @@index([clubId])
+  @@map("points")
+}
+
+/// A shot (§5.7). Positions are metres on the court plane (origin at the A-side corner).
+model Shot {
+  id            String   @id @db.Uuid
+  clubId        String   @map("club_id") @db.Uuid
+  matchId       String   @map("match_id") @db.Uuid
+  pointId       String   @map("point_id") @db.Uuid
+  /// Null when the shot could not be attributed to a track.
+  matchPlayerId String?  @map("match_player_id") @db.Uuid
+  /// Milliseconds from the start of the match video.
+  timeMs        Int      @map("time_ms")
+  shotType      ShotType @default(unknown) @map("shot_type")
+  playerX       Float    @map("player_x")
+  playerY       Float    @map("player_y")
+  /// Where the ball landed next; null when not seen.
+  targetX       Float?   @map("target_x")
+  targetY       Float?   @map("target_y")
+  /// Estimated, only with 3D position (§7).
+  speedKmh      Decimal? @map("speed_kmh") @db.Decimal(5, 1)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club   Club         @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  match  Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  point  Point        @relation(fields: [pointId], references: [id], onDelete: Cascade)
+  player MatchPlayer? @relation(fields: [matchPlayerId], references: [id], onDelete: SetNull)
+
+  @@index([pointId, timeMs])
+  @@index([matchId, timeMs])
+  @@index([matchPlayerId])
+  @@index([clubId])
+  @@map("shots")
+}
+
+/// All stats of one player (and their pair) in one match, computed with fixed formulas (§7).
+/// One row per match and user; recomputed rows replace the old one.
+model MatchStat {
+  id             String   @id @db.Uuid
+  clubId         String   @map("club_id") @db.Uuid
+  matchId        String   @map("match_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  stats          Json
+  /// Version of the stats formulas, e.g. `1`.
+  formulaVersion String   @map("formula_version")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club  Club  @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, userId])
+  @@index([userId])
+  @@index([clubId])
+  @@map("match_stats")
+}
+
+/// A sentence for a player about a match (§7). The text is written from `facts`; every number
+/// in it must appear there.
+model Insight {
+  id        String   @id @db.Uuid
+  clubId    String   @map("club_id") @db.Uuid
+  matchId   String   @map("match_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  /// Rule of the insight engine that produced it, e.g. `net_uncovered`.
+  type      String
+  text      String
+  /// The supporting fact: {type, metric, value, comparison, points_involved}.
+  facts     Json
+  /// Display order, 1-based.
+  position  Int      @db.SmallInt
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club  Club  @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, userId, position])
+  @@index([userId])
+  @@index([clubId])
+  @@map("insights")
 }
