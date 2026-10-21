@@ -894,6 +894,227 @@ class BookingCancellation(BaseModel):
     """
 
 
+class CourtLiveStatus(StrEnum):
+    """
+    `recording` (a turn is being recorded), `idle`, `camera_offline` (one or both cameras
+    down) or `maintenance` (court not active).
+
+    """
+
+    recording = "recording"
+    idle = "idle"
+    camera_offline = "camera_offline"
+    maintenance = "maintenance"
+
+
+class CameraEnd(StrEnum):
+    """
+    End of the court where the camera is mounted (section 5).
+    """
+
+    A = "A"
+    B = "B"
+
+
+class CameraState(BaseModel):
+    end: CameraEnd
+    online: bool
+
+
+class CourtLive(BaseModel):
+    court: EntityRef
+    status: CourtLiveStatus
+    cameras: list[CameraState]
+    current_match_id: Uuid | None
+    current_until: Timestamp | None
+    """
+    Scheduled end of the current recording.
+    """
+    next_booking_at: Timestamp | None
+
+
+class DeviceHealthSummary(BaseModel):
+    """
+    Last heartbeat of a club device (section 4, `health`).
+    """
+
+    device_id: Uuid
+    online: bool
+    """
+    False when no heartbeat arrived in the last 3 minutes.
+    """
+    last_seen_at: Timestamp
+    disk_free_pct: Annotated[float, Field(ge=0.0, le=100.0)]
+    gpu_temp_c: float | None
+    upload_queue_minutes: Annotated[int, Field(ge=0)]
+    """
+    Estimated minutes to empty the upload queue.
+    """
+
+
+class PricingTier(BaseModel):
+    """
+    Band of active players (distinct players with at least one recorded match in the club in
+    the last 90 days) that sets the monthly subscription (decision of 21/10/2026, #253).
+    Bands and prices live in the contract with the club; see `docs/pendientes.md`.
+
+    """
+
+    name: str
+    min_active_players: Annotated[int, Field(ge=0)]
+    max_active_players: Annotated[int | None, Field(ge=1)]
+    """
+    `null` for the top band.
+    """
+
+
+class ClubBillingSummary(BaseModel):
+    """
+    Owner only. Where the club stands on its subscription this month.
+    """
+
+    active_players_90d: Annotated[int, Field(ge=0)]
+    tier: PricingTier
+    subscription_cents: AmountCents
+    debt_cents: AmountCents
+    """
+    Unpaid subscription; shown after 15 days, service cut at 30 (section 10).
+    """
+
+
+class ClubRevenueSummary(BaseModel):
+    """
+    Owner only. Money of the day, in ARS cents.
+    """
+
+    bookings_cents: AmountCents
+    deposits_cents: AmountCents
+    player_extras_cents: AmountCents
+
+
+class ClubDashboard(BaseModel):
+    club_id: Uuid
+    date: date_aliased
+    bookings_count: Annotated[int, Field(ge=0)]
+    occupancy_pct: Annotated[float, Field(ge=0.0, le=100.0)]
+    """
+    Booked minutes over open minutes of every active court.
+    """
+    matches_published: Annotated[int, Field(ge=0)]
+    matches_failed: Annotated[int, Field(ge=0)]
+    courts: list[CourtLive]
+    devices: list[DeviceHealthSummary]
+    revenue: ClubRevenueSummary | None
+    """
+    `null` for staff.
+    """
+    billing: ClubBillingSummary | None
+    """
+    `null` for staff.
+    """
+
+
+class ClubBookingContact(BaseModel):
+    """
+    Who booked, so the front desk can reach them. No stats.
+    """
+
+    user_id: Uuid
+    name: str | None
+    phone: PhoneNumber | None
+    account_pending: bool
+    """
+    True when the account was created from the panel and not activated yet.
+    """
+
+
+class ClubBooking(Booking):
+    court_name: str
+    booker: ClubBookingContact
+    match_id: Uuid | None
+    """
+    The recorded match, once recording started.
+    """
+
+
+class Deposit1(StrEnum):
+    """
+    `none` or `paid_at_club` (cash or transfer at the desk). Defaults to `none`.
+    """
+
+    none = "none"
+    paid_at_club = "paid_at_club"
+
+
+class ClubBookingCreate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    court_id: Uuid
+    starts_at: Timestamp
+    duration_minutes: BookingDuration
+    phone: PhoneNumber
+    name: Annotated[str | None, Field(max_length=80)] = None
+    """
+    Name for a new pending account. Ignored if the phone has an account.
+    """
+    deposit: Deposit1 | None = None
+    """
+    `none` or `paid_at_club` (cash or transfer at the desk). Defaults to `none`.
+    """
+    recurrence: BookingRecurrence | None = None
+    no_record: bool | None = None
+    """
+    Marks the turn "do not record" (for example an escuelita).
+    """
+
+
+class RecordingStop(BaseModel):
+    court_id: Uuid
+    match_id: Uuid
+    match_status: MatchStatus
+    stopped_at: Timestamp
+
+
+class SettlementSubscription(BaseModel):
+    active_players_90d: Annotated[int, Field(ge=0)]
+    """
+    Active players at the close of the period.
+    """
+    tier: PricingTier
+    amount_cents: AmountCents
+
+
+class Settlement(BaseModel):
+    """
+    Monthly summary of a club (section 10). All amounts in ARS cents.
+    `net_payable_by_club_cents` = subscription + commissions − `collected_by_platform_cents`
+    (money we collected because the club had not connected its Mercado Pago account, which
+    we owe the club), floored at 0; when we owe more than the club does, we transfer the
+    difference to the club.
+
+    """
+
+    id: Uuid
+    period: Annotated[str, Field(pattern="^\\d{4}-(0[1-9]|1[0-2])$")]
+    """
+    Month, `YYYY-MM`.
+    """
+    status: SettlementStatus
+    subscription: SettlementSubscription
+    player_payments_cents: AmountCents
+    lesson_payments_cents: AmountCents
+    deposits_cents: AmountCents
+    commissions_cents: AmountCents
+    collected_by_platform_cents: AmountCents
+    net_payable_by_club_cents: AmountCents
+    invoice_number: str | None
+    """
+    ARCA invoice number, once `invoiced`.
+    """
+    created_at: Timestamp
+
+
 class Page(BaseModel):
     """
     Base of every paginated response. A list operation combines it with `allOf` and adds an
@@ -989,6 +1210,14 @@ class Court(BaseModel):
     """
     status: CourtStatus
     booking: CourtBookingSettings
+
+
+class ClubBookingPage(Page):
+    items: list[ClubBooking]
+
+
+class SettlementPage(Page):
+    items: list[Settlement]
 
 
 class Error(BaseModel):

@@ -54,7 +54,7 @@ La base es PostgreSQL con 22 tablas agrupadas en 6 áreas. Todas llevan `id` (UU
 | Personas | `memberships` | rol (`owner`, `staff`, `coach`, `player`), estado | Une `user` con `club` |
 | Clubes | `clubs` | nombre, dirección, CUIT, zona horaria, logo, sponsor, plan (`loan` o `purchase`), configuración de cobros | Tiene `courts`, `devices`, `contracts` |
 | Clubes | `courts` | nombre, techada (sí/no), estado, calibración vigente | Pertenece a `club`; tiene 2 `cameras` |
-| Clubes | `contracts` | plan, abono por cancha en centavos, fecha de inicio, meses mínimos, porcentaje de comisión | Pertenece a `club` |
+| Clubes | `contracts` | plan, tramos de jugadores activos con su abono en centavos, fecha de inicio, meses mínimos, porcentaje de comisión | Pertenece a `club` |
 | Equipo | `devices` | número de serie, versión de software, última señal, disco libre, temperatura de GPU | Pertenece a `club` |
 | Equipo | `cameras` | dirección RTSP (cifrada), extremo de la cancha (A o B), resolución, estado | Pertenece a `court` y a `device` |
 | Equipo | `calibrations` | 12 puntos en píxeles, matriz de homografía 3x3, error en cm, fecha | Pertenece a `camera`; la vigente la marca `courts` |
@@ -249,7 +249,7 @@ Las reservas reemplazan al WhatsApp del club y son las que le dicen al equipo de
 6. **Turnos fijos.** Un turno semanal fijo (muy común en los clubes) se guarda como regla de repetición y genera las reservas de las próximas 8 semanas, renovadas cada semana.
 7. **Carga desde la recepción.** Para los turnos que siguen llegando por WhatsApp, el panel tiene un formulario rápido: teléfono y turno. Si el teléfono no tiene cuenta, se crea una pendiente y le llega un WhatsApp para activarla.
 8. **Cancelación.** Cada club define con cuántas horas de anticipación se devuelve la seña (24 por defecto). La devolución se pide a Mercado Pago por su API. Si nadie se presenta, el club marca `no_show` y la seña no se devuelve.
-9. **Avisos.** WhatsApp al confirmar, 3 horas antes del turno y al publicarse el partido.
+9. **Avisos.** WhatsApp al confirmar, 1 hora antes del turno (decisión del 21/10/2026, #254) y al publicarse el partido.
 
 ## 10. Pagos, liquidación y facturación
 
@@ -257,7 +257,7 @@ La plata de jugadores va directo a la cuenta de Mercado Pago del club o del entr
 
 | Cobro | Quién paga | Cómo funciona |
 | --- | --- | --- |
-| Abono mensual | Club | Suscripción de Mercado Pago a nombre de nuestra empresa, por cantidad de canchas. Se ajusta cada 3 meses por el índice del contrato. Si falla el cobro, se avisa al club y a los 15 días el panel muestra deuda; el servicio se corta a los 30 días |
+| Abono mensual | Club | Suscripción de Mercado Pago a nombre de nuestra empresa, según el tramo de jugadores activos del club (jugadores distintos con al menos un partido grabado en el club en los últimos 90 días; decisión del 21/10/2026, #253). Se ajusta cada 3 meses por el índice del contrato. Si falla el cobro, se avisa al club y a los 15 días el panel muestra deuda; el servicio se corta a los 30 días |
 | Compra del equipo | Club | Pago único o hasta 6 cuotas de Mercado Pago |
 | Extra por partido | Jugador | Pago del modelo marketplace de Mercado Pago: el club conecta su cuenta una vez (OAuth) y cada pago se crea con `marketplace_fee` del 10% para nosotros |
 | Clase | Alumno | Igual que el extra, con la cuenta del entrenador |
