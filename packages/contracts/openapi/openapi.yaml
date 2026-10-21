@@ -71,6 +71,8 @@ security:
 tags:
   - name: System
     description: Liveness and operational endpoints.
+  - name: Device
+    description: Club device (mTLS) - schedule, heartbeat, pipeline results and uploads.
   - name: Auth
     description: Sign-in with a WhatsApp code, Google or Apple, and session renewal.
   - name: Users
@@ -81,6 +83,10 @@ tags:
     description: Signed 1-hour links and downloads of videos, clips, reels and thumbnails.
   - name: Clubs
     description: Clubs, their courts and booking rules, and the owner's club settings.
+  - name: Lessons
+    description: Coach lessons, notes and drawings, and the coach's students.
+  - name: Payments
+    description: Mercado Pago checkouts (deposits, extras, lessons) and the payment webhook.
   - name: Bookings
     description: Court availability, holds, invites, cancellations and fixed weekly turns.
   - name: ClubAdmin
@@ -116,6 +122,318 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
+  /device/schedule:
+    get:
+      operationId: getDeviceSchedule
+      tags: [Device]
+      summary: Turns to record in the next 48 hours (club device)
+      description: |
+        The `scheduler` process calls this every minute and stores the answer in its local
+        SQLite, so it keeps recording from the stored copy for up to 48 hours without internet
+        (section 4). The device is identified by its client certificate (mTLS); it only gets
+        its own club's courts. Recording starts at `record_from` (2 minutes before the turn)
+        and ends at `record_until` (2 minutes after). Turns with `no_record: true` are listed
+        so the device knows the court is busy, but must not be recorded.
+
+        Not paginated: 48 hours of a club fit in one response. `ETag` / `If-None-Match` avoid
+        resending an unchanged schedule (`304`).
+
+        Errors: `DEVICE_CERTIFICATE_INVALID` (401).
+      security:
+        - deviceMtls: []
+      parameters:
+        - name: If-None-Match
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The schedule.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceSchedule'
+              example:
+                club_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a60
+                generated_at: '2026-10-23T21:00:00Z'
+                valid_until: '2026-10-25T21:00:00Z'
+                items:
+                  - match_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b
+                    booking_id: 0192b1e4-5a6b-7c8d-9e0f-1a2b3c4d5e6f
+                    court_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61
+                    match_type: match
+                    starts_at: '2026-10-23T22:00:00Z'
+                    ends_at: '2026-10-23T23:30:00Z'
+                    record_from: '2026-10-23T21:58:00Z'
+                    record_until: '2026-10-23T23:32:00Z'
+                    no_record: false
+                    scoring:
+                      golden_point: true
+                      third_set: super_tiebreak
+                    updated_at: '2026-10-22T15:04:00Z'
+        '304':
+          description: Unchanged since the given `ETag`.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /device/heartbeat:
+    post:
+      operationId: postDeviceHeartbeat
+      tags: [Device]
+      summary: Health report every 60 seconds (club device)
+      description: |
+        The `health` process reports free disk, GPU temperature, each camera and the queues
+        (section 4). Three missed heartbeats mark the device offline and emit `device.offline`;
+        a camera down for more than 5 minutes during a turn alerts the club and support. The
+        response carries the server time (to detect clock drift beyond NTP) and the software
+        version the `updater` should run.
+
+        Errors: `DEVICE_CERTIFICATE_INVALID` (401), `DEVICE_CLUB_MISMATCH` (403, a camera of
+        another club), `VALIDATION_FAILED` (400).
+      security:
+        - deviceMtls: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceHeartbeat'
+            example:
+              sent_at: '2026-10-23T22:41:00Z'
+              software_version: 0.4.2
+              uptime_seconds: 86400
+              disk_free_bytes: 1374389534720
+              disk_total_bytes: 2000398934016
+              gpu_temp_c: 71.0
+              cpu_temp_c: 58.5
+              cameras:
+                - camera_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a90
+                  online: true
+                  fps: 25.0
+                  recording: true
+                - camera_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a91
+                  online: true
+                  fps: 24.9
+                  recording: true
+              upload_queue:
+                items: 14
+                bytes: 5368709120
+                eta_minutes: 95
+              processing_backlog_minutes: 40
+      responses:
+        '200':
+          description: Heartbeat stored.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceHeartbeatAck'
+              example:
+                server_time: '2026-10-23T22:41:00Z'
+                desired_software_version: 0.4.2
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /device/matches/{id}/results:
+    post:
+      operationId: postMatchResults
+      tags: [Device]
+      summary: Upload the pipeline results of a match (club device)
+      description: |
+        The `uploader` sends this first, before clips and video (priority 1, section 4). The
+        body is the `MatchResults` format shared by `ml` (which produces it) and
+        `services/edge-agent` (which sends it); its full example is `MatchResultsExample`.
+
+        - The match moves `processing` → `published` (or `failed` with `status: failed`), and
+          `match.processed` is emitted. The cloud stores points, shots and bounces, takes the
+          device stats as a first version and recomputes them with the same versioned formulas
+          after any score correction.
+        - Idempotent by `run_id`: resending the same run returns `202` without changes. A new
+          `run_id` (reprocess) replaces the previous results.
+        - Media is referenced by the `media_id` returned by `POST /device/uploads`; uploads may
+          finish after the results.
+
+        Errors: `DEVICE_CERTIFICATE_INVALID` (401), `DEVICE_CLUB_MISMATCH` (403),
+        `INVALID_STATE_TRANSITION` (409, the match is not `recorded` or `processing`),
+        `VALIDATION_FAILED` (400), `NOT_FOUND`.
+      security:
+        - deviceMtls: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceMatchId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchResults'
+            examples:
+              full:
+                $ref: '#/components/examples/MatchResultsExample'
+      responses:
+        '202':
+          description: Results accepted.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchResultsAck'
+              example:
+                match_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b
+                run_id: 0192f0a0-1b2c-7d3e-8f4a-5b6c7d8e9f00
+                match_status: published
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /device/uploads:
+    post:
+      operationId: createDeviceUpload
+      tags: [Device]
+      summary: Get signed multipart upload links for a video, clip, reel or thumbnail
+      description: |
+        Starts a resumable multipart upload to private storage (section 4, `uploader`). The
+        device uploads each part with `PUT` to its signed `url` (valid 1 hour; call again with
+        the same `upload_id` to get fresh links for missing parts), then calls
+        `POST /device/uploads/{id}/complete`. Idempotent by `sha256` + `match_id` + `kind`.
+        The device never receives permanent links.
+
+        Errors: `DEVICE_CERTIFICATE_INVALID` (401), `DEVICE_CLUB_MISMATCH` (403),
+        `VALIDATION_FAILED` (400), `NOT_FOUND` (match or upload).
+      security:
+        - deviceMtls: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceUploadRequest'
+            example:
+              match_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b
+              kind: full
+              content_type: video/mp4
+              size_bytes: 1073741824
+              sha256: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+              duration_ms: 5520000
+      responses:
+        '201':
+          description: The upload with its signed part links.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceUpload'
+              example:
+                upload_id: 0192f0b0-1b2c-7d3e-8f4a-5b6c7d8e9f01
+                media_id: 0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a55
+                part_size_bytes: 67108864
+                parts:
+                  - number: 1
+                    url: https://storage.example.com/full/0192af6e.mp4?partNumber=1&uploadId=abc&X-Amz-Signature=1a2b
+                expires_at: '2026-10-24T05:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /device/uploads/{id}/complete:
+    post:
+      operationId: completeDeviceUpload
+      tags: [Device]
+      summary: Finish a multipart upload
+      description: |
+        Closes the multipart upload with the `ETag` of each part. The API checks size and
+        `sha256`, marks the media `ready` and, for clips, emits `clip.created`. After this the
+        device may delete its original once the analysis is done (section 4, disk).
+
+        Errors: `DEVICE_CLUB_MISMATCH` (403), `VALIDATION_FAILED` (400, missing part or checksum
+        mismatch), `NOT_FOUND`.
+      security:
+        - deviceMtls: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceUploadId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceUploadComplete'
+            example:
+              parts:
+                - number: 1
+                  etag: '"a54357aff0632cce46d942af68356b38"'
+      responses:
+        '200':
+          description: Upload completed.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceUploadDone'
+              example:
+                upload_id: 0192f0b0-1b2c-7d3e-8f4a-5b6c7d8e9f01
+                media_id: 0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a55
+                status: ready
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /auth/otp/whatsapp:
     post:
       operationId: requestWhatsappOtp
@@ -1085,6 +1403,383 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /lessons:
+    get:
+      operationId: listLessons
+      tags: [Lessons]
+      summary: List the caller's lessons (as coach or as student)
+      description: |
+        A coach sees the lessons they teach; a student sees the lessons they take. Newest first.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: role
+          in: query
+          required: false
+          description: '`coach` (default for users with a coach membership) or `student`.'
+          schema:
+            type: string
+            enum: [coach, student]
+        - name: student_id
+          in: query
+          required: false
+          description: Coach only. Lessons with this student.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: One page of lessons.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createLesson
+      tags: [Lessons]
+      summary: Schedule a lesson (coach)
+      description: |
+        A coach of the club books the court for a lesson, with the same availability and
+        exclusion rules as `POST /bookings`. The booking is created `confirmed` (the coach does
+        not pay a deposit) with `source: panel` when made from the club panel or `app`
+        otherwise, and the match that comes from it has `type: lesson` (lesson stats never count
+        in `/me/stats`).
+
+        - **Recording.** `kind: school` (escuelita) is "do not record" by default
+          (`no_record_reason: club_school`); `record: true` turns it on only when every minor has a
+          guardian permission on file (section 12).
+        - **Charging.** With `price_cents` and the club's `lesson_payments_enabled`, each student
+          pays with `POST /payments/checkout` (`concept: lesson`) into the coach's Mercado Pago
+          account.
+        - **Students.** Listed students get a WhatsApp invite and must accept to be linked; a
+          student that accepts gives the coach access to that lesson's video and stats.
+
+        Errors: `BOOKING_SLOT_TAKEN` (409), `BOOKING_SLOT_INVALID` (422), `FORBIDDEN` (the caller
+        is not a coach of the club), `CLUB_FEATURE_DISABLED` (403, `price_cents` while the club
+        has lesson payments off), `CLUB_SERVICE_SUSPENDED` (403), `VALIDATION_FAILED` (400).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonCreate'
+            example:
+              court_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61
+              starts_at: '2026-10-24T13:00:00Z'
+              duration_minutes: 60
+              kind: private
+              student_ids:
+                - 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f
+              price_cents: 2500000
+              record: true
+              focus: Bandeja y salida de pared
+      responses:
+        '201':
+          description: The lesson.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lesson'
+              examples:
+                private:
+                  $ref: '#/components/examples/LessonExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /lessons/{id}/notes:
+    post:
+      operationId: addLessonNote
+      tags: [Lessons]
+      summary: Add a note, drawing or plan to a lesson (coach)
+      description: |
+        The lesson's coach leaves a note for the lesson or for one moment of its video
+        (`at_ms`), optionally with a drawing over the frame (normalized 0..1 coordinates, so it
+        scales to any screen) and a plan item for the next lessons. Notes are visible to the
+        students of the lesson when `visible_to_students` is true.
+
+        Errors: `FORBIDDEN` (not the lesson's coach), `NOT_FOUND`, `VALIDATION_FAILED` (400).
+      parameters:
+        - $ref: '#/components/parameters/LessonId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonNoteCreate'
+            example:
+              text: Cerrá antes la paleta en la bandeja.
+              at_ms: 845000
+              student_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f
+              drawing:
+                strokes:
+                  - color: '#FFD400'
+                    width: 0.006
+                    points:
+                      - [0.42, 0.31]
+                      - [0.47, 0.36]
+              visible_to_students: true
+      responses:
+        '201':
+          description: The note.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonNote'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /coach/students:
+    get:
+      operationId: listCoachStudents
+      tags: [Lessons]
+      summary: List the coach's students and what they shared
+      description: |
+        Students who took at least one lesson with the caller. `access` says whether the student
+        gave the coach access to their matches (section 12); without it the coach sees only the
+        lessons they taught, and `GET /matches/{id}` of the student's other matches returns
+        `COACH_ACCESS_NOT_GRANTED`.
+
+        Errors: `FORBIDDEN` (the caller is not a coach in any club).
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of students.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoachStudentPage'
+              example:
+                items:
+                  - user:
+                      id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f
+                      name: Sofía Pérez
+                    access: matches_and_lessons
+                    lessons_count: 6
+                    last_lesson_at: '2026-10-17T13:00:00Z'
+                    pending_payment_cents: 0
+                next_cursor: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /payments/checkout:
+    post:
+      operationId: createCheckout
+      tags: [Payments]
+      summary: Open a Mercado Pago checkout for a deposit, extra or lesson
+      description: |
+        Creates a `pending` payment and a Mercado Pago preference in the marketplace model
+        (section 10): the money goes straight to the club's account (`deposit`,
+        `player_extra`) or the coach's (`lesson`), and Mercado Pago splits our
+        `marketplace_fee` in the same payment (10%; 0 for deposits during the pilot). If the
+        club has not connected its account yet, we collect and transfer in the monthly
+        settlement. The client opens `checkout_url`; only the webhook changes the payment
+        status, never the app.
+
+        Send an `Idempotency-Key`: retrying with the same key returns the same checkout instead
+        of a second payment.
+
+        Errors: `BOOKING_HOLD_EXPIRED` (409, the 10-minute hold ended), `INVALID_STATE_TRANSITION`
+        (409, already paid), `CLUB_FEATURE_DISABLED` (403, extra or lesson payments off),
+        `PAYMENT_PROVIDER_ERROR` (502), `NOT_FOUND` (booking, match or lesson),
+        `VALIDATION_FAILED` (400).
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Client-generated UUID, unique per intended payment.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+            examples:
+              deposit:
+                summary: Deposit of a held booking
+                value:
+                  concept: deposit
+                  booking_id: 0192b1e4-5a6b-7c8d-9e0f-1a2b3c4d5e6f
+              lesson:
+                summary: A student pays a lesson
+                value:
+                  concept: lesson
+                  lesson_id: 0192c1e4-5a6b-7c8d-9e0f-1a2b3c4d5e6f
+      responses:
+        '201':
+          description: The checkout to open.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Checkout'
+              example:
+                payment_id: 0192f1e4-5a6b-7c8d-9e0f-1a2b3c4d5e6f
+                concept: deposit
+                status: pending
+                amount_cents: 1200000
+                marketplace_fee_cents: 0
+                payee: club
+                checkout_url: https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=123-abc
+                expires_at: '2026-10-23T21:10:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+
+  /webhooks/mercadopago:
+    post:
+      operationId: receiveMercadoPagoWebhook
+      tags: [Payments]
+      summary: Mercado Pago payment notification
+      description: |
+        Called by Mercado Pago, not by our clients, so it takes no bearer token: it is
+        authenticated by the `x-signature` header.
+
+        **Signature verification (before anything else):**
+
+        1. Parse `x-signature` (`ts=<unix seconds>,v1=<hex>`) into `ts` and `v1`.
+        2. Build the manifest `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`, with `data.id`
+           from the query string (lower-cased if alphanumeric). Omit a part whose value is
+           missing.
+        3. Compute HMAC-SHA256 of the manifest with the webhook secret of the application (from
+           the secret manager, never in the repo) and compare it with `v1` in constant time.
+        4. Reject a `ts` more than 5 minutes away from the server clock (replay).
+
+        A failure returns `401 WEBHOOK_SIGNATURE_INVALID` and is logged without the body.
+
+        **Processing:** the API fetches the payment from Mercado Pago by `data.id` (the body is
+        never trusted for amounts or status), and applies it once per Mercado Pago payment id
+        (unique index), even if the notification arrives many times. It moves `payments.status`
+        and emits `payment.approved` or `payment.refunded`; an approved deposit confirms its
+        booking. It answers `200` quickly; work that fails is retried from the queue, so
+        Mercado Pago does not need to resend. Unknown `type` values are acknowledged and
+        ignored.
+      security: []
+      parameters:
+        - name: x-signature
+          in: header
+          required: true
+          description: '`ts=<unix seconds>,v1=<HMAC-SHA256 hex>`.'
+          schema:
+            type: string
+          example: ts=1729551000,v1=2b6f0c7a9e
+        - name: x-request-id
+          in: header
+          required: true
+          description: Mercado Pago's request id; part of the signed manifest.
+          schema:
+            type: string
+        - name: data.id
+          in: query
+          required: true
+          description: Id of the notified resource (the Mercado Pago payment id).
+          schema:
+            type: string
+        - name: type
+          in: query
+          required: false
+          description: Notification type, e.g. `payment`.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MercadoPagoNotification'
+            example:
+              id: 12345678901
+              live_mode: true
+              type: payment
+              date_created: '2026-10-23T21:02:11Z'
+              user_id: 44444444
+              api_version: v1
+              action: payment.updated
+              data:
+                id: '98765432100'
+      responses:
+        '200':
+          description: Acknowledged (processed now, queued, duplicate or ignored).
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /courts/{id}/availability:
     get:
       operationId: getCourtAvailability
@@ -1681,6 +2376,14 @@ paths:
           $ref: '#/components/responses/InternalError'
 components:
   securitySchemes:
+    deviceMtls:
+      type: mutualTLS
+      description: |
+        Club device client certificate (section 12), issued per device by our CA and distinct
+        from any user. The TLS terminator verifies it and forwards the certificate fingerprint;
+        the API maps it to the device and its club. A missing, expired or revoked certificate
+        returns `DEVICE_CERTIFICATE_INVALID`; acting on another club returns
+        `DEVICE_CLUB_MISMATCH`. Device endpoints never accept a bearer token.
     bearerAuth:
       type: http
       scheme: bearer
@@ -1723,6 +2426,13 @@ components:
       schema:
         $ref: '#/components/schemas/Uuid'
 
+    LessonId:
+      name: id
+      in: path
+      required: true
+      description: Lesson id.
+      schema:
+        $ref: '#/components/schemas/Uuid'
     CourtId:
       name: id
       in: path
@@ -1731,6 +2441,21 @@ components:
       schema:
         $ref: '#/components/schemas/Uuid'
 
+    DeviceMatchId:
+      name: id
+      in: path
+      required: true
+      description: Match id (must belong to the device's club).
+      schema:
+        $ref: '#/components/schemas/Uuid'
+
+    DeviceUploadId:
+      name: id
+      in: path
+      required: true
+      description: Upload id from `POST /device/uploads`.
+      schema:
+        $ref: '#/components/schemas/Uuid'
     BookingId:
       name: id
       in: path
@@ -1915,6 +2640,731 @@ components:
           invoiced: [paid]
           paid: []
 
+    # Club device API and pipeline results (sections 4, 5, 6 and 11). The results format is
+    # shared by `ml` (produces it) and `services/edge-agent` (sends it). Coordinates are meters
+    # with origin at the corner of side A: x across (0 to 10), y along (0 to 20, net at 10),
+    # z height. Times are milliseconds from the start of the match video.
+    ScoringRules:
+      type: object
+      description: How the match is scored (section 6), from the club settings at booking time.
+      required: [golden_point, third_set]
+      properties:
+        golden_point:
+          type: boolean
+          description: True plays golden point at 40-40; false plays advantage.
+        third_set:
+          type: string
+          description: A normal set with tie-break at 6-6, or a super tie-break to 10.
+          enum: [set, super_tiebreak]
+
+    DeviceScheduleItem:
+      type: object
+      required:
+        - match_id
+        - booking_id
+        - court_id
+        - match_type
+        - starts_at
+        - ends_at
+        - record_from
+        - record_until
+        - no_record
+        - scoring
+        - updated_at
+      properties:
+        match_id:
+          $ref: '#/components/schemas/Uuid'
+        booking_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+          description: '`null` for a recording started by hand from the panel.'
+        court_id:
+          $ref: '#/components/schemas/Uuid'
+        match_type:
+          type: string
+          enum: [match, lesson]
+        starts_at:
+          $ref: '#/components/schemas/Timestamp'
+        ends_at:
+          $ref: '#/components/schemas/Timestamp'
+        record_from:
+          $ref: '#/components/schemas/Timestamp'
+        record_until:
+          $ref: '#/components/schemas/Timestamp'
+        no_record:
+          type: boolean
+        scoring:
+          $ref: '#/components/schemas/ScoringRules'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    DeviceSchedule:
+      type: object
+      required: [club_id, generated_at, valid_until, items]
+      properties:
+        club_id:
+          $ref: '#/components/schemas/Uuid'
+        generated_at:
+          $ref: '#/components/schemas/Timestamp'
+        valid_until:
+          $ref: '#/components/schemas/Timestamp'
+          description: End of the 48-hour window.
+        items:
+          type: array
+          description: Ordered by `record_from`. A cancelled turn disappears from the list.
+          items:
+            $ref: '#/components/schemas/DeviceScheduleItem'
+
+    DeviceCameraHealth:
+      type: object
+      required: [camera_id, online, fps, recording]
+      properties:
+        camera_id:
+          $ref: '#/components/schemas/Uuid'
+        online:
+          type: boolean
+        fps:
+          type:
+            - number
+            - 'null'
+          minimum: 0
+        recording:
+          type: boolean
+
+    DeviceHeartbeat:
+      type: object
+      required:
+        - sent_at
+        - software_version
+        - uptime_seconds
+        - disk_free_bytes
+        - disk_total_bytes
+        - gpu_temp_c
+        - cameras
+        - upload_queue
+        - processing_backlog_minutes
+      properties:
+        sent_at:
+          $ref: '#/components/schemas/Timestamp'
+        software_version:
+          type: string
+        uptime_seconds:
+          type: integer
+          minimum: 0
+        disk_free_bytes:
+          type: integer
+          minimum: 0
+        disk_total_bytes:
+          type: integer
+          minimum: 1
+        gpu_temp_c:
+          type:
+            - number
+            - 'null'
+        cpu_temp_c:
+          type:
+            - number
+            - 'null'
+        cameras:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceCameraHealth'
+        upload_queue:
+          type: object
+          required: [items, bytes, eta_minutes]
+          properties:
+            items:
+              type: integer
+              minimum: 0
+            bytes:
+              type: integer
+              minimum: 0
+            eta_minutes:
+              type: integer
+              minimum: 0
+        processing_backlog_minutes:
+          type: integer
+          minimum: 0
+          description: Local analysis backlog. Over 6 hours the oldest matches go to the cloud GPU.
+
+    DeviceHeartbeatAck:
+      type: object
+      required: [server_time, desired_software_version]
+      properties:
+        server_time:
+          $ref: '#/components/schemas/Timestamp'
+        desired_software_version:
+          type: string
+          description: Version the `updater` installs between 4 and 6 a.m.
+
+    CourtEnd:
+      type: string
+      description: End of the court (camera end, or the side a team starts on).
+      enum: [A, B]
+
+    CourtPosition:
+      type: object
+      description: |
+        Position in meters (see the format note above). `z` is `null` without 3D (the ball is
+        triangulated only when both cameras see it). Values outside the court (lobs, exits,
+        players behind the glass) are allowed within the 1.5 m mask and beyond for the ball.
+      required: [x, y]
+      properties:
+        x:
+          type: number
+          minimum: -5
+          maximum: 15
+        y:
+          type: number
+          minimum: -5
+          maximum: 25
+        z:
+          type:
+            - number
+            - 'null'
+          minimum: 0
+
+    PipelinePosition:
+      type: integer
+      enum: [1, 2, 3, 4]
+      description: One of the 4 tracks (section 5, step 3).
+
+    PipelineTeam:
+      type: integer
+      enum: [1, 2]
+
+    PipelineShotType:
+      type: string
+      description: Section 5, step 9. `unknown` under 0.6 confidence.
+      enum:
+        - serve
+        - forehand
+        - backhand
+        - forehand_volley
+        - backhand_volley
+        - bandeja
+        - vibora
+        - smash
+        - lob
+        - wall_exit
+        - unknown
+
+    BounceSurface:
+      type: string
+      description: Section 5, step 8.
+      enum: [floor, back_glass, side_glass, fence, net]
+
+    PipelinePointEndReason:
+      type: string
+      description: Rule of section 6 that closed the point, in evaluation order.
+      enum:
+        - double_fault
+        - own_floor_before_net
+        - net
+        - rival_wall_before_floor
+        - double_bounce
+        - out_after_bounce
+        - ball_lost
+
+    ResultPlayer:
+      type: object
+      required: [position, team, initial_side, thumbnail_media_id, track_coverage_pct]
+      properties:
+        position:
+          $ref: '#/components/schemas/PipelinePosition'
+        team:
+          $ref: '#/components/schemas/PipelineTeam'
+        initial_side:
+          $ref: '#/components/schemas/CourtEnd'
+        thumbnail_media_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+          description: Thumbnail for "este soy yo", from `POST /device/uploads`.
+        track_coverage_pct:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Share of rally frames where this track was seen.
+
+    ResultEventRef:
+      type: object
+      required: [kind, index]
+      properties:
+        kind:
+          type: string
+          enum: [shot, bounce]
+        index:
+          type: integer
+          minimum: 0
+          description: Index in `shots` or `bounces`.
+
+    ResultPoint:
+      type: object
+      required:
+        - number
+        - set
+        - game
+        - server_position
+        - serve_faults
+        - winner_team
+        - end_reason
+        - deciding_event
+        - confidence
+        - needs_review
+        - start_ms
+        - end_ms
+      properties:
+        number:
+          type: integer
+          minimum: 1
+          description: 1-based, consecutive over the match.
+        set:
+          type: integer
+          minimum: 1
+          maximum: 3
+        game:
+          type: integer
+          minimum: 1
+          description: 1-based within the set; the tie-break is game 13.
+        server_position:
+          $ref: '#/components/schemas/PipelinePosition'
+        serve_faults:
+          type: integer
+          minimum: 0
+          maximum: 2
+        winner_team:
+          $ref: '#/components/schemas/PipelineTeam'
+        end_reason:
+          $ref: '#/components/schemas/PipelinePointEndReason'
+        deciding_event:
+          oneOf:
+            - $ref: '#/components/schemas/ResultEventRef'
+            - type: 'null'
+          description: The event that closed the point; `null` for `ball_lost`.
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Product of the confidence of the deciding events (section 6, layer 2).
+        needs_review:
+          type: boolean
+          description: Confidence under the review threshold of `ml/config/thresholds.yaml` (0.7).
+        start_ms:
+          type: integer
+          minimum: 0
+        end_ms:
+          type: integer
+          minimum: 0
+
+    ResultShot:
+      type: object
+      required:
+        - point_number
+        - t_ms
+        - player_position
+        - shot_type
+        - shot_type_confidence
+        - player_at
+        - ball_at
+        - speed_kmh
+        - after_bounce
+        - off_wall
+        - camera
+      properties:
+        point_number:
+          type: integer
+          minimum: 1
+        t_ms:
+          type: integer
+          minimum: 0
+        player_position:
+          $ref: '#/components/schemas/PipelinePosition'
+        shot_type:
+          $ref: '#/components/schemas/PipelineShotType'
+        shot_type_confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        player_at:
+          $ref: '#/components/schemas/CourtPosition'
+          description: Player's foot point at contact.
+        ball_at:
+          $ref: '#/components/schemas/CourtPosition'
+          description: Ball at contact.
+        speed_kmh:
+          type:
+            - number
+            - 'null'
+          minimum: 0
+          description: Estimated, only with 3D positions.
+        after_bounce:
+          type: boolean
+        off_wall:
+          type: boolean
+          description: The ball came off a wall before the shot (salida de pared).
+        camera:
+          $ref: '#/components/schemas/CourtEnd'
+
+    ResultBounce:
+      type: object
+      required: [point_number, t_ms, surface, ball_at, confidence]
+      properties:
+        point_number:
+          type: integer
+          minimum: 1
+        t_ms:
+          type: integer
+          minimum: 0
+        surface:
+          $ref: '#/components/schemas/BounceSurface'
+        ball_at:
+          $ref: '#/components/schemas/CourtPosition'
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    ResultCorrection:
+      type: object
+      description: A point changed by serve coherence (section 6, layer 1).
+      required: [layer, point_number, from_winner_team, to_winner_team]
+      properties:
+        layer:
+          type: string
+          enum: [serve_coherence]
+        point_number:
+          type: integer
+          minimum: 1
+        from_winner_team:
+          $ref: '#/components/schemas/PipelineTeam'
+        to_winner_team:
+          $ref: '#/components/schemas/PipelineTeam'
+
+    ResultStats:
+      type: object
+      description: |
+        Stats of one position computed on the device with the versioned formulas of section 7.
+        `values` keys are the metric names of `ml` (for example `points_won`, `winners`,
+        `net_time_pct`, `distance_m`); the cloud recomputes them after a score correction.
+      required: [position, formula_version, values]
+      properties:
+        position:
+          $ref: '#/components/schemas/PipelinePosition'
+        formula_version:
+          type: string
+        values:
+          type: object
+          additionalProperties:
+            type: number
+
+    ResultHighlight:
+      type: object
+      required: [point_number, score, start_ms, end_ms, clip_media_id]
+      properties:
+        point_number:
+          type: integer
+          minimum: 1
+        score:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Highlight score of section 7.
+        start_ms:
+          type: integer
+          minimum: 0
+        end_ms:
+          type: integer
+          minimum: 0
+        clip_media_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+
+    ResultCalibration:
+      type: object
+      required: [camera, calibration_id, reprojection_error_cm]
+      properties:
+        camera:
+          $ref: '#/components/schemas/CourtEnd'
+        calibration_id:
+          $ref: '#/components/schemas/Uuid'
+        reprojection_error_cm:
+          type: number
+          minimum: 0
+
+    ResultModelVersions:
+      type: object
+      required: [player_detector, ball_tracker, pose, shot_classifier, reid]
+      properties:
+        player_detector:
+          type: string
+        ball_tracker:
+          type: string
+        pose:
+          type: string
+        shot_classifier:
+          type: string
+        reid:
+          type: string
+
+    MatchResults:
+      type: object
+      description: |
+        Output of the club pipeline for one match (schema version 1). `points`, `shots` and
+        `bounces` are each ordered by time; shots and bounces link to their point by
+        `point_number`. On `status: failed` only the run metadata and `failure` are sent.
+      required:
+        - schema_version
+        - run_id
+        - match_id
+        - status
+        - processed_on
+        - pipeline_version
+        - model_versions
+        - thresholds_sha256
+        - started_at
+        - finished_at
+        - video
+        - calibrations
+        - scoring
+        - players
+        - points
+        - shots
+        - bounces
+        - score
+        - corrections
+        - stats
+        - highlights
+      properties:
+        schema_version:
+          type: integer
+          const: 1
+        run_id:
+          $ref: '#/components/schemas/Uuid'
+        match_id:
+          $ref: '#/components/schemas/Uuid'
+        status:
+          type: string
+          enum: [succeeded, failed]
+        failure:
+          type:
+            - object
+            - 'null'
+          required: [stage, code]
+          properties:
+            stage:
+              type: string
+              examples: [ball_tracking]
+            code:
+              type: string
+              pattern: '^[A-Z][A-Z0-9_]*$'
+        processed_on:
+          type: string
+          enum: [club, cloud]
+        pipeline_version:
+          type: string
+        model_versions:
+          $ref: '#/components/schemas/ResultModelVersions'
+        thresholds_sha256:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+          description: Hash of `ml/config/thresholds.yaml` used in the run.
+        started_at:
+          $ref: '#/components/schemas/Timestamp'
+        finished_at:
+          $ref: '#/components/schemas/Timestamp'
+        video:
+          type: object
+          required: [duration_ms, fps, camera_offset_ms]
+          properties:
+            duration_ms:
+              type: integer
+              minimum: 0
+            fps:
+              type: number
+              exclusiveMinimum: 0
+            camera_offset_ms:
+              type: integer
+              description: Fine offset of camera B relative to A, from ball trajectory alignment.
+        calibrations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultCalibration'
+        scoring:
+          $ref: '#/components/schemas/ScoringRules'
+        players:
+          type: array
+          maxItems: 4
+          items:
+            $ref: '#/components/schemas/ResultPlayer'
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultPoint'
+        shots:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultShot'
+        bounces:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultBounce'
+        score:
+          type: object
+          required: [sets, winner_team, completed]
+          properties:
+            sets:
+              type: array
+              items:
+                $ref: '#/components/schemas/SetScore'
+            winner_team:
+              oneOf:
+                - $ref: '#/components/schemas/PipelineTeam'
+                - type: 'null'
+            completed:
+              type: boolean
+              description: False when the turn ended before the match did.
+        corrections:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultCorrection'
+        stats:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultStats'
+        highlights:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/ResultHighlight'
+
+    MatchResultsAck:
+      type: object
+      required: [match_id, run_id, match_status]
+      properties:
+        match_id:
+          $ref: '#/components/schemas/Uuid'
+        run_id:
+          $ref: '#/components/schemas/Uuid'
+        match_status:
+          $ref: '#/components/schemas/MatchStatus'
+
+    DeviceUploadKind:
+      type: string
+      enum: [full, clip, reel, thumbnail]
+
+    DeviceUploadRequest:
+      type: object
+      required: [match_id, kind, content_type, size_bytes, sha256]
+      additionalProperties: false
+      properties:
+        match_id:
+          $ref: '#/components/schemas/Uuid'
+        kind:
+          $ref: '#/components/schemas/DeviceUploadKind'
+        content_type:
+          type: string
+          enum: [video/mp4, image/jpeg]
+        size_bytes:
+          type: integer
+          minimum: 1
+        sha256:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        duration_ms:
+          type:
+            - integer
+            - 'null'
+          minimum: 0
+        clip:
+          type:
+            - object
+            - 'null'
+          description: 'Required for `kind: clip`.'
+          required: [start_ms, end_ms, source]
+          properties:
+            start_ms:
+              type: integer
+              minimum: 0
+            end_ms:
+              type: integer
+              minimum: 0
+            source:
+              type: string
+              enum: [app, button, auto]
+            requested_by_user_id:
+              oneOf:
+                - $ref: '#/components/schemas/Uuid'
+                - type: 'null'
+              description: The player who tapped in the app, from the court channel.
+        upload_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+          description: Resume an existing upload and get fresh part links.
+
+    DeviceUploadPart:
+      type: object
+      required: [number, url]
+      properties:
+        number:
+          type: integer
+          minimum: 1
+        url:
+          type: string
+          format: uri
+          description: Signed `PUT` link for this part, valid 1 hour.
+
+    DeviceUpload:
+      type: object
+      required: [upload_id, media_id, part_size_bytes, parts, expires_at]
+      properties:
+        upload_id:
+          $ref: '#/components/schemas/Uuid'
+        media_id:
+          $ref: '#/components/schemas/Uuid'
+        part_size_bytes:
+          type: integer
+          minimum: 5242880
+        parts:
+          type: array
+          description: Links for the parts not uploaded yet.
+          items:
+            $ref: '#/components/schemas/DeviceUploadPart'
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    DeviceUploadComplete:
+      type: object
+      required: [parts]
+      additionalProperties: false
+      properties:
+        parts:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [number, etag]
+            properties:
+              number:
+                type: integer
+                minimum: 1
+              etag:
+                type: string
+
+    DeviceUploadDone:
+      type: object
+      required: [upload_id, media_id, status]
+      properties:
+        upload_id:
+          $ref: '#/components/schemas/Uuid'
+        media_id:
+          $ref: '#/components/schemas/Uuid'
+        status:
+          type: string
+          enum: [ready]
     HealthStatus:
       type: object
       description: Liveness result.
@@ -2849,6 +4299,411 @@ components:
             - $ref: '#/components/schemas/Timestamp'
             - type: 'null'
 
+    # Lessons, coach and payments (sections 10 and 11).
+    LessonKind:
+      type: string
+      description: |
+        `private` or `group` lesson, or a `school` (escuelita), which is "do not record" by
+        default (section 12).
+      enum: [private, group, school]
+
+    LessonCreate:
+      type: object
+      required: [court_id, starts_at, duration_minutes, kind]
+      additionalProperties: false
+      properties:
+        court_id:
+          $ref: '#/components/schemas/Uuid'
+        starts_at:
+          $ref: '#/components/schemas/Timestamp'
+        duration_minutes:
+          $ref: '#/components/schemas/BookingDuration'
+        kind:
+          $ref: '#/components/schemas/LessonKind'
+        student_ids:
+          type: array
+          maxItems: 12
+          uniqueItems: true
+          description: Students with an account. Others join with the invite link.
+          items:
+            $ref: '#/components/schemas/Uuid'
+        price_cents:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+          description: Price per student in ARS cents, or `null` if the lesson is not charged in the app.
+        record:
+          type: boolean
+          description: |
+            Record the lesson. Defaults to true, and to false for `school`. A minor without a
+            guardian permission is never recorded.
+        focus:
+          type:
+            - string
+            - 'null'
+          maxLength: 200
+          description: What the lesson works on, shown to the students.
+
+    LessonStudent:
+      type: object
+      required: [user, accepted, payment_status]
+      properties:
+        user:
+          $ref: '#/components/schemas/EntityRef'
+        accepted:
+          type: boolean
+        payment_status:
+          oneOf:
+            - $ref: '#/components/schemas/PaymentStatus'
+            - type: 'null'
+          description: Status of this student's lesson payment, or `null` if not charged or not started.
+
+    Lesson:
+      type: object
+      required:
+        - id
+        - club
+        - court
+        - coach
+        - kind
+        - starts_at
+        - ends_at
+        - booking_id
+        - booking_status
+        - match_id
+        - students
+        - price_cents
+        - no_record
+        - no_record_reason
+        - focus
+        - notes_count
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        club:
+          $ref: '#/components/schemas/EntityRef'
+        court:
+          $ref: '#/components/schemas/EntityRef'
+        coach:
+          $ref: '#/components/schemas/EntityRef'
+        kind:
+          $ref: '#/components/schemas/LessonKind'
+        starts_at:
+          $ref: '#/components/schemas/Timestamp'
+        ends_at:
+          $ref: '#/components/schemas/Timestamp'
+        booking_id:
+          $ref: '#/components/schemas/Uuid'
+        booking_status:
+          $ref: '#/components/schemas/BookingStatus'
+        match_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+          description: 'The recorded lesson (`type: lesson`), once recording started.'
+        students:
+          type: array
+          items:
+            $ref: '#/components/schemas/LessonStudent'
+        price_cents:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+        no_record:
+          type: boolean
+        no_record_reason:
+          oneOf:
+            - $ref: '#/components/schemas/NoRecordReason'
+            - type: 'null'
+        focus:
+          type:
+            - string
+            - 'null'
+        notes_count:
+          type: integer
+          minimum: 0
+
+    LessonPage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Lesson'
+
+    DrawingStroke:
+      type: object
+      required: [color, width, points]
+      additionalProperties: false
+      properties:
+        color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        width:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 0.1
+          description: Stroke width as a fraction of the frame width.
+        points:
+          type: array
+          minItems: 2
+          maxItems: 500
+          description: '`[x, y]` pairs, each 0..1 relative to the video frame.'
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items:
+              type: number
+              minimum: 0
+              maximum: 1
+
+    Drawing:
+      type: object
+      required: [strokes]
+      additionalProperties: false
+      description: A drawing over one video frame.
+      properties:
+        strokes:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/DrawingStroke'
+
+    LessonNoteCreate:
+      type: object
+      required: [text]
+      additionalProperties: false
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        at_ms:
+          type:
+            - integer
+            - 'null'
+          minimum: 0
+          description: Moment of the lesson video the note refers to, or `null` for the whole lesson.
+        student_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+          description: The student the note is for, or `null` for all of them.
+        drawing:
+          oneOf:
+            - $ref: '#/components/schemas/Drawing'
+            - type: 'null'
+          description: Requires `at_ms`.
+        is_plan:
+          type: boolean
+          description: True marks the note as a plan item for the next lessons.
+        visible_to_students:
+          type: boolean
+          description: Defaults to true.
+
+    LessonNote:
+      type: object
+      required:
+        - id
+        - lesson_id
+        - text
+        - at_ms
+        - student_id
+        - drawing
+        - is_plan
+        - visible_to_students
+        - created_at
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        lesson_id:
+          $ref: '#/components/schemas/Uuid'
+        text:
+          type: string
+        at_ms:
+          type:
+            - integer
+            - 'null'
+          minimum: 0
+        student_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        drawing:
+          oneOf:
+            - $ref: '#/components/schemas/Drawing'
+            - type: 'null'
+        is_plan:
+          type: boolean
+        visible_to_students:
+          type: boolean
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    CoachAccess:
+      type: string
+      description: |
+        What the student shares with the coach: `lessons_only` (the lessons this coach taught)
+        or `matches_and_lessons` (also their matches and stats, section 12).
+      enum: [lessons_only, matches_and_lessons]
+
+    CoachStudent:
+      type: object
+      required: [user, access, lessons_count, last_lesson_at, pending_payment_cents]
+      properties:
+        user:
+          $ref: '#/components/schemas/EntityRef'
+        access:
+          $ref: '#/components/schemas/CoachAccess'
+        lessons_count:
+          type: integer
+          minimum: 0
+        last_lesson_at:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        pending_payment_cents:
+          $ref: '#/components/schemas/AmountCents'
+
+    CoachStudentPage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/CoachStudent'
+
+    PaymentConcept:
+      type: string
+      description: |
+        `payments.concept`. Players pay `deposit`, `player_extra` and `lesson` through checkout;
+        `subscription` is the club's monthly fee, charged by a Mercado Pago subscription in our
+        company's name (never through checkout).
+      enum: [deposit, player_extra, lesson, subscription]
+
+    CheckoutDeposit:
+      type: object
+      required: [concept, booking_id]
+      additionalProperties: false
+      properties:
+        concept:
+          type: string
+          const: deposit
+        booking_id:
+          $ref: '#/components/schemas/Uuid'
+
+    CheckoutPlayerExtra:
+      type: object
+      required: [concept, match_id]
+      additionalProperties: false
+      properties:
+        concept:
+          type: string
+          const: player_extra
+        match_id:
+          $ref: '#/components/schemas/Uuid'
+
+    CheckoutLesson:
+      type: object
+      required: [concept, lesson_id]
+      additionalProperties: false
+      properties:
+        concept:
+          type: string
+          const: lesson
+        lesson_id:
+          $ref: '#/components/schemas/Uuid'
+
+    CheckoutRequest:
+      description: What is being paid. The amount comes from the server, never from the client.
+      oneOf:
+        - $ref: '#/components/schemas/CheckoutDeposit'
+        - $ref: '#/components/schemas/CheckoutPlayerExtra'
+        - $ref: '#/components/schemas/CheckoutLesson'
+      discriminator:
+        propertyName: concept
+        mapping:
+          deposit: '#/components/schemas/CheckoutDeposit'
+          player_extra: '#/components/schemas/CheckoutPlayerExtra'
+          lesson: '#/components/schemas/CheckoutLesson'
+
+    Checkout:
+      type: object
+      required:
+        - payment_id
+        - concept
+        - status
+        - amount_cents
+        - marketplace_fee_cents
+        - payee
+        - checkout_url
+        - expires_at
+      properties:
+        payment_id:
+          $ref: '#/components/schemas/Uuid'
+        concept:
+          $ref: '#/components/schemas/PaymentConcept'
+        status:
+          $ref: '#/components/schemas/PaymentStatus'
+        amount_cents:
+          $ref: '#/components/schemas/AmountCents'
+        marketplace_fee_cents:
+          $ref: '#/components/schemas/AmountCents'
+        payee:
+          type: string
+          description: |
+            Whose Mercado Pago account receives the money: the `club`, the `coach`, or
+            `platform` when the club or coach has not connected an account yet (we transfer in
+            the monthly settlement).
+          enum: [club, coach, platform]
+        checkout_url:
+          type: string
+          format: uri
+          description: Mercado Pago checkout (`init_point`) to open in the browser or app.
+        expires_at:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+          description: For deposits, the end of the 10-minute hold.
+
+    MercadoPagoNotification:
+      type: object
+      description: |
+        Body Mercado Pago sends (webhooks v1). Only `type` and `data.id` are used; amounts and
+        status are always read back from Mercado Pago's API.
+      required: [type, data]
+      properties:
+        id:
+          type: integer
+        live_mode:
+          type: boolean
+        type:
+          type: string
+          examples: [payment]
+        date_created:
+          type: string
+        user_id:
+          type: integer
+        api_version:
+          type: string
+        action:
+          type: string
+          examples: [payment.created, payment.updated]
+        data:
+          type: object
+          required: [id]
+          properties:
+            id:
+              type: string
     ClubPlan:
       type: string
       description: |
@@ -4130,6 +5985,36 @@ components:
           privacy_version: '2026-10-01'
           created_at: '2026-10-17T21:30:00Z'
 
+    LessonExample:
+      summary: A private, recorded and charged lesson
+      value:
+        id: 0192c1e4-5a6b-7c8d-9e0f-1a2b3c4d5e6f
+        club:
+          id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a60
+          name: Club Demo Palermo
+        court:
+          id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61
+          name: Cancha 1
+        coach:
+          id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a70
+          name: Martín Ríos
+        kind: private
+        starts_at: '2026-10-24T13:00:00Z'
+        ends_at: '2026-10-24T14:00:00Z'
+        booking_id: 0192b1e4-5a6b-7c8d-9e0f-1a2b3c4d5e70
+        booking_status: confirmed
+        match_id: null
+        students:
+          - user:
+              id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f
+              name: Sofía Pérez
+            accepted: false
+            payment_status: null
+        price_cents: 2500000
+        no_record: false
+        no_record_reason: null
+        focus: Bandeja y salida de pared
+        notes_count: 0
     ClubExample:
       summary: A club with one court
       value:
@@ -4230,6 +6115,544 @@ components:
         series: null
         created_at: '2026-10-18T15:00:00Z'
 
+    MatchResultsExample:
+      summary: First game of a 6-0 6-0 match. The whole match, every point, shot and bounce, is examples/match-results.example.json.
+      value:
+        schema_version: 1
+        run_id: 0192f0a0-1b2c-7d3e-8f4a-5b6c7d8e9f00
+        match_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b
+        status: succeeded
+        failure: null
+        processed_on: club
+        pipeline_version: 0.3.0
+        model_versions:
+          player_detector: yolox-m-padel-2026.10
+          ball_tracker: tracknetv3-padel-2026.10
+          pose: rtmpose-m-1.3
+          shot_classifier: shotnet-2026.10
+          reid: osnet-x0.25-1.0
+        thresholds_sha256: 3b1f5c0e8d2a4f6b9c7e1d0a2b4c6e8f0a1b3c5d7e9f1a2b3c4d5e6f7a8b9c0d
+        started_at: 2026-10-23T23:40:00Z
+        finished_at: 2026-10-24T00:01:30Z
+        video:
+          duration_ms: 1442500
+          fps: 25
+          camera_offset_ms: 12
+        calibrations:
+          - camera: A
+            calibration_id: 0192f0c0-012d-7d3e-8f4a-5b6c7d8e012d
+            reprojection_error_cm: 2.1
+          - camera: B
+            calibration_id: 0192f0c0-012e-7d3e-8f4a-5b6c7d8e012e
+            reprojection_error_cm: 2.8
+        scoring:
+          golden_point: true
+          third_set: super_tiebreak
+        players:
+          - position: 1
+            team: 1
+            initial_side: A
+            thumbnail_media_id: 0192f0c0-0065-7d3e-8f4a-5b6c7d8e0065
+            track_coverage_pct: 97.5
+          - position: 2
+            team: 1
+            initial_side: A
+            thumbnail_media_id: 0192f0c0-0066-7d3e-8f4a-5b6c7d8e0066
+            track_coverage_pct: 97.5
+          - position: 3
+            team: 2
+            initial_side: B
+            thumbnail_media_id: 0192f0c0-0067-7d3e-8f4a-5b6c7d8e0067
+            track_coverage_pct: 97.5
+          - position: 4
+            team: 2
+            initial_side: B
+            thumbnail_media_id: 0192f0c0-0068-7d3e-8f4a-5b6c7d8e0068
+            track_coverage_pct: 97.5
+        points:
+          - number: 1
+            set: 1
+            game: 1
+            server_position: 1
+            serve_faults: 0
+            winner_team: 1
+            end_reason: double_bounce
+            deciding_event:
+              kind: bounce
+              index: 3
+            confidence: 0.94
+            needs_review: false
+            start_ms: 120000
+            end_ms: 127000
+          - number: 2
+            set: 1
+            game: 1
+            server_position: 1
+            serve_faults: 0
+            winner_team: 1
+            end_reason: double_bounce
+            deciding_event:
+              kind: bounce
+              index: 7
+            confidence: 0.94
+            needs_review: false
+            start_ms: 145000
+            end_ms: 152000
+          - number: 3
+            set: 1
+            game: 1
+            server_position: 1
+            serve_faults: 1
+            winner_team: 1
+            end_reason: double_bounce
+            deciding_event:
+              kind: bounce
+              index: 12
+            confidence: 0.94
+            needs_review: false
+            start_ms: 170000
+            end_ms: 179500
+          - number: 4
+            set: 1
+            game: 1
+            server_position: 1
+            serve_faults: 0
+            winner_team: 1
+            end_reason: double_bounce
+            deciding_event:
+              kind: bounce
+              index: 16
+            confidence: 0.94
+            needs_review: false
+            start_ms: 197500
+            end_ms: 204500
+        shots:
+          - point_number: 1
+            t_ms: 120500
+            player_position: 1
+            shot_type: serve
+            shot_type_confidence: 0.92
+            player_at:
+              x: 3
+              y: 1.2
+              z: null
+            ball_at:
+              x: 3
+              y: 1.2
+              z: 1.1
+            speed_kmh: 110
+            after_bounce: false
+            off_wall: false
+            camera: A
+          - point_number: 1
+            t_ms: 121800
+            player_position: 4
+            shot_type: forehand
+            shot_type_confidence: 0.92
+            player_at:
+              x: 7
+              y: 18.8
+              z: null
+            ball_at:
+              x: 7
+              y: 18.8
+              z: 1.1
+            speed_kmh: null
+            after_bounce: false
+            off_wall: false
+            camera: B
+          - point_number: 1
+            t_ms: 123000
+            player_position: 2
+            shot_type: forehand_volley
+            shot_type_confidence: 0.92
+            player_at:
+              x: 4
+              y: 7
+              z: null
+            ball_at:
+              x: 4
+              y: 7
+              z: 1.1
+            speed_kmh: null
+            after_bounce: false
+            off_wall: false
+            camera: A
+          - point_number: 2
+            t_ms: 145500
+            player_position: 1
+            shot_type: serve
+            shot_type_confidence: 0.92
+            player_at:
+              x: 3
+              y: 1.2
+              z: null
+            ball_at:
+              x: 3
+              y: 1.2
+              z: 1.1
+            speed_kmh: 110
+            after_bounce: false
+            off_wall: false
+            camera: A
+          - point_number: 2
+            t_ms: 146800
+            player_position: 3
+            shot_type: forehand
+            shot_type_confidence: 0.92
+            player_at:
+              x: 7
+              y: 18.8
+              z: null
+            ball_at:
+              x: 7
+              y: 18.8
+              z: 1.1
+            speed_kmh: null
+            after_bounce: false
+            off_wall: false
+            camera: B
+          - point_number: 2
+            t_ms: 148000
+            player_position: 2
+            shot_type: forehand_volley
+            shot_type_confidence: 0.92
+            player_at:
+              x: 4
+              y: 7
+              z: null
+            ball_at:
+              x: 4
+              y: 7
+              z: 1.1
+            speed_kmh: null
+            after_bounce: false
+            off_wall: false
+            camera: A
+          - point_number: 3
+            t_ms: 170300
+            player_position: 1
+            shot_type: serve
+            shot_type_confidence: 0.92
+            player_at:
+              x: 3
+              y: 1.2
+              z: null
+            ball_at:
+              x: 3
+              y: 1.2
+              z: 1.1
+            speed_kmh: 118
+            after_bounce: false
+            off_wall: false
+            camera: A
+          - point_number: 3
+            t_ms: 173000
+            player_position: 1
+            shot_type: serve
+            shot_type_confidence: 0.92
+            player_at:
+              x: 3
+              y: 1.2
+              z: null
+            ball_at:
+              x: 3
+              y: 1.2
+              z: 1.1
+            speed_kmh: 110
+            after_bounce: false
+            off_wall: false
+            camera: A
+          - point_number: 3
+            t_ms: 174300
+            player_position: 4
+            shot_type: forehand
+            shot_type_confidence: 0.92
+            player_at:
+              x: 7
+              y: 18.8
+              z: null
+            ball_at:
+              x: 7
+              y: 18.8
+              z: 1.1
+            speed_kmh: null
+            after_bounce: false
+            off_wall: false
+            camera: B
+          - point_number: 3
+            t_ms: 175500
+            player_position: 2
+            shot_type: smash
+            shot_type_confidence: 0.92
+            player_at:
+              x: 4
+              y: 7
+              z: null
+            ball_at:
+              x: 4
+              y: 7
+              z: 2.6
+            speed_kmh: 96
+            after_bounce: false
+            off_wall: false
+            camera: A
+          - point_number: 4
+            t_ms: 198000
+            player_position: 1
+            shot_type: serve
+            shot_type_confidence: 0.92
+            player_at:
+              x: 3
+              y: 1.2
+              z: null
+            ball_at:
+              x: 3
+              y: 1.2
+              z: 1.1
+            speed_kmh: 110
+            after_bounce: false
+            off_wall: false
+            camera: A
+          - point_number: 4
+            t_ms: 199300
+            player_position: 3
+            shot_type: forehand
+            shot_type_confidence: 0.92
+            player_at:
+              x: 7
+              y: 18.8
+              z: null
+            ball_at:
+              x: 7
+              y: 18.8
+              z: 1.1
+            speed_kmh: null
+            after_bounce: false
+            off_wall: false
+            camera: B
+          - point_number: 4
+            t_ms: 200500
+            player_position: 2
+            shot_type: forehand_volley
+            shot_type_confidence: 0.92
+            player_at:
+              x: 4
+              y: 7
+              z: null
+            ball_at:
+              x: 4
+              y: 7
+              z: 1.1
+            speed_kmh: null
+            after_bounce: false
+            off_wall: false
+            camera: A
+        bounces:
+          - point_number: 1
+            t_ms: 121100
+            surface: floor
+            ball_at:
+              x: 6.5
+              y: 13
+              z: 0
+            confidence: 0.9
+          - point_number: 1
+            t_ms: 122400
+            surface: floor
+            ball_at:
+              x: 5
+              y: 1.2
+              z: 0
+            confidence: 0.9
+          - point_number: 1
+            t_ms: 123500
+            surface: floor
+            ball_at:
+              x: 2
+              y: 13
+              z: 0
+            confidence: 0.9
+          - point_number: 1
+            t_ms: 124200
+            surface: floor
+            ball_at:
+              x: 1
+              y: 18.8
+              z: 0
+            confidence: 0.9
+          - point_number: 2
+            t_ms: 146100
+            surface: floor
+            ball_at:
+              x: 6.5
+              y: 13
+              z: 0
+            confidence: 0.9
+          - point_number: 2
+            t_ms: 147400
+            surface: floor
+            ball_at:
+              x: 5
+              y: 1.2
+              z: 0
+            confidence: 0.9
+          - point_number: 2
+            t_ms: 148500
+            surface: floor
+            ball_at:
+              x: 2
+              y: 13
+              z: 0
+            confidence: 0.9
+          - point_number: 2
+            t_ms: 149200
+            surface: floor
+            ball_at:
+              x: 1
+              y: 18.8
+              z: 0
+            confidence: 0.9
+          - point_number: 3
+            t_ms: 170800
+            surface: floor
+            ball_at:
+              x: 9.6
+              y: 18.8
+              z: 0
+            confidence: 0.9
+          - point_number: 3
+            t_ms: 173600
+            surface: floor
+            ball_at:
+              x: 6.5
+              y: 13
+              z: 0
+            confidence: 0.9
+          - point_number: 3
+            t_ms: 174900
+            surface: floor
+            ball_at:
+              x: 5
+              y: 1.2
+              z: 0
+            confidence: 0.9
+          - point_number: 3
+            t_ms: 176000
+            surface: floor
+            ball_at:
+              x: 2
+              y: 13
+              z: 0
+            confidence: 0.9
+          - point_number: 3
+            t_ms: 176700
+            surface: floor
+            ball_at:
+              x: 1
+              y: 18.8
+              z: 0
+            confidence: 0.9
+          - point_number: 4
+            t_ms: 198600
+            surface: floor
+            ball_at:
+              x: 6.5
+              y: 13
+              z: 0
+            confidence: 0.9
+          - point_number: 4
+            t_ms: 199900
+            surface: floor
+            ball_at:
+              x: 5
+              y: 1.2
+              z: 0
+            confidence: 0.9
+          - point_number: 4
+            t_ms: 201000
+            surface: floor
+            ball_at:
+              x: 2
+              y: 13
+              z: 0
+            confidence: 0.9
+          - point_number: 4
+            t_ms: 201700
+            surface: floor
+            ball_at:
+              x: 1
+              y: 18.8
+              z: 0
+            confidence: 0.9
+        score:
+          sets:
+            - team_1: 6
+              team_2: 0
+            - team_1: 6
+              team_2: 0
+          winner_team: 1
+          completed: true
+        corrections: []
+        stats:
+          - position: 1
+            formula_version: 1.0.0
+            values:
+              points_won: 48
+              winners: 24
+              unforced_errors: 0
+              forced_errors: 0
+              net_time_pct: 55
+              distance_m: 813.4
+          - position: 2
+            formula_version: 1.0.0
+            values:
+              points_won: 48
+              winners: 24
+              unforced_errors: 0
+              forced_errors: 0
+              net_time_pct: 55
+              distance_m: 814.4
+          - position: 3
+            formula_version: 1.0.0
+            values:
+              points_won: 0
+              winners: 0
+              unforced_errors: 0
+              forced_errors: 0
+              net_time_pct: 12.5
+              distance_m: 815.4
+          - position: 4
+            formula_version: 1.0.0
+            values:
+              points_won: 0
+              winners: 0
+              unforced_errors: 0
+              forced_errors: 0
+              net_time_pct: 12.5
+              distance_m: 816.4
+        highlights:
+          - point_number: 1
+            score: 0.9
+            start_ms: 120000
+            end_ms: 129000
+            clip_media_id: 0192f0c0-00c8-7d3e-8f4a-5b6c7d8e00c8
+          - point_number: 2
+            score: 0.83
+            start_ms: 145000
+            end_ms: 154000
+            clip_media_id: 0192f0c0-00c9-7d3e-8f4a-5b6c7d8e00c9
+          - point_number: 3
+            score: 0.76
+            start_ms: 170000
+            end_ms: 181500
+            clip_media_id: 0192f0c0-00ca-7d3e-8f4a-5b6c7d8e00ca
+          - point_number: 4
+            score: 0.69
+            start_ms: 197500
+            end_ms: 206500
+            clip_media_id: 0192f0c0-00cb-7d3e-8f4a-5b6c7d8e00cb
+
     MatchDetailExample:
       summary: A published match seen by one of its players
       value:
@@ -4312,6 +6735,7 @@ components:
           expires_at: '2026-11-14T23:30:00Z'
         reel: null
         published_at: '2026-10-16T00:40:00Z'
+
   responses:
     BadRequest:
       description: Malformed request (`VALIDATION_FAILED`, `INVALID_CURSOR`).
