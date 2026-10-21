@@ -108,6 +108,12 @@ model User {
   matchPlayers       MatchPlayer[]
   matchStats         MatchStat[]
   insights           Insight[]
+  clips              Clip[]
+  payments           Payment[]
+  rating             Rating?
+  lessonsAsCoach     Lesson[]
+  notifications      Notification[]
+  auditActions       AuditLog[]
 
   @@map("users")
 }
@@ -201,6 +207,14 @@ model Club {
   shots                 Shot[]
   matchStats            MatchStat[]
   insights              Insight[]
+  mediaAssets           MediaAsset[]
+  clips                 Clip[]
+  payments              Payment[]
+  settlements           Settlement[]
+  lessons               Lesson[]
+  notifications         Notification[]
+  auditLogs             AuditLog[]
+  processingJobs        ProcessingJob[]
 
   @@map("clubs")
 }
@@ -478,6 +492,7 @@ model Booking {
   guardian  User?           @relation("BookingGuardian", fields: [guardianUserId], references: [id], onDelete: SetNull)
   players   BookingPlayer[]
   matches   Match[]
+  payments  Payment[]
 
   @@index([courtId, startsAt])
   @@index([clubId, startsAt])
@@ -593,14 +608,19 @@ model Match {
   createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  club     Club          @relation(fields: [clubId], references: [id], onDelete: Restrict)
-  court    Court         @relation(fields: [courtId], references: [id], onDelete: Restrict)
-  booking  Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  club     Club            @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  court    Court           @relation(fields: [courtId], references: [id], onDelete: Restrict)
+  booking  Booking?        @relation(fields: [bookingId], references: [id], onDelete: SetNull)
   players  MatchPlayer[]
   points   Point[]
   shots    Shot[]
   stats    MatchStat[]
   insights Insight[]
+  assets   MediaAsset[]
+  clips    Clip[]
+  payments Payment[]
+  lesson   Lesson?
+  jobs     ProcessingJob[]
 
   @@index([courtId, startsAt])
   @@index([clubId, startsAt])
@@ -758,4 +778,330 @@ model Insight {
   @@index([userId])
   @@index([clubId])
   @@map("insights")
+}
+
+// ---------------------------------------------------------------- Media
+
+enum MediaAssetType {
+  full
+  clip
+  reel
+  thumbnail
+
+  @@map("media_asset_type")
+}
+
+enum ClipOrigin {
+  button
+  app
+  auto
+
+  @@map("clip_origin")
+}
+
+/// A file in object storage that belongs to a match (§2, §12). Never served directly: the API
+/// hands out signed links of 1 hour.
+model MediaAsset {
+  id          String         @id @db.Uuid
+  clubId      String         @map("club_id") @db.Uuid
+  matchId     String         @map("match_id") @db.Uuid
+  type        MediaAssetType
+  /// Key inside the storage bucket (never a public URL). Unique.
+  storagePath String         @unique @map("storage_path")
+  durationMs  Int?           @map("duration_ms")
+  sizeBytes   BigInt?        @map("size_bytes")
+  /// When the file is deleted: full video 30 days after the match (§12). Null = kept.
+  expiresAt   DateTime?      @map("expires_at") @db.Timestamptz(3)
+  /// Set by the purge job when the file was removed from storage.
+  deletedAt   DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club  Club  @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  clip  Clip?
+
+  @@index([matchId, type])
+  @@index([expiresAt])
+  @@index([clubId])
+  @@map("media_assets")
+}
+
+/// A highlight of a match (§7): cut by the player (button/app) or picked automatically.
+model Clip {
+  id             String     @id @db.Uuid
+  clubId         String     @map("club_id") @db.Uuid
+  matchId        String     @map("match_id") @db.Uuid
+  /// The rendered file; null while the clip is still being cut.
+  mediaAssetId   String?    @unique @map("media_asset_id") @db.Uuid
+  /// Player who asked for it; null for automatic clips.
+  userId         String?    @map("user_id") @db.Uuid
+  startMs        Int        @map("start_ms")
+  endMs          Int        @map("end_ms")
+  origin         ClipOrigin
+  /// Highlight score 0..1 (CHECK); null for clips made by hand.
+  highlightScore Decimal?   @map("highlight_score") @db.Decimal(4, 3)
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club       Club        @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  match      Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  mediaAsset MediaAsset? @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([matchId, startMs])
+  @@index([userId])
+  @@index([clubId])
+  @@map("clips")
+}
+
+// ---------------------------------------------------------------- Money
+
+enum PaymentConcept {
+  player_extra
+  lesson
+  deposit
+  subscription
+
+  @@map("payment_concept")
+}
+
+/// Changed only by the Mercado Pago webhook, never by the app (§3).
+enum PaymentStatus {
+  pending
+  approved
+  rejected
+  refunded
+
+  @@map("payment_status")
+}
+
+enum SettlementStatus {
+  draft
+  approved
+  invoiced
+  paid
+
+  @@map("settlement_status")
+}
+
+/// A charge (§10). Amounts in ARS cents.
+model Payment {
+  id                   String         @id @db.Uuid
+  clubId               String         @map("club_id") @db.Uuid
+  /// Who pays; null for club-level charges (subscription) or a deleted account.
+  userId               String?        @map("user_id") @db.Uuid
+  concept              PaymentConcept
+  bookingId            String?        @map("booking_id") @db.Uuid
+  matchId              String?        @map("match_id") @db.Uuid
+  settlementId         String?        @map("settlement_id") @db.Uuid
+  lessonId             String?        @map("lesson_id") @db.Uuid
+  amountCents          Int            @map("amount_cents")
+  /// Our commission inside `amountCents` (marketplace_fee), >= 0 and <= amount (CHECK).
+  feeCents             Int            @default(0) @map("fee_cents")
+  status               PaymentStatus  @default(pending)
+  /// Mercado Pago payment id. Unique so a webhook is processed once (§2, §10).
+  mercadopagoPaymentId String?        @unique @map("mercadopago_payment_id")
+  createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club       Club        @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  booking    Booking?    @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  match      Match?      @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  settlement Settlement? @relation(fields: [settlementId], references: [id], onDelete: SetNull)
+  lesson     Lesson?     @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+
+  @@index([clubId, createdAt])
+  @@index([userId])
+  @@index([settlementId])
+  @@index([lessonId])
+  @@index([status])
+  @@map("payments")
+}
+
+/// Monthly summary per club (§10), built on day 1.
+model Settlement {
+  id             String           @id @db.Uuid
+  clubId         String           @map("club_id") @db.Uuid
+  /// First and last day (inclusive) in the club's time zone.
+  periodStart    DateTime         @map("period_start") @db.Date
+  periodEnd      DateTime         @map("period_end") @db.Date
+  /// Collected by us on the club's behalf (clubs without a connected account).
+  collectedCents Int              @default(0) @map("collected_cents")
+  feeCents       Int              @default(0) @map("fee_cents")
+  /// What we pay the club: collected minus fees (CHECK).
+  payoutCents    Int              @default(0) @map("payout_cents")
+  status         SettlementStatus @default(draft)
+  invoiceNumber  String?          @map("invoice_number")
+  invoiceUrl     String?          @map("invoice_url")
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club     Club      @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  payments Payment[]
+
+  @@unique([clubId, periodStart])
+  @@index([status])
+  @@map("settlements")
+}
+
+// ---------------------------------------------------------------- Technical tables
+
+/// Player level (§7): Glicko-2 values plus the category they translate to.
+/// Global per user (a player's level follows them between clubs), so no `club_id`.
+model Rating {
+  id           String          @id @db.Uuid
+  userId       String          @unique @map("user_id") @db.Uuid
+  /// Glicko-2 rating; starts in the middle of the declared category (CHECK > 0).
+  rating       Decimal         @db.Decimal(7, 2)
+  /// Rating deviation (uncertainty), high at the start (CHECK > 0).
+  deviation    Decimal         @db.Decimal(7, 2)
+  volatility   Decimal         @db.Decimal(6, 5)
+  matchesRated Int             @default(0) @map("matches_rated")
+  /// Category the number translates to; shown only after 5 rated matches.
+  category     PlayerCategory?
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ratings")
+}
+
+/// A lesson (§7 class mode): a `lesson` match given by a coach. The students are the match's
+/// players.
+model Lesson {
+  id          String   @id @db.Uuid
+  clubId      String   @map("club_id") @db.Uuid
+  matchId     String   @unique @map("match_id") @db.Uuid
+  coachUserId String?  @map("coach_user_id") @db.Uuid
+  /// Price charged per student, ARS cents; null = free.
+  priceCents  Int?     @map("price_cents")
+  /// Coach notes (POST /lessons/{id}/notes).
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club     Club      @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  match    Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  coach    User?     @relation(fields: [coachUserId], references: [id], onDelete: SetNull)
+  payments Payment[]
+
+  @@index([coachUserId])
+  @@index([clubId])
+  @@map("lessons")
+}
+
+enum NotificationChannel {
+  push
+  whatsapp
+  email
+  in_app
+
+  @@map("notification_channel")
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+
+  @@map("notification_status")
+}
+
+model Notification {
+  id        String              @id @db.Uuid
+  /// Null for notifications not tied to a club (e.g. account).
+  clubId    String?             @map("club_id") @db.Uuid
+  userId    String              @map("user_id") @db.Uuid
+  channel   NotificationChannel
+  /// Template key, e.g. `match_published`.
+  type      String
+  /// Values for the template (no personal data beyond what the template needs).
+  payload   Json
+  status    NotificationStatus  @default(pending)
+  sentAt    DateTime?           @map("sent_at") @db.Timestamptz(3)
+  readAt    DateTime?           @map("read_at") @db.Timestamptz(3)
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club Club? @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([clubId])
+  @@map("notifications")
+}
+
+/// Who changed what (§12). Append-only: no `updated_at`, and the migration blocks UPDATE and
+/// DELETE with a trigger. Rows outlive the user, so the actor FK is SET NULL.
+model AuditLog {
+  id          String   @id @db.Uuid
+  clubId      String?  @map("club_id") @db.Uuid
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  /// e.g. `video.view_support`, `booking.update`.
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String?  @map("entity_id") @db.Uuid
+  /// Permission or reason recorded for the action.
+  reason      String?
+  before      Json?
+  after       Json?
+  requestId   String?  @map("request_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  club  Club? @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([clubId, createdAt])
+  @@index([entityType, entityId])
+  @@index([actorUserId])
+  @@map("audit_log")
+}
+
+enum ProcessingJobStatus {
+  queued
+  running
+  succeeded
+  failed
+
+  @@map("processing_job_status")
+}
+
+enum ProcessingRunner {
+  club
+  cloud
+
+  @@map("processing_runner")
+}
+
+/// One analysis of a match (§3, §5). Keeps the pipeline stage so it can resume after a power cut.
+model ProcessingJob {
+  id           String              @id @db.Uuid
+  clubId       String              @map("club_id") @db.Uuid
+  matchId      String              @map("match_id") @db.Uuid
+  status       ProcessingJobStatus @default(queued)
+  /// Last stage completed or running, e.g. `detect_players`; null before the first.
+  stage        String?
+  runner       ProcessingRunner    @default(club)
+  /// Attempts so far; after 2 failures in the club it goes to the cloud (§3).
+  attempts     Int                 @default(0)
+  modelVersion String?             @map("model_version")
+  startedAt    DateTime?           @map("started_at") @db.Timestamptz(3)
+  finishedAt   DateTime?           @map("finished_at") @db.Timestamptz(3)
+  durationMs   Int?                @map("duration_ms")
+  /// Stable error code + short message of the last failure.
+  error        String?
+  createdAt    DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club  Club  @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, createdAt])
+  @@index([status, createdAt])
+  @@index([clubId])
+  @@map("processing_jobs")
 }

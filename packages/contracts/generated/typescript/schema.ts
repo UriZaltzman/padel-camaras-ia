@@ -25,6 +25,150 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/device/schedule': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Turns to record in the next 48 hours (club device)
+     * @description The `scheduler` process calls this every minute and stores the answer in its local
+     *     SQLite, so it keeps recording from the stored copy for up to 48 hours without internet
+     *     (section 4). The device is identified by its client certificate (mTLS); it only gets
+     *     its own club's courts. Recording starts at `record_from` (2 minutes before the turn)
+     *     and ends at `record_until` (2 minutes after). Turns with `no_record: true` are listed
+     *     so the device knows the court is busy, but must not be recorded.
+     *
+     *     Not paginated: 48 hours of a club fit in one response. `ETag` / `If-None-Match` avoid
+     *     resending an unchanged schedule (`304`).
+     *
+     *     Errors: `DEVICE_CERTIFICATE_INVALID` (401).
+     */
+    get: operations['getDeviceSchedule'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/device/heartbeat': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Health report every 60 seconds (club device)
+     * @description The `health` process reports free disk, GPU temperature, each camera and the queues
+     *     (section 4). Three missed heartbeats mark the device offline and emit `device.offline`;
+     *     a camera down for more than 5 minutes during a turn alerts the club and support. The
+     *     response carries the server time (to detect clock drift beyond NTP) and the software
+     *     version the `updater` should run.
+     *
+     *     Errors: `DEVICE_CERTIFICATE_INVALID` (401), `DEVICE_CLUB_MISMATCH` (403, a camera of
+     *     another club), `VALIDATION_FAILED` (400).
+     */
+    post: operations['postDeviceHeartbeat'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/device/matches/{id}/results': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Upload the pipeline results of a match (club device)
+     * @description The `uploader` sends this first, before clips and video (priority 1, section 4). The
+     *     body is the `MatchResults` format shared by `ml` (which produces it) and
+     *     `services/edge-agent` (which sends it); its full example is `MatchResultsExample`.
+     *
+     *     - The match moves `processing` → `published` (or `failed` with `status: failed`), and
+     *       `match.processed` is emitted. The cloud stores points, shots and bounces, takes the
+     *       device stats as a first version and recomputes them with the same versioned formulas
+     *       after any score correction.
+     *     - Idempotent by `run_id`: resending the same run returns `202` without changes. A new
+     *       `run_id` (reprocess) replaces the previous results.
+     *     - Media is referenced by the `media_id` returned by `POST /device/uploads`; uploads may
+     *       finish after the results.
+     *
+     *     Errors: `DEVICE_CERTIFICATE_INVALID` (401), `DEVICE_CLUB_MISMATCH` (403),
+     *     `INVALID_STATE_TRANSITION` (409, the match is not `recorded` or `processing`),
+     *     `VALIDATION_FAILED` (400), `NOT_FOUND`.
+     */
+    post: operations['postMatchResults'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/device/uploads': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Get signed multipart upload links for a video, clip, reel or thumbnail
+     * @description Starts a resumable multipart upload to private storage (section 4, `uploader`). The
+     *     device uploads each part with `PUT` to its signed `url` (valid 1 hour; call again with
+     *     the same `upload_id` to get fresh links for missing parts), then calls
+     *     `POST /device/uploads/{id}/complete`. Idempotent by `sha256` + `match_id` + `kind`.
+     *     The device never receives permanent links.
+     *
+     *     Errors: `DEVICE_CERTIFICATE_INVALID` (401), `DEVICE_CLUB_MISMATCH` (403),
+     *     `VALIDATION_FAILED` (400), `NOT_FOUND` (match or upload).
+     */
+    post: operations['createDeviceUpload'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/device/uploads/{id}/complete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Finish a multipart upload
+     * @description Closes the multipart upload with the `ETag` of each part. The API checks size and
+     *     `sha256`, marks the media `ready` and, for clips, emits `clip.created`. After this the
+     *     device may delete its original once the analysis is done (section 4, disk).
+     *
+     *     Errors: `DEVICE_CLUB_MISMATCH` (403), `VALIDATION_FAILED` (400, missing part or checksum
+     *     mismatch), `NOT_FOUND`.
+     */
+    post: operations['completeDeviceUpload'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/auth/otp/whatsapp': {
     parameters: {
       query?: never;
@@ -470,6 +614,172 @@ export interface paths {
     patch: operations['updateClubSettings'];
     trace?: never;
   };
+  '/lessons': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List the caller's lessons (as coach or as student)
+     * @description A coach sees the lessons they teach; a student sees the lessons they take. Newest first.
+     */
+    get: operations['listLessons'];
+    put?: never;
+    /**
+     * Schedule a lesson (coach)
+     * @description A coach of the club books the court for a lesson, with the same availability and
+     *     exclusion rules as `POST /bookings`. The booking is created `confirmed` (the coach does
+     *     not pay a deposit) with `source: panel` when made from the club panel or `app`
+     *     otherwise, and the match that comes from it has `type: lesson` (lesson stats never count
+     *     in `/me/stats`).
+     *
+     *     - **Recording.** `kind: school` (escuelita) is "do not record" by default
+     *       (`no_record_reason: club_school`); `record: true` turns it on only when every minor has a
+     *       guardian permission on file (section 12).
+     *     - **Charging.** With `price_cents` and the club's `lesson_payments_enabled`, each student
+     *       pays with `POST /payments/checkout` (`concept: lesson`) into the coach's Mercado Pago
+     *       account.
+     *     - **Students.** Listed students get a WhatsApp invite and must accept to be linked; a
+     *       student that accepts gives the coach access to that lesson's video and stats.
+     *
+     *     Errors: `BOOKING_SLOT_TAKEN` (409), `BOOKING_SLOT_INVALID` (422), `FORBIDDEN` (the caller
+     *     is not a coach of the club), `CLUB_FEATURE_DISABLED` (403, `price_cents` while the club
+     *     has lesson payments off), `CLUB_SERVICE_SUSPENDED` (403), `VALIDATION_FAILED` (400).
+     */
+    post: operations['createLesson'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/lessons/{id}/notes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Add a note, drawing or plan to a lesson (coach)
+     * @description The lesson's coach leaves a note for the lesson or for one moment of its video
+     *     (`at_ms`), optionally with a drawing over the frame (normalized 0..1 coordinates, so it
+     *     scales to any screen) and a plan item for the next lessons. Notes are visible to the
+     *     students of the lesson when `visible_to_students` is true.
+     *
+     *     Errors: `FORBIDDEN` (not the lesson's coach), `NOT_FOUND`, `VALIDATION_FAILED` (400).
+     */
+    post: operations['addLessonNote'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/coach/students': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List the coach's students and what they shared
+     * @description Students who took at least one lesson with the caller. `access` says whether the student
+     *     gave the coach access to their matches (section 12); without it the coach sees only the
+     *     lessons they taught, and `GET /matches/{id}` of the student's other matches returns
+     *     `COACH_ACCESS_NOT_GRANTED`.
+     *
+     *     Errors: `FORBIDDEN` (the caller is not a coach in any club).
+     */
+    get: operations['listCoachStudents'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/payments/checkout': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Open a Mercado Pago checkout for a deposit, extra or lesson
+     * @description Creates a `pending` payment and a Mercado Pago preference in the marketplace model
+     *     (section 10): the money goes straight to the club's account (`deposit`,
+     *     `player_extra`) or the coach's (`lesson`), and Mercado Pago splits our
+     *     `marketplace_fee` in the same payment (10%; 0 for deposits during the pilot). If the
+     *     club has not connected its account yet, we collect and transfer in the monthly
+     *     settlement. The client opens `checkout_url`; only the webhook changes the payment
+     *     status, never the app.
+     *
+     *     Send an `Idempotency-Key`: retrying with the same key returns the same checkout instead
+     *     of a second payment.
+     *
+     *     Errors: `BOOKING_HOLD_EXPIRED` (409, the 10-minute hold ended), `INVALID_STATE_TRANSITION`
+     *     (409, already paid), `CLUB_FEATURE_DISABLED` (403, extra or lesson payments off),
+     *     `PAYMENT_PROVIDER_ERROR` (502), `NOT_FOUND` (booking, match or lesson),
+     *     `VALIDATION_FAILED` (400).
+     */
+    post: operations['createCheckout'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/webhooks/mercadopago': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Mercado Pago payment notification
+     * @description Called by Mercado Pago, not by our clients, so it takes no bearer token: it is
+     *     authenticated by the `x-signature` header.
+     *
+     *     **Signature verification (before anything else):**
+     *
+     *     1. Parse `x-signature` (`ts=<unix seconds>,v1=<hex>`) into `ts` and `v1`.
+     *     2. Build the manifest `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`, with `data.id`
+     *        from the query string (lower-cased if alphanumeric). Omit a part whose value is
+     *        missing.
+     *     3. Compute HMAC-SHA256 of the manifest with the webhook secret of the application (from
+     *        the secret manager, never in the repo) and compare it with `v1` in constant time.
+     *     4. Reject a `ts` more than 5 minutes away from the server clock (replay).
+     *
+     *     A failure returns `401 WEBHOOK_SIGNATURE_INVALID` and is logged without the body.
+     *
+     *     **Processing:** the API fetches the payment from Mercado Pago by `data.id` (the body is
+     *     never trusted for amounts or status), and applies it once per Mercado Pago payment id
+     *     (unique index), even if the notification arrives many times. It moves `payments.status`
+     *     and emits `payment.approved` or `payment.refunded`; an approved deposit confirms its
+     *     booking. It answers `200` quickly; work that fails is retried from the queue, so
+     *     Mercado Pago does not need to resend. Unknown `type` values are acknowledged and
+     *     ignored.
+     */
+    post: operations['receiveMercadoPagoWebhook'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/courts/{id}/availability': {
     parameters: {
       query?: never;
@@ -705,6 +1015,322 @@ export interface components {
      * @enum {string}
      */
     SettlementStatus: 'draft' | 'approved' | 'invoiced' | 'paid';
+    /** @description How the match is scored (section 6), from the club settings at booking time. */
+    ScoringRules: {
+      /** @description True plays golden point at 40-40; false plays advantage. */
+      golden_point: boolean;
+      /**
+       * @description A normal set with tie-break at 6-6, or a super tie-break to 10.
+       * @enum {string}
+       */
+      third_set: 'set' | 'super_tiebreak';
+    };
+    DeviceScheduleItem: {
+      match_id: components['schemas']['Uuid'];
+      /** @description `null` for a recording started by hand from the panel. */
+      booking_id: components['schemas']['Uuid'] | null;
+      court_id: components['schemas']['Uuid'];
+      /** @enum {string} */
+      match_type: 'match' | 'lesson';
+      starts_at: components['schemas']['Timestamp'];
+      ends_at: components['schemas']['Timestamp'];
+      record_from: components['schemas']['Timestamp'];
+      record_until: components['schemas']['Timestamp'];
+      no_record: boolean;
+      scoring: components['schemas']['ScoringRules'];
+      updated_at: components['schemas']['Timestamp'];
+    };
+    DeviceSchedule: {
+      club_id: components['schemas']['Uuid'];
+      generated_at: components['schemas']['Timestamp'];
+      /** @description End of the 48-hour window. */
+      valid_until: components['schemas']['Timestamp'];
+      /** @description Ordered by `record_from`. A cancelled turn disappears from the list. */
+      items: components['schemas']['DeviceScheduleItem'][];
+    };
+    DeviceCameraHealth: {
+      camera_id: components['schemas']['Uuid'];
+      online: boolean;
+      fps: number | null;
+      recording: boolean;
+    };
+    DeviceHeartbeat: {
+      sent_at: components['schemas']['Timestamp'];
+      software_version: string;
+      uptime_seconds: number;
+      disk_free_bytes: number;
+      disk_total_bytes: number;
+      gpu_temp_c: number | null;
+      cpu_temp_c?: number | null;
+      cameras: components['schemas']['DeviceCameraHealth'][];
+      upload_queue: {
+        items: number;
+        bytes: number;
+        eta_minutes: number;
+      };
+      /** @description Local analysis backlog. Over 6 hours the oldest matches go to the cloud GPU. */
+      processing_backlog_minutes: number;
+    };
+    DeviceHeartbeatAck: {
+      server_time: components['schemas']['Timestamp'];
+      /** @description Version the `updater` installs between 4 and 6 a.m. */
+      desired_software_version: string;
+    };
+    /**
+     * @description End of the court (camera end, or the side a team starts on).
+     * @enum {string}
+     */
+    CourtEnd: 'A' | 'B';
+    /**
+     * @description Position in meters (see the format note above). `z` is `null` without 3D (the ball is
+     *     triangulated only when both cameras see it). Values outside the court (lobs, exits,
+     *     players behind the glass) are allowed within the 1.5 m mask and beyond for the ball.
+     */
+    CourtPosition: {
+      x: number;
+      y: number;
+      z?: number | null;
+    };
+    /**
+     * @description One of the 4 tracks (section 5, step 3).
+     * @enum {integer}
+     */
+    PipelinePosition: 1 | 2 | 3 | 4;
+    /** @enum {integer} */
+    PipelineTeam: 1 | 2;
+    /**
+     * @description Section 5, step 9. `unknown` under 0.6 confidence.
+     * @enum {string}
+     */
+    PipelineShotType:
+      | 'serve'
+      | 'forehand'
+      | 'backhand'
+      | 'forehand_volley'
+      | 'backhand_volley'
+      | 'bandeja'
+      | 'vibora'
+      | 'smash'
+      | 'lob'
+      | 'wall_exit'
+      | 'unknown';
+    /**
+     * @description Section 5, step 8.
+     * @enum {string}
+     */
+    BounceSurface: 'floor' | 'back_glass' | 'side_glass' | 'fence' | 'net';
+    /**
+     * @description Rule of section 6 that closed the point, in evaluation order.
+     * @enum {string}
+     */
+    PipelinePointEndReason:
+      | 'double_fault'
+      | 'own_floor_before_net'
+      | 'net'
+      | 'rival_wall_before_floor'
+      | 'double_bounce'
+      | 'out_after_bounce'
+      | 'ball_lost';
+    ResultPlayer: {
+      position: components['schemas']['PipelinePosition'];
+      team: components['schemas']['PipelineTeam'];
+      initial_side: components['schemas']['CourtEnd'];
+      /** @description Thumbnail for "este soy yo", from `POST /device/uploads`. */
+      thumbnail_media_id: components['schemas']['Uuid'] | null;
+      /** @description Share of rally frames where this track was seen. */
+      track_coverage_pct: number;
+    };
+    ResultEventRef: {
+      /** @enum {string} */
+      kind: 'shot' | 'bounce';
+      /** @description Index in `shots` or `bounces`. */
+      index: number;
+    };
+    ResultPoint: {
+      /** @description 1-based, consecutive over the match. */
+      number: number;
+      set: number;
+      /** @description 1-based within the set; the tie-break is game 13. */
+      game: number;
+      server_position: components['schemas']['PipelinePosition'];
+      serve_faults: number;
+      winner_team: components['schemas']['PipelineTeam'];
+      end_reason: components['schemas']['PipelinePointEndReason'];
+      /** @description The event that closed the point; `null` for `ball_lost`. */
+      deciding_event: components['schemas']['ResultEventRef'] | null;
+      /** @description Product of the confidence of the deciding events (section 6, layer 2). */
+      confidence: number;
+      /** @description Confidence under the review threshold of `ml/config/thresholds.yaml` (0.7). */
+      needs_review: boolean;
+      start_ms: number;
+      end_ms: number;
+    };
+    ResultShot: {
+      point_number: number;
+      t_ms: number;
+      player_position: components['schemas']['PipelinePosition'];
+      shot_type: components['schemas']['PipelineShotType'];
+      shot_type_confidence: number;
+      /** @description Player's foot point at contact. */
+      player_at: components['schemas']['CourtPosition'];
+      /** @description Ball at contact. */
+      ball_at: components['schemas']['CourtPosition'];
+      /** @description Estimated, only with 3D positions. */
+      speed_kmh: number | null;
+      after_bounce: boolean;
+      /** @description The ball came off a wall before the shot (salida de pared). */
+      off_wall: boolean;
+      camera: components['schemas']['CourtEnd'];
+    };
+    ResultBounce: {
+      point_number: number;
+      t_ms: number;
+      surface: components['schemas']['BounceSurface'];
+      ball_at: components['schemas']['CourtPosition'];
+      confidence: number;
+    };
+    /** @description A point changed by serve coherence (section 6, layer 1). */
+    ResultCorrection: {
+      /** @enum {string} */
+      layer: 'serve_coherence';
+      point_number: number;
+      from_winner_team: components['schemas']['PipelineTeam'];
+      to_winner_team: components['schemas']['PipelineTeam'];
+    };
+    /**
+     * @description Stats of one position computed on the device with the versioned formulas of section 7.
+     *     `values` keys are the metric names of `ml` (for example `points_won`, `winners`,
+     *     `net_time_pct`, `distance_m`); the cloud recomputes them after a score correction.
+     */
+    ResultStats: {
+      position: components['schemas']['PipelinePosition'];
+      formula_version: string;
+      values: {
+        [key: string]: number;
+      };
+    };
+    ResultHighlight: {
+      point_number: number;
+      /** @description Highlight score of section 7. */
+      score: number;
+      start_ms: number;
+      end_ms: number;
+      clip_media_id: components['schemas']['Uuid'] | null;
+    };
+    ResultCalibration: {
+      camera: components['schemas']['CourtEnd'];
+      calibration_id: components['schemas']['Uuid'];
+      reprojection_error_cm: number;
+    };
+    ResultModelVersions: {
+      player_detector: string;
+      ball_tracker: string;
+      pose: string;
+      shot_classifier: string;
+      reid: string;
+    };
+    /**
+     * @description Output of the club pipeline for one match (schema version 1). `points`, `shots` and
+     *     `bounces` are each ordered by time; shots and bounces link to their point by
+     *     `point_number`. On `status: failed` only the run metadata and `failure` are sent.
+     */
+    MatchResults: {
+      /** @constant */
+      schema_version: 1;
+      run_id: components['schemas']['Uuid'];
+      match_id: components['schemas']['Uuid'];
+      /** @enum {string} */
+      status: 'succeeded' | 'failed';
+      failure?: {
+        /** @example ball_tracking */
+        stage: string;
+        code: string;
+      } | null;
+      /** @enum {string} */
+      processed_on: 'club' | 'cloud';
+      pipeline_version: string;
+      model_versions: components['schemas']['ResultModelVersions'];
+      /** @description Hash of `ml/config/thresholds.yaml` used in the run. */
+      thresholds_sha256: string;
+      started_at: components['schemas']['Timestamp'];
+      finished_at: components['schemas']['Timestamp'];
+      video: {
+        duration_ms: number;
+        fps: number;
+        /** @description Fine offset of camera B relative to A, from ball trajectory alignment. */
+        camera_offset_ms: number;
+      };
+      calibrations: components['schemas']['ResultCalibration'][];
+      scoring: components['schemas']['ScoringRules'];
+      players: components['schemas']['ResultPlayer'][];
+      points: components['schemas']['ResultPoint'][];
+      shots: components['schemas']['ResultShot'][];
+      bounces: components['schemas']['ResultBounce'][];
+      score: {
+        sets: components['schemas']['SetScore'][];
+        winner_team: components['schemas']['PipelineTeam'] | null;
+        /** @description False when the turn ended before the match did. */
+        completed: boolean;
+      };
+      corrections: components['schemas']['ResultCorrection'][];
+      stats: components['schemas']['ResultStats'][];
+      highlights: components['schemas']['ResultHighlight'][];
+    };
+    MatchResultsAck: {
+      match_id: components['schemas']['Uuid'];
+      run_id: components['schemas']['Uuid'];
+      match_status: components['schemas']['MatchStatus'];
+    };
+    /** @enum {string} */
+    DeviceUploadKind: 'full' | 'clip' | 'reel' | 'thumbnail';
+    DeviceUploadRequest: {
+      match_id: components['schemas']['Uuid'];
+      kind: components['schemas']['DeviceUploadKind'];
+      /** @enum {string} */
+      content_type: 'video/mp4' | 'image/jpeg';
+      size_bytes: number;
+      sha256: string;
+      duration_ms?: number | null;
+      /** @description Required for `kind: clip`. */
+      clip?: {
+        start_ms: number;
+        end_ms: number;
+        /** @enum {string} */
+        source: 'app' | 'button' | 'auto';
+        /** @description The player who tapped in the app, from the court channel. */
+        requested_by_user_id?: components['schemas']['Uuid'] | null;
+      } | null;
+      /** @description Resume an existing upload and get fresh part links. */
+      upload_id?: components['schemas']['Uuid'] | null;
+    };
+    DeviceUploadPart: {
+      number: number;
+      /**
+       * Format: uri
+       * @description Signed `PUT` link for this part, valid 1 hour.
+       */
+      url: string;
+    };
+    DeviceUpload: {
+      upload_id: components['schemas']['Uuid'];
+      media_id: components['schemas']['Uuid'];
+      part_size_bytes: number;
+      /** @description Links for the parts not uploaded yet. */
+      parts: components['schemas']['DeviceUploadPart'][];
+      expires_at: components['schemas']['Timestamp'];
+    };
+    DeviceUploadComplete: {
+      parts: {
+        number: number;
+        etag: string;
+      }[];
+    };
+    DeviceUploadDone: {
+      upload_id: components['schemas']['Uuid'];
+      media_id: components['schemas']['Uuid'];
+      /** @enum {string} */
+      status: 'ready';
+    };
     /** @description Liveness result. */
     HealthStatus: {
       /** @enum {string} */
@@ -1145,6 +1771,186 @@ export interface components {
       /** @description Current level estimate, or `null` until enough matches are published. */
       rating: number | null;
       last_match_at: components['schemas']['Timestamp'] | null;
+    };
+    /**
+     * @description `private` or `group` lesson, or a `school` (escuelita), which is "do not record" by
+     *     default (section 12).
+     * @enum {string}
+     */
+    LessonKind: 'private' | 'group' | 'school';
+    LessonCreate: {
+      court_id: components['schemas']['Uuid'];
+      starts_at: components['schemas']['Timestamp'];
+      duration_minutes: components['schemas']['BookingDuration'];
+      kind: components['schemas']['LessonKind'];
+      /** @description Students with an account. Others join with the invite link. */
+      student_ids?: components['schemas']['Uuid'][];
+      /** @description Price per student in ARS cents, or `null` if the lesson is not charged in the app. */
+      price_cents?: number | null;
+      /**
+       * @description Record the lesson. Defaults to true, and to false for `school`. A minor without a
+       *     guardian permission is never recorded.
+       */
+      record?: boolean;
+      /** @description What the lesson works on, shown to the students. */
+      focus?: string | null;
+    };
+    LessonStudent: {
+      user: components['schemas']['EntityRef'];
+      accepted: boolean;
+      /** @description Status of this student's lesson payment, or `null` if not charged or not started. */
+      payment_status: components['schemas']['PaymentStatus'] | null;
+    };
+    Lesson: {
+      id: components['schemas']['Uuid'];
+      club: components['schemas']['EntityRef'];
+      court: components['schemas']['EntityRef'];
+      coach: components['schemas']['EntityRef'];
+      kind: components['schemas']['LessonKind'];
+      starts_at: components['schemas']['Timestamp'];
+      ends_at: components['schemas']['Timestamp'];
+      booking_id: components['schemas']['Uuid'];
+      booking_status: components['schemas']['BookingStatus'];
+      /** @description The recorded lesson (`type: lesson`), once recording started. */
+      match_id: components['schemas']['Uuid'] | null;
+      students: components['schemas']['LessonStudent'][];
+      price_cents: number | null;
+      no_record: boolean;
+      no_record_reason: components['schemas']['NoRecordReason'] | null;
+      focus: string | null;
+      notes_count: number;
+    };
+    LessonPage: components['schemas']['Page'] & {
+      items: components['schemas']['Lesson'][];
+    };
+    DrawingStroke: {
+      color: string;
+      /** @description Stroke width as a fraction of the frame width. */
+      width: number;
+      /** @description `[x, y]` pairs, each 0..1 relative to the video frame. */
+      points: number[][];
+    };
+    /** @description A drawing over one video frame. */
+    Drawing: {
+      strokes: components['schemas']['DrawingStroke'][];
+    };
+    LessonNoteCreate: {
+      text: string;
+      /** @description Moment of the lesson video the note refers to, or `null` for the whole lesson. */
+      at_ms?: number | null;
+      /** @description The student the note is for, or `null` for all of them. */
+      student_id?: components['schemas']['Uuid'] | null;
+      /** @description Requires `at_ms`. */
+      drawing?: components['schemas']['Drawing'] | null;
+      /** @description True marks the note as a plan item for the next lessons. */
+      is_plan?: boolean;
+      /** @description Defaults to true. */
+      visible_to_students?: boolean;
+    };
+    LessonNote: {
+      id: components['schemas']['Uuid'];
+      lesson_id: components['schemas']['Uuid'];
+      text: string;
+      at_ms: number | null;
+      student_id: components['schemas']['Uuid'] | null;
+      drawing: components['schemas']['Drawing'] | null;
+      is_plan: boolean;
+      visible_to_students: boolean;
+      created_at: components['schemas']['Timestamp'];
+    };
+    /**
+     * @description What the student shares with the coach: `lessons_only` (the lessons this coach taught)
+     *     or `matches_and_lessons` (also their matches and stats, section 12).
+     * @enum {string}
+     */
+    CoachAccess: 'lessons_only' | 'matches_and_lessons';
+    CoachStudent: {
+      user: components['schemas']['EntityRef'];
+      access: components['schemas']['CoachAccess'];
+      lessons_count: number;
+      last_lesson_at: components['schemas']['Timestamp'] | null;
+      pending_payment_cents: components['schemas']['AmountCents'];
+    };
+    CoachStudentPage: components['schemas']['Page'] & {
+      items: components['schemas']['CoachStudent'][];
+    };
+    /**
+     * @description `payments.concept`. Players pay `deposit`, `player_extra` and `lesson` through checkout;
+     *     `subscription` is the club's monthly fee, charged by a Mercado Pago subscription in our
+     *     company's name (never through checkout).
+     * @enum {string}
+     */
+    PaymentConcept: 'deposit' | 'player_extra' | 'lesson' | 'subscription';
+    CheckoutDeposit: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      concept: 'deposit';
+      booking_id: components['schemas']['Uuid'];
+    };
+    CheckoutPlayerExtra: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      concept: 'player_extra';
+      match_id: components['schemas']['Uuid'];
+    };
+    CheckoutLesson: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      concept: 'lesson';
+      lesson_id: components['schemas']['Uuid'];
+    };
+    /** @description What is being paid. The amount comes from the server, never from the client. */
+    CheckoutRequest:
+      | components['schemas']['CheckoutDeposit']
+      | components['schemas']['CheckoutPlayerExtra']
+      | components['schemas']['CheckoutLesson'];
+    Checkout: {
+      payment_id: components['schemas']['Uuid'];
+      concept: components['schemas']['PaymentConcept'];
+      status: components['schemas']['PaymentStatus'];
+      amount_cents: components['schemas']['AmountCents'];
+      marketplace_fee_cents: components['schemas']['AmountCents'];
+      /**
+       * @description Whose Mercado Pago account receives the money: the `club`, the `coach`, or
+       *     `platform` when the club or coach has not connected an account yet (we transfer in
+       *     the monthly settlement).
+       * @enum {string}
+       */
+      payee: 'club' | 'coach' | 'platform';
+      /**
+       * Format: uri
+       * @description Mercado Pago checkout (`init_point`) to open in the browser or app.
+       */
+      checkout_url: string;
+      /** @description For deposits, the end of the 10-minute hold. */
+      expires_at: components['schemas']['Timestamp'] | null;
+    };
+    /**
+     * @description Body Mercado Pago sends (webhooks v1). Only `type` and `data.id` are used; amounts and
+     *     status are always read back from Mercado Pago's API.
+     */
+    MercadoPagoNotification: {
+      id?: number;
+      live_mode?: boolean;
+      /** @example payment */
+      type: string;
+      date_created?: string;
+      user_id?: number;
+      api_version?: string;
+      /**
+       * @example payment.created
+       * @example payment.updated
+       */
+      action?: string;
+      data: {
+        id: string;
+      };
     };
     /**
      * @description How the club got the camera kit: `loan` (comodato, we keep ownership) or `purchase`.
@@ -1668,8 +2474,14 @@ export interface components {
     Limit: number;
     /** @description Club id. */
     ClubId: components['schemas']['Uuid'];
+    /** @description Lesson id. */
+    LessonId: components['schemas']['Uuid'];
     /** @description Court id. */
     CourtId: components['schemas']['Uuid'];
+    /** @description Match id (must belong to the device's club). */
+    DeviceMatchId: components['schemas']['Uuid'];
+    /** @description Upload id from `POST /device/uploads`. */
+    DeviceUploadId: components['schemas']['Uuid'];
     /** @description Booking id. */
     BookingId: components['schemas']['Uuid'];
     /** @description Match id. */
@@ -1700,6 +2512,37 @@ export type SchemaBookingStatus = components['schemas']['BookingStatus'];
 export type SchemaProcessingJobStatus = components['schemas']['ProcessingJobStatus'];
 export type SchemaPaymentStatus = components['schemas']['PaymentStatus'];
 export type SchemaSettlementStatus = components['schemas']['SettlementStatus'];
+export type SchemaScoringRules = components['schemas']['ScoringRules'];
+export type SchemaDeviceScheduleItem = components['schemas']['DeviceScheduleItem'];
+export type SchemaDeviceSchedule = components['schemas']['DeviceSchedule'];
+export type SchemaDeviceCameraHealth = components['schemas']['DeviceCameraHealth'];
+export type SchemaDeviceHeartbeat = components['schemas']['DeviceHeartbeat'];
+export type SchemaDeviceHeartbeatAck = components['schemas']['DeviceHeartbeatAck'];
+export type SchemaCourtEnd = components['schemas']['CourtEnd'];
+export type SchemaCourtPosition = components['schemas']['CourtPosition'];
+export type SchemaPipelinePosition = components['schemas']['PipelinePosition'];
+export type SchemaPipelineTeam = components['schemas']['PipelineTeam'];
+export type SchemaPipelineShotType = components['schemas']['PipelineShotType'];
+export type SchemaBounceSurface = components['schemas']['BounceSurface'];
+export type SchemaPipelinePointEndReason = components['schemas']['PipelinePointEndReason'];
+export type SchemaResultPlayer = components['schemas']['ResultPlayer'];
+export type SchemaResultEventRef = components['schemas']['ResultEventRef'];
+export type SchemaResultPoint = components['schemas']['ResultPoint'];
+export type SchemaResultShot = components['schemas']['ResultShot'];
+export type SchemaResultBounce = components['schemas']['ResultBounce'];
+export type SchemaResultCorrection = components['schemas']['ResultCorrection'];
+export type SchemaResultStats = components['schemas']['ResultStats'];
+export type SchemaResultHighlight = components['schemas']['ResultHighlight'];
+export type SchemaResultCalibration = components['schemas']['ResultCalibration'];
+export type SchemaResultModelVersions = components['schemas']['ResultModelVersions'];
+export type SchemaMatchResults = components['schemas']['MatchResults'];
+export type SchemaMatchResultsAck = components['schemas']['MatchResultsAck'];
+export type SchemaDeviceUploadKind = components['schemas']['DeviceUploadKind'];
+export type SchemaDeviceUploadRequest = components['schemas']['DeviceUploadRequest'];
+export type SchemaDeviceUploadPart = components['schemas']['DeviceUploadPart'];
+export type SchemaDeviceUpload = components['schemas']['DeviceUpload'];
+export type SchemaDeviceUploadComplete = components['schemas']['DeviceUploadComplete'];
+export type SchemaDeviceUploadDone = components['schemas']['DeviceUploadDone'];
 export type SchemaHealthStatus = components['schemas']['HealthStatus'];
 export type SchemaPhoneNumber = components['schemas']['PhoneNumber'];
 export type SchemaSignUpConsent = components['schemas']['SignUpConsent'];
@@ -1749,6 +2592,25 @@ export type SchemaScoreCorrection = components['schemas']['ScoreCorrection'];
 export type SchemaSignedMediaUrl = components['schemas']['SignedMediaUrl'];
 export type SchemaMediaDownload = components['schemas']['MediaDownload'];
 export type SchemaUserStats = components['schemas']['UserStats'];
+export type SchemaLessonKind = components['schemas']['LessonKind'];
+export type SchemaLessonCreate = components['schemas']['LessonCreate'];
+export type SchemaLessonStudent = components['schemas']['LessonStudent'];
+export type SchemaLesson = components['schemas']['Lesson'];
+export type SchemaLessonPage = components['schemas']['LessonPage'];
+export type SchemaDrawingStroke = components['schemas']['DrawingStroke'];
+export type SchemaDrawing = components['schemas']['Drawing'];
+export type SchemaLessonNoteCreate = components['schemas']['LessonNoteCreate'];
+export type SchemaLessonNote = components['schemas']['LessonNote'];
+export type SchemaCoachAccess = components['schemas']['CoachAccess'];
+export type SchemaCoachStudent = components['schemas']['CoachStudent'];
+export type SchemaCoachStudentPage = components['schemas']['CoachStudentPage'];
+export type SchemaPaymentConcept = components['schemas']['PaymentConcept'];
+export type SchemaCheckoutDeposit = components['schemas']['CheckoutDeposit'];
+export type SchemaCheckoutPlayerExtra = components['schemas']['CheckoutPlayerExtra'];
+export type SchemaCheckoutLesson = components['schemas']['CheckoutLesson'];
+export type SchemaCheckoutRequest = components['schemas']['CheckoutRequest'];
+export type SchemaCheckout = components['schemas']['Checkout'];
+export type SchemaMercadoPagoNotification = components['schemas']['MercadoPagoNotification'];
 export type SchemaClubPlan = components['schemas']['ClubPlan'];
 export type SchemaClubSummary = components['schemas']['ClubSummary'];
 export type SchemaClubSummaryPage = components['schemas']['ClubSummaryPage'];
@@ -1807,7 +2669,10 @@ export type ResponseServiceUnavailable = components['responses']['ServiceUnavail
 export type ParameterCursor = components['parameters']['Cursor'];
 export type ParameterLimit = components['parameters']['Limit'];
 export type ParameterClubId = components['parameters']['ClubId'];
+export type ParameterLessonId = components['parameters']['LessonId'];
 export type ParameterCourtId = components['parameters']['CourtId'];
+export type ParameterDeviceMatchId = components['parameters']['DeviceMatchId'];
+export type ParameterDeviceUploadId = components['parameters']['DeviceUploadId'];
 export type ParameterBookingId = components['parameters']['BookingId'];
 export type ParameterMatchId = components['parameters']['MatchId'];
 export type ParameterMediaId = components['parameters']['MediaId'];
@@ -1844,6 +2709,281 @@ export interface operations {
       };
       429: components['responses']['TooManyRequests'];
       503: components['responses']['ServiceUnavailable'];
+    };
+  };
+  getDeviceSchedule: {
+    parameters: {
+      query?: never;
+      header?: {
+        'If-None-Match'?: string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The schedule. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          ETag?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "club_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a60",
+           *       "generated_at": "2026-10-23T21:00:00Z",
+           *       "valid_until": "2026-10-25T21:00:00Z",
+           *       "items": [
+           *         {
+           *           "match_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b",
+           *           "booking_id": "0192b1e4-5a6b-7c8d-9e0f-1a2b3c4d5e6f",
+           *           "court_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61",
+           *           "match_type": "match",
+           *           "starts_at": "2026-10-23T22:00:00Z",
+           *           "ends_at": "2026-10-23T23:30:00Z",
+           *           "record_from": "2026-10-23T21:58:00Z",
+           *           "record_until": "2026-10-23T23:32:00Z",
+           *           "no_record": false,
+           *           "scoring": {
+           *             "golden_point": true,
+           *             "third_set": "super_tiebreak"
+           *           },
+           *           "updated_at": "2026-10-22T15:04:00Z"
+           *         }
+           *       ]
+           *     }
+           */
+          'application/json': components['schemas']['DeviceSchedule'];
+        };
+      };
+      /** @description Unchanged since the given `ETag`. */
+      304: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  postDeviceHeartbeat: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "sent_at": "2026-10-23T22:41:00Z",
+         *       "software_version": "0.4.2",
+         *       "uptime_seconds": 86400,
+         *       "disk_free_bytes": 1374389534720,
+         *       "disk_total_bytes": 2000398934016,
+         *       "gpu_temp_c": 71,
+         *       "cpu_temp_c": 58.5,
+         *       "cameras": [
+         *         {
+         *           "camera_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a90",
+         *           "online": true,
+         *           "fps": 25,
+         *           "recording": true
+         *         },
+         *         {
+         *           "camera_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a91",
+         *           "online": true,
+         *           "fps": 24.9,
+         *           "recording": true
+         *         }
+         *       ],
+         *       "upload_queue": {
+         *         "items": 14,
+         *         "bytes": 5368709120,
+         *         "eta_minutes": 95
+         *       },
+         *       "processing_backlog_minutes": 40
+         *     }
+         */
+        'application/json': components['schemas']['DeviceHeartbeat'];
+      };
+    };
+    responses: {
+      /** @description Heartbeat stored. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "server_time": "2026-10-23T22:41:00Z",
+           *       "desired_software_version": "0.4.2"
+           *     }
+           */
+          'application/json': components['schemas']['DeviceHeartbeatAck'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  postMatchResults: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Match id (must belong to the device's club). */
+        id: components['parameters']['DeviceMatchId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MatchResults'];
+      };
+    };
+    responses: {
+      /** @description Results accepted. */
+      202: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "match_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b",
+           *       "run_id": "0192f0a0-1b2c-7d3e-8f4a-5b6c7d8e9f00",
+           *       "match_status": "published"
+           *     }
+           */
+          'application/json': components['schemas']['MatchResultsAck'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  createDeviceUpload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "match_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b",
+         *       "kind": "full",
+         *       "content_type": "video/mp4",
+         *       "size_bytes": 1073741824,
+         *       "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+         *       "duration_ms": 5520000
+         *     }
+         */
+        'application/json': components['schemas']['DeviceUploadRequest'];
+      };
+    };
+    responses: {
+      /** @description The upload with its signed part links. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "upload_id": "0192f0b0-1b2c-7d3e-8f4a-5b6c7d8e9f01",
+           *       "media_id": "0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a55",
+           *       "part_size_bytes": 67108864,
+           *       "parts": [
+           *         {
+           *           "number": 1,
+           *           "url": "https://storage.example.com/full/0192af6e.mp4?partNumber=1&uploadId=abc&X-Amz-Signature=1a2b"
+           *         }
+           *       ],
+           *       "expires_at": "2026-10-24T05:00:00Z"
+           *     }
+           */
+          'application/json': components['schemas']['DeviceUpload'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  completeDeviceUpload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Upload id from `POST /device/uploads`. */
+        id: components['parameters']['DeviceUploadId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "parts": [
+         *         {
+         *           "number": 1,
+         *           "etag": "\"a54357aff0632cce46d942af68356b38\""
+         *         }
+         *       ]
+         *     }
+         */
+        'application/json': components['schemas']['DeviceUploadComplete'];
+      };
+    };
+    responses: {
+      /** @description Upload completed. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "upload_id": "0192f0b0-1b2c-7d3e-8f4a-5b6c7d8e9f01",
+           *       "media_id": "0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a55",
+           *       "status": "ready"
+           *     }
+           */
+          'application/json': components['schemas']['DeviceUploadDone'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
     };
   };
   requestWhatsappOtp: {
@@ -2615,6 +3755,297 @@ export interface operations {
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listLessons: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor from a previous page's `next_cursor`. Omit it for the first page. */
+        cursor?: components['parameters']['Cursor'];
+        /** @description Maximum number of items in the page. */
+        limit?: components['parameters']['Limit'];
+        /** @description `coach` (default for users with a coach membership) or `student`. */
+        role?: 'coach' | 'student';
+        /** @description Coach only. Lessons with this student. */
+        student_id?: components['schemas']['Uuid'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of lessons. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LessonPage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  createLesson: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "court_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61",
+         *       "starts_at": "2026-10-24T13:00:00Z",
+         *       "duration_minutes": 60,
+         *       "kind": "private",
+         *       "student_ids": [
+         *         "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f"
+         *       ],
+         *       "price_cents": 2500000,
+         *       "record": true,
+         *       "focus": "Bandeja y salida de pared"
+         *     }
+         */
+        'application/json': components['schemas']['LessonCreate'];
+      };
+    };
+    responses: {
+      /** @description The lesson. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Lesson'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  addLessonNote: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Lesson id. */
+        id: components['parameters']['LessonId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "text": "Cerrá antes la paleta en la bandeja.",
+         *       "at_ms": 845000,
+         *       "student_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f",
+         *       "drawing": {
+         *         "strokes": [
+         *           {
+         *             "color": "#FFD400",
+         *             "width": 0.006,
+         *             "points": [
+         *               [
+         *                 0.42,
+         *                 0.31
+         *               ],
+         *               [
+         *                 0.47,
+         *                 0.36
+         *               ]
+         *             ]
+         *           }
+         *         ]
+         *       },
+         *       "visible_to_students": true
+         *     }
+         */
+        'application/json': components['schemas']['LessonNoteCreate'];
+      };
+    };
+    responses: {
+      /** @description The note. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LessonNote'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listCoachStudents: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor from a previous page's `next_cursor`. Omit it for the first page. */
+        cursor?: components['parameters']['Cursor'];
+        /** @description Maximum number of items in the page. */
+        limit?: components['parameters']['Limit'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of students. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "items": [
+           *         {
+           *           "user": {
+           *             "id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f",
+           *             "name": "Sofía Pérez"
+           *           },
+           *           "access": "matches_and_lessons",
+           *           "lessons_count": 6,
+           *           "last_lesson_at": "2026-10-17T13:00:00Z",
+           *           "pending_payment_cents": 0
+           *         }
+           *       ],
+           *       "next_cursor": null
+           *     }
+           */
+          'application/json': components['schemas']['CoachStudentPage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  createCheckout: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated UUID, unique per intended payment. */
+        'Idempotency-Key': components['schemas']['Uuid'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CheckoutRequest'];
+      };
+    };
+    responses: {
+      /** @description The checkout to open. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "payment_id": "0192f1e4-5a6b-7c8d-9e0f-1a2b3c4d5e6f",
+           *       "concept": "deposit",
+           *       "status": "pending",
+           *       "amount_cents": 1200000,
+           *       "marketplace_fee_cents": 0,
+           *       "payee": "club",
+           *       "checkout_url": "https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=123-abc",
+           *       "expires_at": "2026-10-23T21:10:00Z"
+           *     }
+           */
+          'application/json': components['schemas']['Checkout'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+      502: components['responses']['BadGateway'];
+    };
+  };
+  receiveMercadoPagoWebhook: {
+    parameters: {
+      query: {
+        /** @description Id of the notified resource (the Mercado Pago payment id). */
+        'data.id': string;
+        /** @description Notification type, e.g. `payment`. */
+        type?: string;
+      };
+      header: {
+        /**
+         * @description `ts=<unix seconds>,v1=<HMAC-SHA256 hex>`.
+         * @example ts=1729551000,v1=2b6f0c7a9e
+         */
+        'x-signature': string;
+        /** @description Mercado Pago's request id; part of the signed manifest. */
+        'x-request-id': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "id": 12345678901,
+         *       "live_mode": true,
+         *       "type": "payment",
+         *       "date_created": "2026-10-23T21:02:11Z",
+         *       "user_id": 44444444,
+         *       "api_version": "v1",
+         *       "action": "payment.updated",
+         *       "data": {
+         *         "id": "98765432100"
+         *       }
+         *     }
+         */
+        'application/json': components['schemas']['MercadoPagoNotification'];
+      };
+    };
+    responses: {
+      /** @description Acknowledged (processed now, queued, duplicate or ignored). */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       429: components['responses']['TooManyRequests'];
       500: components['responses']['InternalError'];
     };

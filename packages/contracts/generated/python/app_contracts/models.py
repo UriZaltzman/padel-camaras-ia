@@ -105,7 +105,452 @@ class SettlementStatus(StrEnum):
     paid = "paid"
 
 
+class ThirdSet(StrEnum):
+    """
+    A normal set with tie-break at 6-6, or a super tie-break to 10.
+    """
+
+    set = "set"
+    super_tiebreak = "super_tiebreak"
+
+
+class ScoringRules(BaseModel):
+    """
+    How the match is scored (section 6), from the club settings at booking time.
+    """
+
+    golden_point: bool
+    """
+    True plays golden point at 40-40; false plays advantage.
+    """
+    third_set: ThirdSet
+    """
+    A normal set with tie-break at 6-6, or a super tie-break to 10.
+    """
+
+
+class MatchType(StrEnum):
+    match = "match"
+    lesson = "lesson"
+
+
+class DeviceScheduleItem(BaseModel):
+    match_id: Uuid
+    booking_id: Uuid | None
+    """
+    `null` for a recording started by hand from the panel.
+    """
+    court_id: Uuid
+    match_type: MatchType
+    starts_at: Timestamp
+    ends_at: Timestamp
+    record_from: Timestamp
+    record_until: Timestamp
+    no_record: bool
+    scoring: ScoringRules
+    updated_at: Timestamp
+
+
+class DeviceSchedule(BaseModel):
+    club_id: Uuid
+    generated_at: Timestamp
+    valid_until: Timestamp
+    """
+    End of the 48-hour window.
+    """
+    items: list[DeviceScheduleItem]
+    """
+    Ordered by `record_from`. A cancelled turn disappears from the list.
+    """
+
+
+class DeviceCameraHealth(BaseModel):
+    camera_id: Uuid
+    online: bool
+    fps: Annotated[float | None, Field(ge=0.0)]
+    recording: bool
+
+
+class UploadQueue(BaseModel):
+    items: Annotated[int, Field(ge=0)]
+    bytes: Annotated[int, Field(ge=0)]
+    eta_minutes: Annotated[int, Field(ge=0)]
+
+
+class DeviceHeartbeat(BaseModel):
+    sent_at: Timestamp
+    software_version: str
+    uptime_seconds: Annotated[int, Field(ge=0)]
+    disk_free_bytes: Annotated[int, Field(ge=0)]
+    disk_total_bytes: Annotated[int, Field(ge=1)]
+    gpu_temp_c: float | None
+    cpu_temp_c: float | None = None
+    cameras: list[DeviceCameraHealth]
+    upload_queue: UploadQueue
+    processing_backlog_minutes: Annotated[int, Field(ge=0)]
+    """
+    Local analysis backlog. Over 6 hours the oldest matches go to the cloud GPU.
+    """
+
+
+class DeviceHeartbeatAck(BaseModel):
+    server_time: Timestamp
+    desired_software_version: str
+    """
+    Version the `updater` installs between 4 and 6 a.m.
+    """
+
+
+class CourtEnd(StrEnum):
+    """
+    End of the court (camera end, or the side a team starts on).
+    """
+
+    A = "A"
+    B = "B"
+
+
+class CourtPosition(BaseModel):
+    """
+    Position in meters (see the format note above). `z` is `null` without 3D (the ball is
+    triangulated only when both cameras see it). Values outside the court (lobs, exits,
+    players behind the glass) are allowed within the 1.5 m mask and beyond for the ball.
+
+    """
+
+    x: Annotated[float, Field(ge=-5.0, le=15.0)]
+    y: Annotated[float, Field(ge=-5.0, le=25.0)]
+    z: Annotated[float | None, Field(ge=0.0)] = None
+
+
+class PipelinePosition(IntEnum):
+    """
+    One of the 4 tracks (section 5, step 3).
+    """
+
+    integer_1 = 1
+    integer_2 = 2
+    integer_3 = 3
+    integer_4 = 4
+
+
+class PipelineTeam(IntEnum):
+    integer_1 = 1
+    integer_2 = 2
+
+
+class PipelineShotType(StrEnum):
+    """
+    Section 5, step 9. `unknown` under 0.6 confidence.
+    """
+
+    serve = "serve"
+    forehand = "forehand"
+    backhand = "backhand"
+    forehand_volley = "forehand_volley"
+    backhand_volley = "backhand_volley"
+    bandeja = "bandeja"
+    vibora = "vibora"
+    smash = "smash"
+    lob = "lob"
+    wall_exit = "wall_exit"
+    unknown = "unknown"
+
+
+class BounceSurface(StrEnum):
+    """
+    Section 5, step 8.
+    """
+
+    floor = "floor"
+    back_glass = "back_glass"
+    side_glass = "side_glass"
+    fence = "fence"
+    net = "net"
+
+
+class PipelinePointEndReason(StrEnum):
+    """
+    Rule of section 6 that closed the point, in evaluation order.
+    """
+
+    double_fault = "double_fault"
+    own_floor_before_net = "own_floor_before_net"
+    net = "net"
+    rival_wall_before_floor = "rival_wall_before_floor"
+    double_bounce = "double_bounce"
+    out_after_bounce = "out_after_bounce"
+    ball_lost = "ball_lost"
+
+
+class ResultPlayer(BaseModel):
+    position: PipelinePosition
+    team: PipelineTeam
+    initial_side: CourtEnd
+    thumbnail_media_id: Uuid | None
+    """
+    Thumbnail for "este soy yo", from `POST /device/uploads`.
+    """
+    track_coverage_pct: Annotated[float, Field(ge=0.0, le=100.0)]
+    """
+    Share of rally frames where this track was seen.
+    """
+
+
+class Kind(StrEnum):
+    shot = "shot"
+    bounce = "bounce"
+
+
+class ResultEventRef(BaseModel):
+    kind: Kind
+    index: Annotated[int, Field(ge=0)]
+    """
+    Index in `shots` or `bounces`.
+    """
+
+
+class ResultPoint(BaseModel):
+    number: Annotated[int, Field(ge=1)]
+    """
+    1-based, consecutive over the match.
+    """
+    set: Annotated[int, Field(ge=1, le=3)]
+    game: Annotated[int, Field(ge=1)]
+    """
+    1-based within the set; the tie-break is game 13.
+    """
+    server_position: PipelinePosition
+    serve_faults: Annotated[int, Field(ge=0, le=2)]
+    winner_team: PipelineTeam
+    end_reason: PipelinePointEndReason
+    deciding_event: ResultEventRef | None
+    """
+    The event that closed the point; `null` for `ball_lost`.
+    """
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    """
+    Product of the confidence of the deciding events (section 6, layer 2).
+    """
+    needs_review: bool
+    """
+    Confidence under the review threshold of `ml/config/thresholds.yaml` (0.7).
+    """
+    start_ms: Annotated[int, Field(ge=0)]
+    end_ms: Annotated[int, Field(ge=0)]
+
+
+class ResultShot(BaseModel):
+    point_number: Annotated[int, Field(ge=1)]
+    t_ms: Annotated[int, Field(ge=0)]
+    player_position: PipelinePosition
+    shot_type: PipelineShotType
+    shot_type_confidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    player_at: CourtPosition
+    """
+    Player's foot point at contact.
+    """
+    ball_at: CourtPosition
+    """
+    Ball at contact.
+    """
+    speed_kmh: Annotated[float | None, Field(ge=0.0)]
+    """
+    Estimated, only with 3D positions.
+    """
+    after_bounce: bool
+    off_wall: bool
+    """
+    The ball came off a wall before the shot (salida de pared).
+    """
+    camera: CourtEnd
+
+
+class ResultBounce(BaseModel):
+    point_number: Annotated[int, Field(ge=1)]
+    t_ms: Annotated[int, Field(ge=0)]
+    surface: BounceSurface
+    ball_at: CourtPosition
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
+
+
+class Layer(StrEnum):
+    serve_coherence = "serve_coherence"
+
+
+class ResultCorrection(BaseModel):
+    """
+    A point changed by serve coherence (section 6, layer 1).
+    """
+
+    layer: Layer
+    point_number: Annotated[int, Field(ge=1)]
+    from_winner_team: PipelineTeam
+    to_winner_team: PipelineTeam
+
+
+class ResultStats(BaseModel):
+    """
+    Stats of one position computed on the device with the versioned formulas of section 7.
+    `values` keys are the metric names of `ml` (for example `points_won`, `winners`,
+    `net_time_pct`, `distance_m`); the cloud recomputes them after a score correction.
+
+    """
+
+    position: PipelinePosition
+    formula_version: str
+    values: dict[str, float]
+
+
+class ResultHighlight(BaseModel):
+    point_number: Annotated[int, Field(ge=1)]
+    score: Annotated[float, Field(ge=0.0, le=1.0)]
+    """
+    Highlight score of section 7.
+    """
+    start_ms: Annotated[int, Field(ge=0)]
+    end_ms: Annotated[int, Field(ge=0)]
+    clip_media_id: Uuid | None
+
+
+class ResultCalibration(BaseModel):
+    camera: CourtEnd
+    calibration_id: Uuid
+    reprojection_error_cm: Annotated[float, Field(ge=0.0)]
+
+
+class ResultModelVersions(BaseModel):
+    player_detector: str
+    ball_tracker: str
+    pose: str
+    shot_classifier: str
+    reid: str
+
+
 class Status(StrEnum):
+    succeeded = "succeeded"
+    failed = "failed"
+
+
+class Failure(BaseModel):
+    stage: Annotated[str, Field(examples=["ball_tracking"])]
+    code: Annotated[str, Field(pattern="^[A-Z][A-Z0-9_]*$")]
+
+
+class ProcessedOn(StrEnum):
+    club = "club"
+    cloud = "cloud"
+
+
+class Video(BaseModel):
+    duration_ms: Annotated[int, Field(ge=0)]
+    fps: Annotated[float, Field(gt=0.0)]
+    camera_offset_ms: int
+    """
+    Fine offset of camera B relative to A, from ball trajectory alignment.
+    """
+
+
+class MatchResultsAck(BaseModel):
+    match_id: Uuid
+    run_id: Uuid
+    match_status: MatchStatus
+
+
+class DeviceUploadKind(StrEnum):
+    full = "full"
+    clip = "clip"
+    reel = "reel"
+    thumbnail = "thumbnail"
+
+
+class ContentType(StrEnum):
+    video_mp4 = "video/mp4"
+    image_jpeg = "image/jpeg"
+
+
+class Source(StrEnum):
+    app = "app"
+    button = "button"
+    auto = "auto"
+
+
+class Clip(BaseModel):
+    """
+    Required for `kind: clip`.
+    """
+
+    start_ms: Annotated[int, Field(ge=0)]
+    end_ms: Annotated[int, Field(ge=0)]
+    source: Source
+    requested_by_user_id: Uuid | None = None
+    """
+    The player who tapped in the app, from the court channel.
+    """
+
+
+class DeviceUploadRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    match_id: Uuid
+    kind: DeviceUploadKind
+    content_type: ContentType
+    size_bytes: Annotated[int, Field(ge=1)]
+    sha256: Annotated[str, Field(pattern="^[0-9a-f]{64}$")]
+    duration_ms: Annotated[int | None, Field(ge=0)] = None
+    clip: Clip | None = None
+    """
+    Required for `kind: clip`.
+    """
+    upload_id: Uuid | None = None
+    """
+    Resume an existing upload and get fresh part links.
+    """
+
+
+class DeviceUploadPart(BaseModel):
+    number: Annotated[int, Field(ge=1)]
+    url: AnyUrl
+    """
+    Signed `PUT` link for this part, valid 1 hour.
+    """
+
+
+class DeviceUpload(BaseModel):
+    upload_id: Uuid
+    media_id: Uuid
+    part_size_bytes: Annotated[int, Field(ge=5242880)]
+    parts: list[DeviceUploadPart]
+    """
+    Links for the parts not uploaded yet.
+    """
+    expires_at: Timestamp
+
+
+class Part(BaseModel):
+    number: Annotated[int, Field(ge=1)]
+    etag: str
+
+
+class DeviceUploadComplete(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    parts: Annotated[list[Part], Field(min_length=1)]
+
+
+class Status1(StrEnum):
+    ready = "ready"
+
+
+class DeviceUploadDone(BaseModel):
+    upload_id: Uuid
+    media_id: Uuid
+    status: Status1
+
+
+class Status2(StrEnum):
     ok = "ok"
 
 
@@ -114,7 +559,7 @@ class HealthStatus(BaseModel):
     Liveness result.
     """
 
-    status: Status
+    status: Status2
 
 
 class PhoneNumber(RootModel[str]):
@@ -568,7 +1013,7 @@ class ClipSource(StrEnum):
     auto = "auto"
 
 
-class Clip(BaseModel):
+class Clip1(BaseModel):
     id: Uuid
     match_id: Uuid
     source: ClipSource
@@ -658,14 +1103,14 @@ class SignedMediaUrl(BaseModel):
     content_type: Annotated[str, Field(examples=["video/mp4", "image/jpeg"])]
 
 
-class Status1(StrEnum):
+class Status3(StrEnum):
     ready = "ready"
     preparing = "preparing"
 
 
 class MediaDownload(BaseModel):
     media_id: Uuid
-    status: Status1
+    status: Status3
     url: AnyUrl | None
     """
     Signed download link valid at most 1 hour; `null` while `preparing`.
@@ -689,6 +1134,223 @@ class UserStats(BaseModel):
     Current level estimate, or `null` until enough matches are published.
     """
     last_match_at: Timestamp | None
+
+
+class LessonKind(StrEnum):
+    """
+    `private` or `group` lesson, or a `school` (escuelita), which is "do not record" by
+    default (section 12).
+
+    """
+
+    private = "private"
+    group = "group"
+    school = "school"
+
+
+class LessonStudent(BaseModel):
+    user: EntityRef
+    accepted: bool
+    payment_status: PaymentStatus | None
+    """
+    Status of this student's lesson payment, or `null` if not charged or not started.
+    """
+
+
+class PointItem(RootModel[float]):
+    root: Annotated[float, Field(ge=0.0, le=1.0)]
+
+
+class Point(RootModel[list[PointItem]]):
+    root: Annotated[list[PointItem], Field(max_length=2, min_length=2)]
+
+
+class DrawingStroke(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    color: Annotated[str, Field(pattern="^#[0-9A-Fa-f]{6}$")]
+    width: Annotated[float, Field(gt=0.0, le=0.1)]
+    """
+    Stroke width as a fraction of the frame width.
+    """
+    points: Annotated[list[Point], Field(max_length=500, min_length=2)]
+    """
+    `[x, y]` pairs, each 0..1 relative to the video frame.
+    """
+
+
+class Drawing(BaseModel):
+    """
+    A drawing over one video frame.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    strokes: Annotated[list[DrawingStroke], Field(max_length=50)]
+
+
+class LessonNoteCreate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    text: Annotated[str, Field(max_length=2000, min_length=1)]
+    at_ms: Annotated[int | None, Field(ge=0)] = None
+    """
+    Moment of the lesson video the note refers to, or `null` for the whole lesson.
+    """
+    student_id: Uuid | None = None
+    """
+    The student the note is for, or `null` for all of them.
+    """
+    drawing: Drawing | None = None
+    """
+    Requires `at_ms`.
+    """
+    is_plan: bool | None = None
+    """
+    True marks the note as a plan item for the next lessons.
+    """
+    visible_to_students: bool | None = None
+    """
+    Defaults to true.
+    """
+
+
+class LessonNote(BaseModel):
+    id: Uuid
+    lesson_id: Uuid
+    text: str
+    at_ms: Annotated[int | None, Field(ge=0)]
+    student_id: Uuid | None
+    drawing: Drawing | None
+    is_plan: bool
+    visible_to_students: bool
+    created_at: Timestamp
+
+
+class CoachAccess(StrEnum):
+    """
+    What the student shares with the coach: `lessons_only` (the lessons this coach taught)
+    or `matches_and_lessons` (also their matches and stats, section 12).
+
+    """
+
+    lessons_only = "lessons_only"
+    matches_and_lessons = "matches_and_lessons"
+
+
+class CoachStudent(BaseModel):
+    user: EntityRef
+    access: CoachAccess
+    lessons_count: Annotated[int, Field(ge=0)]
+    last_lesson_at: Timestamp | None
+    pending_payment_cents: AmountCents
+
+
+class PaymentConcept(StrEnum):
+    """
+    `payments.concept`. Players pay `deposit`, `player_extra` and `lesson` through checkout;
+    `subscription` is the club's monthly fee, charged by a Mercado Pago subscription in our
+    company's name (never through checkout).
+
+    """
+
+    deposit = "deposit"
+    player_extra = "player_extra"
+    lesson = "lesson"
+    subscription = "subscription"
+
+
+class CheckoutDeposit(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    concept: Literal["deposit"]
+    booking_id: Uuid
+
+
+class CheckoutPlayerExtra(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    concept: Literal["player_extra"]
+    match_id: Uuid
+
+
+class CheckoutLesson(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    concept: Literal["lesson"]
+    lesson_id: Uuid
+
+
+class CheckoutRequest(RootModel[CheckoutDeposit | CheckoutPlayerExtra | CheckoutLesson]):
+    root: Annotated[
+        CheckoutDeposit | CheckoutPlayerExtra | CheckoutLesson, Field(discriminator="concept")
+    ]
+    """
+    What is being paid. The amount comes from the server, never from the client.
+    """
+
+
+class Payee(StrEnum):
+    """
+    Whose Mercado Pago account receives the money: the `club`, the `coach`, or
+    `platform` when the club or coach has not connected an account yet (we transfer in
+    the monthly settlement).
+
+    """
+
+    club = "club"
+    coach = "coach"
+    platform = "platform"
+
+
+class Checkout(BaseModel):
+    payment_id: Uuid
+    concept: PaymentConcept
+    status: PaymentStatus
+    amount_cents: AmountCents
+    marketplace_fee_cents: AmountCents
+    payee: Payee
+    """
+    Whose Mercado Pago account receives the money: the `club`, the `coach`, or
+    `platform` when the club or coach has not connected an account yet (we transfer in
+    the monthly settlement).
+
+    """
+    checkout_url: AnyUrl
+    """
+    Mercado Pago checkout (`init_point`) to open in the browser or app.
+    """
+    expires_at: Timestamp | None
+    """
+    For deposits, the end of the 10-minute hold.
+    """
+
+
+class Data(BaseModel):
+    id: str
+
+
+class MercadoPagoNotification(BaseModel):
+    """
+    Body Mercado Pago sends (webhooks v1). Only `type` and `data.id` are used; amounts and
+    status are always read back from Mercado Pago's API.
+
+    """
+
+    id: int | None = None
+    live_mode: bool | None = None
+    type: Annotated[str, Field(examples=["payment"])]
+    date_created: str | None = None
+    user_id: int | None = None
+    api_version: str | None = None
+    action: Annotated[str | None, Field(examples=["payment.created", "payment.updated"])] = None
+    data: Data
 
 
 class ClubPlan(StrEnum):
@@ -1277,6 +1939,50 @@ class ErrorCode(StrEnum):
     DEVICE_CLUB_MISMATCH = "DEVICE_CLUB_MISMATCH"
 
 
+class Score(BaseModel):
+    sets: list[SetScore]
+    winner_team: PipelineTeam | None
+    completed: bool
+    """
+    False when the turn ended before the match did.
+    """
+
+
+class MatchResults(BaseModel):
+    """
+    Output of the club pipeline for one match (schema version 1). `points`, `shots` and
+    `bounces` are each ordered by time; shots and bounces link to their point by
+    `point_number`. On `status: failed` only the run metadata and `failure` are sent.
+
+    """
+
+    schema_version: Literal[1]
+    run_id: Uuid
+    match_id: Uuid
+    status: Status
+    failure: Failure | None = None
+    processed_on: ProcessedOn
+    pipeline_version: str
+    model_versions: ResultModelVersions
+    thresholds_sha256: Annotated[str, Field(pattern="^[0-9a-f]{64}$")]
+    """
+    Hash of `ml/config/thresholds.yaml` used in the run.
+    """
+    started_at: Timestamp
+    finished_at: Timestamp
+    video: Video
+    calibrations: list[ResultCalibration]
+    scoring: ScoringRules
+    players: Annotated[list[ResultPlayer], Field(max_length=4)]
+    points: list[ResultPoint]
+    shots: list[ResultShot]
+    bounces: list[ResultBounce]
+    score: Score
+    corrections: list[ResultCorrection]
+    stats: list[ResultStats]
+    highlights: Annotated[list[ResultHighlight], Field(max_length=5)]
+
+
 class AuthSession(TokenPair):
     user: User
     is_new_user: bool
@@ -1317,7 +2023,7 @@ class MatchPlayer(BaseModel):
 
 
 class ClipPage(Page):
-    items: list[Clip]
+    items: list[Clip1]
 
 
 class MatchDetail(BaseModel):
@@ -1363,6 +2069,64 @@ class MatchDetail(BaseModel):
     The caller's vertical reel, or `null` until generated.
     """
     published_at: Timestamp | None
+
+
+class LessonCreate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    court_id: Uuid
+    starts_at: Timestamp
+    duration_minutes: BookingDuration
+    kind: LessonKind
+    student_ids: Annotated[list[Uuid] | None, Field(max_length=12)] = None
+    """
+    Students with an account. Others join with the invite link.
+    """
+    price_cents: Annotated[int | None, Field(ge=1)] = None
+    """
+    Price per student in ARS cents, or `null` if the lesson is not charged in the app.
+    """
+    record: bool | None = None
+    """
+    Record the lesson. Defaults to true, and to false for `school`. A minor without a
+    guardian permission is never recorded.
+
+    """
+    focus: Annotated[str | None, Field(max_length=200)] = None
+    """
+    What the lesson works on, shown to the students.
+    """
+
+
+class Lesson(BaseModel):
+    id: Uuid
+    club: EntityRef
+    court: EntityRef
+    coach: EntityRef
+    kind: LessonKind
+    starts_at: Timestamp
+    ends_at: Timestamp
+    booking_id: Uuid
+    booking_status: BookingStatus
+    match_id: Uuid | None
+    """
+    The recorded lesson (`type: lesson`), once recording started.
+    """
+    students: list[LessonStudent]
+    price_cents: Annotated[int | None, Field(ge=1)]
+    no_record: bool
+    no_record_reason: NoRecordReason | None
+    focus: str | None
+    notes_count: Annotated[int, Field(ge=0)]
+
+
+class LessonPage(Page):
+    items: list[Lesson]
+
+
+class CoachStudentPage(Page):
+    items: list[CoachStudent]
 
 
 class ClubSummaryPage(Page):
