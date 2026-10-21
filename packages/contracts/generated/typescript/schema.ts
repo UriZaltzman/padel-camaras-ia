@@ -289,6 +289,172 @@ export interface paths {
     patch: operations['updateClubSettings'];
     trace?: never;
   };
+  '/lessons': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List the caller's lessons (as coach or as student)
+     * @description A coach sees the lessons they teach; a student sees the lessons they take. Newest first.
+     */
+    get: operations['listLessons'];
+    put?: never;
+    /**
+     * Schedule a lesson (coach)
+     * @description A coach of the club books the court for a lesson, with the same availability and
+     *     exclusion rules as `POST /bookings`. The booking is created `confirmed` (the coach does
+     *     not pay a deposit) with `source: panel` when made from the club panel or `app`
+     *     otherwise, and the match that comes from it has `type: lesson` (lesson stats never count
+     *     in `/me/stats`).
+     *
+     *     - **Recording.** `kind: school` (escuelita) is "do not record" by default
+     *       (`no_record_reason: club_school`); `record: true` turns it on only when every minor has a
+     *       guardian permission on file (section 12).
+     *     - **Charging.** With `price_cents` and the club's `lesson_payments_enabled`, each student
+     *       pays with `POST /payments/checkout` (`concept: lesson`) into the coach's Mercado Pago
+     *       account.
+     *     - **Students.** Listed students get a WhatsApp invite and must accept to be linked; a
+     *       student that accepts gives the coach access to that lesson's video and stats.
+     *
+     *     Errors: `BOOKING_SLOT_TAKEN` (409), `BOOKING_SLOT_INVALID` (422), `FORBIDDEN` (the caller
+     *     is not a coach of the club), `CLUB_FEATURE_DISABLED` (403, `price_cents` while the club
+     *     has lesson payments off), `CLUB_SERVICE_SUSPENDED` (403), `VALIDATION_FAILED` (400).
+     */
+    post: operations['createLesson'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/lessons/{id}/notes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Add a note, drawing or plan to a lesson (coach)
+     * @description The lesson's coach leaves a note for the lesson or for one moment of its video
+     *     (`at_ms`), optionally with a drawing over the frame (normalized 0..1 coordinates, so it
+     *     scales to any screen) and a plan item for the next lessons. Notes are visible to the
+     *     students of the lesson when `visible_to_students` is true.
+     *
+     *     Errors: `FORBIDDEN` (not the lesson's coach), `NOT_FOUND`, `VALIDATION_FAILED` (400).
+     */
+    post: operations['addLessonNote'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/coach/students': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List the coach's students and what they shared
+     * @description Students who took at least one lesson with the caller. `access` says whether the student
+     *     gave the coach access to their matches (section 12); without it the coach sees only the
+     *     lessons they taught, and `GET /matches/{id}` of the student's other matches returns
+     *     `COACH_ACCESS_NOT_GRANTED`.
+     *
+     *     Errors: `FORBIDDEN` (the caller is not a coach in any club).
+     */
+    get: operations['listCoachStudents'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/payments/checkout': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Open a Mercado Pago checkout for a deposit, extra or lesson
+     * @description Creates a `pending` payment and a Mercado Pago preference in the marketplace model
+     *     (section 10): the money goes straight to the club's account (`deposit`,
+     *     `player_extra`) or the coach's (`lesson`), and Mercado Pago splits our
+     *     `marketplace_fee` in the same payment (10%; 0 for deposits during the pilot). If the
+     *     club has not connected its account yet, we collect and transfer in the monthly
+     *     settlement. The client opens `checkout_url`; only the webhook changes the payment
+     *     status, never the app.
+     *
+     *     Send an `Idempotency-Key`: retrying with the same key returns the same checkout instead
+     *     of a second payment.
+     *
+     *     Errors: `BOOKING_HOLD_EXPIRED` (409, the 10-minute hold ended), `INVALID_STATE_TRANSITION`
+     *     (409, already paid), `CLUB_FEATURE_DISABLED` (403, extra or lesson payments off),
+     *     `PAYMENT_PROVIDER_ERROR` (502), `NOT_FOUND` (booking, match or lesson),
+     *     `VALIDATION_FAILED` (400).
+     */
+    post: operations['createCheckout'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/webhooks/mercadopago': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Mercado Pago payment notification
+     * @description Called by Mercado Pago, not by our clients, so it takes no bearer token: it is
+     *     authenticated by the `x-signature` header.
+     *
+     *     **Signature verification (before anything else):**
+     *
+     *     1. Parse `x-signature` (`ts=<unix seconds>,v1=<hex>`) into `ts` and `v1`.
+     *     2. Build the manifest `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`, with `data.id`
+     *        from the query string (lower-cased if alphanumeric). Omit a part whose value is
+     *        missing.
+     *     3. Compute HMAC-SHA256 of the manifest with the webhook secret of the application (from
+     *        the secret manager, never in the repo) and compare it with `v1` in constant time.
+     *     4. Reject a `ts` more than 5 minutes away from the server clock (replay).
+     *
+     *     A failure returns `401 WEBHOOK_SIGNATURE_INVALID` and is logged without the body.
+     *
+     *     **Processing:** the API fetches the payment from Mercado Pago by `data.id` (the body is
+     *     never trusted for amounts or status), and applies it once per Mercado Pago payment id
+     *     (unique index), even if the notification arrives many times. It moves `payments.status`
+     *     and emits `payment.approved` or `payment.refunded`; an approved deposit confirms its
+     *     booking. It answers `200` quickly; work that fails is retried from the queue, so
+     *     Mercado Pago does not need to resend. Unknown `type` values are acknowledged and
+     *     ignored.
+     */
+    post: operations['receiveMercadoPagoWebhook'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/courts/{id}/availability': {
     parameters: {
       query?: never;
@@ -690,6 +856,186 @@ export interface components {
       /** @description Current level estimate, or `null` until enough matches are published. */
       rating: number | null;
       last_match_at: components['schemas']['Timestamp'] | null;
+    };
+    /**
+     * @description `private` or `group` lesson, or a `school` (escuelita), which is "do not record" by
+     *     default (section 12).
+     * @enum {string}
+     */
+    LessonKind: 'private' | 'group' | 'school';
+    LessonCreate: {
+      court_id: components['schemas']['Uuid'];
+      starts_at: components['schemas']['Timestamp'];
+      duration_minutes: components['schemas']['BookingDuration'];
+      kind: components['schemas']['LessonKind'];
+      /** @description Students with an account. Others join with the invite link. */
+      student_ids?: components['schemas']['Uuid'][];
+      /** @description Price per student in ARS cents, or `null` if the lesson is not charged in the app. */
+      price_cents?: number | null;
+      /**
+       * @description Record the lesson. Defaults to true, and to false for `school`. A minor without a
+       *     guardian permission is never recorded.
+       */
+      record?: boolean;
+      /** @description What the lesson works on, shown to the students. */
+      focus?: string | null;
+    };
+    LessonStudent: {
+      user: components['schemas']['EntityRef'];
+      accepted: boolean;
+      /** @description Status of this student's lesson payment, or `null` if not charged or not started. */
+      payment_status: components['schemas']['PaymentStatus'] | null;
+    };
+    Lesson: {
+      id: components['schemas']['Uuid'];
+      club: components['schemas']['EntityRef'];
+      court: components['schemas']['EntityRef'];
+      coach: components['schemas']['EntityRef'];
+      kind: components['schemas']['LessonKind'];
+      starts_at: components['schemas']['Timestamp'];
+      ends_at: components['schemas']['Timestamp'];
+      booking_id: components['schemas']['Uuid'];
+      booking_status: components['schemas']['BookingStatus'];
+      /** @description The recorded lesson (`type: lesson`), once recording started. */
+      match_id: components['schemas']['Uuid'] | null;
+      students: components['schemas']['LessonStudent'][];
+      price_cents: number | null;
+      no_record: boolean;
+      no_record_reason: components['schemas']['NoRecordReason'] | null;
+      focus: string | null;
+      notes_count: number;
+    };
+    LessonPage: components['schemas']['Page'] & {
+      items: components['schemas']['Lesson'][];
+    };
+    DrawingStroke: {
+      color: string;
+      /** @description Stroke width as a fraction of the frame width. */
+      width: number;
+      /** @description `[x, y]` pairs, each 0..1 relative to the video frame. */
+      points: number[][];
+    };
+    /** @description A drawing over one video frame. */
+    Drawing: {
+      strokes: components['schemas']['DrawingStroke'][];
+    };
+    LessonNoteCreate: {
+      text: string;
+      /** @description Moment of the lesson video the note refers to, or `null` for the whole lesson. */
+      at_ms?: number | null;
+      /** @description The student the note is for, or `null` for all of them. */
+      student_id?: components['schemas']['Uuid'] | null;
+      /** @description Requires `at_ms`. */
+      drawing?: components['schemas']['Drawing'] | null;
+      /** @description True marks the note as a plan item for the next lessons. */
+      is_plan?: boolean;
+      /** @description Defaults to true. */
+      visible_to_students?: boolean;
+    };
+    LessonNote: {
+      id: components['schemas']['Uuid'];
+      lesson_id: components['schemas']['Uuid'];
+      text: string;
+      at_ms: number | null;
+      student_id: components['schemas']['Uuid'] | null;
+      drawing: components['schemas']['Drawing'] | null;
+      is_plan: boolean;
+      visible_to_students: boolean;
+      created_at: components['schemas']['Timestamp'];
+    };
+    /**
+     * @description What the student shares with the coach: `lessons_only` (the lessons this coach taught)
+     *     or `matches_and_lessons` (also their matches and stats, section 12).
+     * @enum {string}
+     */
+    CoachAccess: 'lessons_only' | 'matches_and_lessons';
+    CoachStudent: {
+      user: components['schemas']['EntityRef'];
+      access: components['schemas']['CoachAccess'];
+      lessons_count: number;
+      last_lesson_at: components['schemas']['Timestamp'] | null;
+      pending_payment_cents: components['schemas']['AmountCents'];
+    };
+    CoachStudentPage: components['schemas']['Page'] & {
+      items: components['schemas']['CoachStudent'][];
+    };
+    /**
+     * @description `payments.concept`. Players pay `deposit`, `player_extra` and `lesson` through checkout;
+     *     `subscription` is the club's monthly fee, charged by a Mercado Pago subscription in our
+     *     company's name (never through checkout).
+     * @enum {string}
+     */
+    PaymentConcept: 'deposit' | 'player_extra' | 'lesson' | 'subscription';
+    CheckoutDeposit: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      concept: 'deposit';
+      booking_id: components['schemas']['Uuid'];
+    };
+    CheckoutPlayerExtra: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      concept: 'player_extra';
+      match_id: components['schemas']['Uuid'];
+    };
+    CheckoutLesson: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      concept: 'lesson';
+      lesson_id: components['schemas']['Uuid'];
+    };
+    /** @description What is being paid. The amount comes from the server, never from the client. */
+    CheckoutRequest:
+      | components['schemas']['CheckoutDeposit']
+      | components['schemas']['CheckoutPlayerExtra']
+      | components['schemas']['CheckoutLesson'];
+    Checkout: {
+      payment_id: components['schemas']['Uuid'];
+      concept: components['schemas']['PaymentConcept'];
+      status: components['schemas']['PaymentStatus'];
+      amount_cents: components['schemas']['AmountCents'];
+      marketplace_fee_cents: components['schemas']['AmountCents'];
+      /**
+       * @description Whose Mercado Pago account receives the money: the `club`, the `coach`, or
+       *     `platform` when the club or coach has not connected an account yet (we transfer in
+       *     the monthly settlement).
+       * @enum {string}
+       */
+      payee: 'club' | 'coach' | 'platform';
+      /**
+       * Format: uri
+       * @description Mercado Pago checkout (`init_point`) to open in the browser or app.
+       */
+      checkout_url: string;
+      /** @description For deposits, the end of the 10-minute hold. */
+      expires_at: components['schemas']['Timestamp'] | null;
+    };
+    /**
+     * @description Body Mercado Pago sends (webhooks v1). Only `type` and `data.id` are used; amounts and
+     *     status are always read back from Mercado Pago's API.
+     */
+    MercadoPagoNotification: {
+      id?: number;
+      live_mode?: boolean;
+      /** @example payment */
+      type: string;
+      date_created?: string;
+      user_id?: number;
+      api_version?: string;
+      /**
+       * @example payment.created
+       * @example payment.updated
+       */
+      action?: string;
+      data: {
+        id: string;
+      };
     };
     /**
      * @description How the club got the camera kit: `loan` (comodato, we keep ownership) or `purchase`.
@@ -1213,6 +1559,8 @@ export interface components {
     Limit: number;
     /** @description Club id. */
     ClubId: components['schemas']['Uuid'];
+    /** @description Lesson id. */
+    LessonId: components['schemas']['Uuid'];
     /** @description Court id. */
     CourtId: components['schemas']['Uuid'];
     /** @description Booking id. */
@@ -1263,6 +1611,25 @@ export type SchemaSetScore = components['schemas']['SetScore'];
 export type SchemaMatchSummary = components['schemas']['MatchSummary'];
 export type SchemaMatchSummaryPage = components['schemas']['MatchSummaryPage'];
 export type SchemaUserStats = components['schemas']['UserStats'];
+export type SchemaLessonKind = components['schemas']['LessonKind'];
+export type SchemaLessonCreate = components['schemas']['LessonCreate'];
+export type SchemaLessonStudent = components['schemas']['LessonStudent'];
+export type SchemaLesson = components['schemas']['Lesson'];
+export type SchemaLessonPage = components['schemas']['LessonPage'];
+export type SchemaDrawingStroke = components['schemas']['DrawingStroke'];
+export type SchemaDrawing = components['schemas']['Drawing'];
+export type SchemaLessonNoteCreate = components['schemas']['LessonNoteCreate'];
+export type SchemaLessonNote = components['schemas']['LessonNote'];
+export type SchemaCoachAccess = components['schemas']['CoachAccess'];
+export type SchemaCoachStudent = components['schemas']['CoachStudent'];
+export type SchemaCoachStudentPage = components['schemas']['CoachStudentPage'];
+export type SchemaPaymentConcept = components['schemas']['PaymentConcept'];
+export type SchemaCheckoutDeposit = components['schemas']['CheckoutDeposit'];
+export type SchemaCheckoutPlayerExtra = components['schemas']['CheckoutPlayerExtra'];
+export type SchemaCheckoutLesson = components['schemas']['CheckoutLesson'];
+export type SchemaCheckoutRequest = components['schemas']['CheckoutRequest'];
+export type SchemaCheckout = components['schemas']['Checkout'];
+export type SchemaMercadoPagoNotification = components['schemas']['MercadoPagoNotification'];
 export type SchemaClubPlan = components['schemas']['ClubPlan'];
 export type SchemaClubSummary = components['schemas']['ClubSummary'];
 export type SchemaClubSummaryPage = components['schemas']['ClubSummaryPage'];
@@ -1321,6 +1688,7 @@ export type ResponseServiceUnavailable = components['responses']['ServiceUnavail
 export type ParameterCursor = components['parameters']['Cursor'];
 export type ParameterLimit = components['parameters']['Limit'];
 export type ParameterClubId = components['parameters']['ClubId'];
+export type ParameterLessonId = components['parameters']['LessonId'];
 export type ParameterCourtId = components['parameters']['CourtId'];
 export type ParameterBookingId = components['parameters']['BookingId'];
 export type HeaderXRequestId = components['headers']['X-Request-Id'];
@@ -1847,6 +2215,297 @@ export interface operations {
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listLessons: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor from a previous page's `next_cursor`. Omit it for the first page. */
+        cursor?: components['parameters']['Cursor'];
+        /** @description Maximum number of items in the page. */
+        limit?: components['parameters']['Limit'];
+        /** @description `coach` (default for users with a coach membership) or `student`. */
+        role?: 'coach' | 'student';
+        /** @description Coach only. Lessons with this student. */
+        student_id?: components['schemas']['Uuid'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of lessons. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LessonPage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  createLesson: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "court_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61",
+         *       "starts_at": "2026-10-24T13:00:00Z",
+         *       "duration_minutes": 60,
+         *       "kind": "private",
+         *       "student_ids": [
+         *         "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f"
+         *       ],
+         *       "price_cents": 2500000,
+         *       "record": true,
+         *       "focus": "Bandeja y salida de pared"
+         *     }
+         */
+        'application/json': components['schemas']['LessonCreate'];
+      };
+    };
+    responses: {
+      /** @description The lesson. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Lesson'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  addLessonNote: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Lesson id. */
+        id: components['parameters']['LessonId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "text": "Cerrá antes la paleta en la bandeja.",
+         *       "at_ms": 845000,
+         *       "student_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f",
+         *       "drawing": {
+         *         "strokes": [
+         *           {
+         *             "color": "#FFD400",
+         *             "width": 0.006,
+         *             "points": [
+         *               [
+         *                 0.42,
+         *                 0.31
+         *               ],
+         *               [
+         *                 0.47,
+         *                 0.36
+         *               ]
+         *             ]
+         *           }
+         *         ]
+         *       },
+         *       "visible_to_students": true
+         *     }
+         */
+        'application/json': components['schemas']['LessonNoteCreate'];
+      };
+    };
+    responses: {
+      /** @description The note. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LessonNote'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listCoachStudents: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor from a previous page's `next_cursor`. Omit it for the first page. */
+        cursor?: components['parameters']['Cursor'];
+        /** @description Maximum number of items in the page. */
+        limit?: components['parameters']['Limit'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of students. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "items": [
+           *         {
+           *           "user": {
+           *             "id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f",
+           *             "name": "Sofía Pérez"
+           *           },
+           *           "access": "matches_and_lessons",
+           *           "lessons_count": 6,
+           *           "last_lesson_at": "2026-10-17T13:00:00Z",
+           *           "pending_payment_cents": 0
+           *         }
+           *       ],
+           *       "next_cursor": null
+           *     }
+           */
+          'application/json': components['schemas']['CoachStudentPage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  createCheckout: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated UUID, unique per intended payment. */
+        'Idempotency-Key': components['schemas']['Uuid'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CheckoutRequest'];
+      };
+    };
+    responses: {
+      /** @description The checkout to open. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "payment_id": "0192f1e4-5a6b-7c8d-9e0f-1a2b3c4d5e6f",
+           *       "concept": "deposit",
+           *       "status": "pending",
+           *       "amount_cents": 1200000,
+           *       "marketplace_fee_cents": 0,
+           *       "payee": "club",
+           *       "checkout_url": "https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=123-abc",
+           *       "expires_at": "2026-10-23T21:10:00Z"
+           *     }
+           */
+          'application/json': components['schemas']['Checkout'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+      502: components['responses']['BadGateway'];
+    };
+  };
+  receiveMercadoPagoWebhook: {
+    parameters: {
+      query: {
+        /** @description Id of the notified resource (the Mercado Pago payment id). */
+        'data.id': string;
+        /** @description Notification type, e.g. `payment`. */
+        type?: string;
+      };
+      header: {
+        /**
+         * @description `ts=<unix seconds>,v1=<HMAC-SHA256 hex>`.
+         * @example ts=1729551000,v1=2b6f0c7a9e
+         */
+        'x-signature': string;
+        /** @description Mercado Pago's request id; part of the signed manifest. */
+        'x-request-id': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "id": 12345678901,
+         *       "live_mode": true,
+         *       "type": "payment",
+         *       "date_created": "2026-10-23T21:02:11Z",
+         *       "user_id": 44444444,
+         *       "api_version": "v1",
+         *       "action": "payment.updated",
+         *       "data": {
+         *         "id": "98765432100"
+         *       }
+         *     }
+         */
+        'application/json': components['schemas']['MercadoPagoNotification'];
+      };
+    };
+    responses: {
+      /** @description Acknowledged (processed now, queued, duplicate or ignored). */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       429: components['responses']['TooManyRequests'];
       500: components['responses']['InternalError'];
     };
