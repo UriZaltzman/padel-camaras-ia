@@ -128,6 +128,29 @@
       "generic": "Algo salió mal. Probá de nuevo en un rato."
     }
   },
+  "findSlot": {
+    "dataLabel": "Reservar · Club y turno",
+    "title": "Buscá club y turno",
+    "searchLabel": "Buscar club",
+    "searchPlaceholder": "Nombre del club o ciudad",
+    "noClubs": "No encontramos clubes con ese nombre. Probá con otra búsqueda.",
+    "clubMeta_one": "{address}, {city} · {count} cancha",
+    "clubMeta_other": "{address}, {city} · {count} canchas",
+    "back": "Elegir otro club",
+    "duration": "Duración",
+    "minutes": "{minutes} min",
+    "day": "Día",
+    "noCourts": "Este club no tiene canchas para reservar ahora.",
+    "noSlots": "No quedan turnos libres ese día. Probá otro día u otra duración.",
+    "selected": "{court} · {day} a las {time} · {minutes} min",
+    "price": "Total {amount} · Seña {deposit}",
+    "errors": {
+      "NOT_FOUND": "Ese club ya no está disponible.",
+      "RATE_LIMITED": "Hiciste muchas búsquedas seguidas. Esperá un momento y probá de nuevo.",
+      "generic": "Algo salió mal. Probá de nuevo en un rato.",
+      "network": "No pudimos conectarnos. Revisá tu conexión y probá de nuevo."
+    }
+  },
   "settings": {
     "dataLabel": "Jugador · Ajustes",
     "title": "Ajustes",
