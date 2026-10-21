@@ -3,6 +3,7 @@
 Dueño: `arquitecto`.
 
 - `openapi/openapi.yaml`: contrato OpenAPI 3.1 de `/v1` (sección 11 de la especificación).
+- `examples/match-results.example.json`: partido completo (6-0 6-0, punto de oro) en el formato de resultados del pipeline (`MatchResults`, `POST /device/matches/{id}/results`). Lo produce `ml` y lo manda `services/edge-agent`; `test/match-results.test.mjs` lo valida contra el esquema y contra el reglamento.
 - `events/`: esquemas JSON de los eventos, con `event_id`, `occurred_at` y `schema_version`.
 - `pnpm contracts:generate` genera los tipos de TypeScript y los modelos Pydantic. Los tipos nunca se escriben a mano.
 

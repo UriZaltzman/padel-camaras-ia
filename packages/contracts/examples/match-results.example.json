@@ -1,0 +1,7198 @@
+{
+  "schema_version": 1,
+  "run_id": "0192f0a0-1b2c-7d3e-8f4a-5b6c7d8e9f00",
+  "match_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b",
+  "status": "succeeded",
+  "failure": null,
+  "processed_on": "club",
+  "pipeline_version": "0.3.0",
+  "model_versions": {
+    "player_detector": "yolox-m-padel-2026.10",
+    "ball_tracker": "tracknetv3-padel-2026.10",
+    "pose": "rtmpose-m-1.3",
+    "shot_classifier": "shotnet-2026.10",
+    "reid": "osnet-x0.25-1.0"
+  },
+  "thresholds_sha256": "3b1f5c0e8d2a4f6b9c7e1d0a2b4c6e8f0a1b3c5d7e9f1a2b3c4d5e6f7a8b9c0d",
+  "started_at": "2026-10-23T23:40:00Z",
+  "finished_at": "2026-10-24T00:01:30Z",
+  "video": {
+    "duration_ms": 1442500,
+    "fps": 25,
+    "camera_offset_ms": 12
+  },
+  "calibrations": [
+    {
+      "camera": "A",
+      "calibration_id": "0192f0c0-012d-7d3e-8f4a-5b6c7d8e012d",
+      "reprojection_error_cm": 2.1
+    },
+    {
+      "camera": "B",
+      "calibration_id": "0192f0c0-012e-7d3e-8f4a-5b6c7d8e012e",
+      "reprojection_error_cm": 2.8
+    }
+  ],
+  "scoring": {
+    "golden_point": true,
+    "third_set": "super_tiebreak"
+  },
+  "players": [
+    {
+      "position": 1,
+      "team": 1,
+      "initial_side": "A",
+      "thumbnail_media_id": "0192f0c0-0065-7d3e-8f4a-5b6c7d8e0065",
+      "track_coverage_pct": 97.5
+    },
+    {
+      "position": 2,
+      "team": 1,
+      "initial_side": "A",
+      "thumbnail_media_id": "0192f0c0-0066-7d3e-8f4a-5b6c7d8e0066",
+      "track_coverage_pct": 97.5
+    },
+    {
+      "position": 3,
+      "team": 2,
+      "initial_side": "B",
+      "thumbnail_media_id": "0192f0c0-0067-7d3e-8f4a-5b6c7d8e0067",
+      "track_coverage_pct": 97.5
+    },
+    {
+      "position": 4,
+      "team": 2,
+      "initial_side": "B",
+      "thumbnail_media_id": "0192f0c0-0068-7d3e-8f4a-5b6c7d8e0068",
+      "track_coverage_pct": 97.5
+    }
+  ],
+  "points": [
+    {
+      "number": 1,
+      "set": 1,
+      "game": 1,
+      "server_position": 1,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 3
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 120000,
+      "end_ms": 127000
+    },
+    {
+      "number": 2,
+      "set": 1,
+      "game": 1,
+      "server_position": 1,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 7
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 145000,
+      "end_ms": 152000
+    },
+    {
+      "number": 3,
+      "set": 1,
+      "game": 1,
+      "server_position": 1,
+      "serve_faults": 1,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 12
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 170000,
+      "end_ms": 179500
+    },
+    {
+      "number": 4,
+      "set": 1,
+      "game": 1,
+      "server_position": 1,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 16
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 197500,
+      "end_ms": 204500
+    },
+    {
+      "number": 5,
+      "set": 1,
+      "game": 2,
+      "server_position": 3,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 22
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 222500,
+      "end_ms": 229500
+    },
+    {
+      "number": 6,
+      "set": 1,
+      "game": 2,
+      "server_position": 3,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 28
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 247500,
+      "end_ms": 254500
+    },
+    {
+      "number": 7,
+      "set": 1,
+      "game": 2,
+      "server_position": 3,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "ball_lost",
+      "deciding_event": null,
+      "confidence": 0.55,
+      "needs_review": true,
+      "start_ms": 272500,
+      "end_ms": 279500
+    },
+    {
+      "number": 8,
+      "set": 1,
+      "game": 2,
+      "server_position": 3,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 40
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 297500,
+      "end_ms": 304500
+    },
+    {
+      "number": 9,
+      "set": 1,
+      "game": 3,
+      "server_position": 2,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 44
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 322500,
+      "end_ms": 329500
+    },
+    {
+      "number": 10,
+      "set": 1,
+      "game": 3,
+      "server_position": 2,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 48
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 347500,
+      "end_ms": 354500
+    },
+    {
+      "number": 11,
+      "set": 1,
+      "game": 3,
+      "server_position": 2,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 52
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 372500,
+      "end_ms": 379500
+    },
+    {
+      "number": 12,
+      "set": 1,
+      "game": 3,
+      "server_position": 2,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 56
+      },
+      "confidence": 0.81,
+      "needs_review": false,
+      "start_ms": 397500,
+      "end_ms": 404500
+    },
+    {
+      "number": 13,
+      "set": 1,
+      "game": 4,
+      "server_position": 4,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 62
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 422500,
+      "end_ms": 429500
+    },
+    {
+      "number": 14,
+      "set": 1,
+      "game": 4,
+      "server_position": 4,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 68
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 447500,
+      "end_ms": 454500
+    },
+    {
+      "number": 15,
+      "set": 1,
+      "game": 4,
+      "server_position": 4,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 74
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 472500,
+      "end_ms": 479500
+    },
+    {
+      "number": 16,
+      "set": 1,
+      "game": 4,
+      "server_position": 4,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 80
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 497500,
+      "end_ms": 504500
+    },
+    {
+      "number": 17,
+      "set": 1,
+      "game": 5,
+      "server_position": 1,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 84
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 522500,
+      "end_ms": 529500
+    },
+    {
+      "number": 18,
+      "set": 1,
+      "game": 5,
+      "server_position": 1,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 88
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 547500,
+      "end_ms": 554500
+    },
+    {
+      "number": 19,
+      "set": 1,
+      "game": 5,
+      "server_position": 1,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 92
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 572500,
+      "end_ms": 579500
+    },
+    {
+      "number": 20,
+      "set": 1,
+      "game": 5,
+      "server_position": 1,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 96
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 597500,
+      "end_ms": 604500
+    },
+    {
+      "number": 21,
+      "set": 1,
+      "game": 6,
+      "server_position": 3,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 102
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 622500,
+      "end_ms": 629500
+    },
+    {
+      "number": 22,
+      "set": 1,
+      "game": 6,
+      "server_position": 3,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 108
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 647500,
+      "end_ms": 654500
+    },
+    {
+      "number": 23,
+      "set": 1,
+      "game": 6,
+      "server_position": 3,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 114
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 672500,
+      "end_ms": 679500
+    },
+    {
+      "number": 24,
+      "set": 1,
+      "game": 6,
+      "server_position": 3,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 120
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 697500,
+      "end_ms": 704500
+    },
+    {
+      "number": 25,
+      "set": 2,
+      "game": 1,
+      "server_position": 2,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 124
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 722500,
+      "end_ms": 729500
+    },
+    {
+      "number": 26,
+      "set": 2,
+      "game": 1,
+      "server_position": 2,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 128
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 747500,
+      "end_ms": 754500
+    },
+    {
+      "number": 27,
+      "set": 2,
+      "game": 1,
+      "server_position": 2,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 132
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 772500,
+      "end_ms": 779500
+    },
+    {
+      "number": 28,
+      "set": 2,
+      "game": 1,
+      "server_position": 2,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 136
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 797500,
+      "end_ms": 804500
+    },
+    {
+      "number": 29,
+      "set": 2,
+      "game": 2,
+      "server_position": 4,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 142
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 822500,
+      "end_ms": 829500
+    },
+    {
+      "number": 30,
+      "set": 2,
+      "game": 2,
+      "server_position": 4,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 148
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 847500,
+      "end_ms": 854500
+    },
+    {
+      "number": 31,
+      "set": 2,
+      "game": 2,
+      "server_position": 4,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 154
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 872500,
+      "end_ms": 879500
+    },
+    {
+      "number": 32,
+      "set": 2,
+      "game": 2,
+      "server_position": 4,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 160
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 897500,
+      "end_ms": 904500
+    },
+    {
+      "number": 33,
+      "set": 2,
+      "game": 3,
+      "server_position": 1,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 164
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 922500,
+      "end_ms": 929500
+    },
+    {
+      "number": 34,
+      "set": 2,
+      "game": 3,
+      "server_position": 1,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 168
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 947500,
+      "end_ms": 954500
+    },
+    {
+      "number": 35,
+      "set": 2,
+      "game": 3,
+      "server_position": 1,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 172
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 972500,
+      "end_ms": 979500
+    },
+    {
+      "number": 36,
+      "set": 2,
+      "game": 3,
+      "server_position": 1,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 176
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 997500,
+      "end_ms": 1004500
+    },
+    {
+      "number": 37,
+      "set": 2,
+      "game": 4,
+      "server_position": 3,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 182
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 1022500,
+      "end_ms": 1029500
+    },
+    {
+      "number": 38,
+      "set": 2,
+      "game": 4,
+      "server_position": 3,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 188
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 1047500,
+      "end_ms": 1054500
+    },
+    {
+      "number": 39,
+      "set": 2,
+      "game": 4,
+      "server_position": 3,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 194
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 1072500,
+      "end_ms": 1079500
+    },
+    {
+      "number": 40,
+      "set": 2,
+      "game": 4,
+      "server_position": 3,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 200
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 1097500,
+      "end_ms": 1104500
+    },
+    {
+      "number": 41,
+      "set": 2,
+      "game": 5,
+      "server_position": 2,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 204
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 1122500,
+      "end_ms": 1129500
+    },
+    {
+      "number": 42,
+      "set": 2,
+      "game": 5,
+      "server_position": 2,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 208
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 1147500,
+      "end_ms": 1154500
+    },
+    {
+      "number": 43,
+      "set": 2,
+      "game": 5,
+      "server_position": 2,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 212
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 1172500,
+      "end_ms": 1179500
+    },
+    {
+      "number": 44,
+      "set": 2,
+      "game": 5,
+      "server_position": 2,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 216
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 1197500,
+      "end_ms": 1204500
+    },
+    {
+      "number": 45,
+      "set": 2,
+      "game": 6,
+      "server_position": 4,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 222
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 1222500,
+      "end_ms": 1229500
+    },
+    {
+      "number": 46,
+      "set": 2,
+      "game": 6,
+      "server_position": 4,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 228
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 1247500,
+      "end_ms": 1254500
+    },
+    {
+      "number": 47,
+      "set": 2,
+      "game": 6,
+      "server_position": 4,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 234
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 1272500,
+      "end_ms": 1279500
+    },
+    {
+      "number": 48,
+      "set": 2,
+      "game": 6,
+      "server_position": 4,
+      "serve_faults": 0,
+      "winner_team": 1,
+      "end_reason": "double_bounce",
+      "deciding_event": {
+        "kind": "bounce",
+        "index": 240
+      },
+      "confidence": 0.94,
+      "needs_review": false,
+      "start_ms": 1297500,
+      "end_ms": 1304500
+    }
+  ],
+  "shots": [
+    {
+      "point_number": 1,
+      "t_ms": 120500,
+      "player_position": 1,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 1,
+      "t_ms": 121800,
+      "player_position": 4,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 1,
+      "t_ms": 123000,
+      "player_position": 2,
+      "shot_type": "forehand_volley",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 2,
+      "t_ms": 145500,
+      "player_position": 1,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 2,
+      "t_ms": 146800,
+      "player_position": 3,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 2,
+      "t_ms": 148000,
+      "player_position": 2,
+      "shot_type": "forehand_volley",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 3,
+      "t_ms": 170300,
+      "player_position": 1,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 118.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 3,
+      "t_ms": 173000,
+      "player_position": 1,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 3,
+      "t_ms": 174300,
+      "player_position": 4,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 3,
+      "t_ms": 175500,
+      "player_position": 2,
+      "shot_type": "smash",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": 2.6
+      },
+      "speed_kmh": 96.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 4,
+      "t_ms": 198000,
+      "player_position": 1,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 4,
+      "t_ms": 199300,
+      "player_position": 3,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 4,
+      "t_ms": 200500,
+      "player_position": 2,
+      "shot_type": "forehand_volley",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 5,
+      "t_ms": 223000,
+      "player_position": 3,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 5,
+      "t_ms": 224300,
+      "player_position": 2,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 5,
+      "t_ms": 225500,
+      "player_position": 4,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 5,
+      "t_ms": 227300,
+      "player_position": 2,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "B"
+    },
+    {
+      "point_number": 6,
+      "t_ms": 248000,
+      "player_position": 3,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 6,
+      "t_ms": 249300,
+      "player_position": 1,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 6,
+      "t_ms": 250500,
+      "player_position": 4,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 6,
+      "t_ms": 252300,
+      "player_position": 1,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "B"
+    },
+    {
+      "point_number": 7,
+      "t_ms": 273000,
+      "player_position": 3,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 7,
+      "t_ms": 274300,
+      "player_position": 2,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 7,
+      "t_ms": 275500,
+      "player_position": 4,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 7,
+      "t_ms": 277300,
+      "player_position": 2,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "B"
+    },
+    {
+      "point_number": 8,
+      "t_ms": 298000,
+      "player_position": 3,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 8,
+      "t_ms": 299300,
+      "player_position": 1,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 8,
+      "t_ms": 300500,
+      "player_position": 4,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 8,
+      "t_ms": 302300,
+      "player_position": 1,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "B"
+    },
+    {
+      "point_number": 9,
+      "t_ms": 323000,
+      "player_position": 2,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 9,
+      "t_ms": 324300,
+      "player_position": 4,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 9,
+      "t_ms": 325500,
+      "player_position": 1,
+      "shot_type": "smash",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": 2.6
+      },
+      "speed_kmh": 96.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 10,
+      "t_ms": 348000,
+      "player_position": 2,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 10,
+      "t_ms": 349300,
+      "player_position": 3,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 10,
+      "t_ms": 350500,
+      "player_position": 1,
+      "shot_type": "forehand_volley",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 11,
+      "t_ms": 373000,
+      "player_position": 2,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 11,
+      "t_ms": 374300,
+      "player_position": 4,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 11,
+      "t_ms": 375500,
+      "player_position": 1,
+      "shot_type": "forehand_volley",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 12,
+      "t_ms": 398000,
+      "player_position": 2,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 12,
+      "t_ms": 399300,
+      "player_position": 3,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 12,
+      "t_ms": 400500,
+      "player_position": 1,
+      "shot_type": "smash",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": 2.6
+      },
+      "speed_kmh": 96.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 13,
+      "t_ms": 423000,
+      "player_position": 4,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 13,
+      "t_ms": 424300,
+      "player_position": 2,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 13,
+      "t_ms": 425500,
+      "player_position": 3,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 13,
+      "t_ms": 427300,
+      "player_position": 2,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "A"
+    },
+    {
+      "point_number": 14,
+      "t_ms": 448000,
+      "player_position": 4,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 14,
+      "t_ms": 449300,
+      "player_position": 1,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 14,
+      "t_ms": 450500,
+      "player_position": 3,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 14,
+      "t_ms": 452300,
+      "player_position": 1,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "A"
+    },
+    {
+      "point_number": 15,
+      "t_ms": 473000,
+      "player_position": 4,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 15,
+      "t_ms": 474300,
+      "player_position": 2,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 15,
+      "t_ms": 475500,
+      "player_position": 3,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 15,
+      "t_ms": 477300,
+      "player_position": 2,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "A"
+    },
+    {
+      "point_number": 16,
+      "t_ms": 498000,
+      "player_position": 4,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 16,
+      "t_ms": 499300,
+      "player_position": 1,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 16,
+      "t_ms": 500500,
+      "player_position": 3,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 16,
+      "t_ms": 502300,
+      "player_position": 1,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "A"
+    },
+    {
+      "point_number": 17,
+      "t_ms": 523000,
+      "player_position": 1,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 17,
+      "t_ms": 524300,
+      "player_position": 4,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 17,
+      "t_ms": 525500,
+      "player_position": 2,
+      "shot_type": "forehand_volley",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 18,
+      "t_ms": 548000,
+      "player_position": 1,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 18,
+      "t_ms": 549300,
+      "player_position": 3,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 18,
+      "t_ms": 550500,
+      "player_position": 2,
+      "shot_type": "smash",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": 2.6
+      },
+      "speed_kmh": 96.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 19,
+      "t_ms": 573000,
+      "player_position": 1,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 19,
+      "t_ms": 574300,
+      "player_position": 4,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 19,
+      "t_ms": 575500,
+      "player_position": 2,
+      "shot_type": "forehand_volley",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 20,
+      "t_ms": 598000,
+      "player_position": 1,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 20,
+      "t_ms": 599300,
+      "player_position": 3,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 20,
+      "t_ms": 600500,
+      "player_position": 2,
+      "shot_type": "forehand_volley",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 21,
+      "t_ms": 623000,
+      "player_position": 3,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 21,
+      "t_ms": 624300,
+      "player_position": 2,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 21,
+      "t_ms": 625500,
+      "player_position": 4,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 21,
+      "t_ms": 627300,
+      "player_position": 2,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "B"
+    },
+    {
+      "point_number": 22,
+      "t_ms": 648000,
+      "player_position": 3,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 22,
+      "t_ms": 649300,
+      "player_position": 1,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 22,
+      "t_ms": 650500,
+      "player_position": 4,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 22,
+      "t_ms": 652300,
+      "player_position": 1,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "B"
+    },
+    {
+      "point_number": 23,
+      "t_ms": 673000,
+      "player_position": 3,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 23,
+      "t_ms": 674300,
+      "player_position": 2,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 23,
+      "t_ms": 675500,
+      "player_position": 4,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 23,
+      "t_ms": 677300,
+      "player_position": 2,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "B"
+    },
+    {
+      "point_number": 24,
+      "t_ms": 698000,
+      "player_position": 3,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 24,
+      "t_ms": 699300,
+      "player_position": 1,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 24,
+      "t_ms": 700500,
+      "player_position": 4,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 24,
+      "t_ms": 702300,
+      "player_position": 1,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "B"
+    },
+    {
+      "point_number": 25,
+      "t_ms": 723000,
+      "player_position": 2,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 25,
+      "t_ms": 724300,
+      "player_position": 4,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 25,
+      "t_ms": 725500,
+      "player_position": 1,
+      "shot_type": "forehand_volley",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 26,
+      "t_ms": 748000,
+      "player_position": 2,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 26,
+      "t_ms": 749300,
+      "player_position": 3,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 26,
+      "t_ms": 750500,
+      "player_position": 1,
+      "shot_type": "forehand_volley",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 27,
+      "t_ms": 773000,
+      "player_position": 2,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 27,
+      "t_ms": 774300,
+      "player_position": 4,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 27,
+      "t_ms": 775500,
+      "player_position": 1,
+      "shot_type": "smash",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": 2.6
+      },
+      "speed_kmh": 96.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 28,
+      "t_ms": 798000,
+      "player_position": 2,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 28,
+      "t_ms": 799300,
+      "player_position": 3,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 28,
+      "t_ms": 800500,
+      "player_position": 1,
+      "shot_type": "forehand_volley",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 29,
+      "t_ms": 823000,
+      "player_position": 4,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 29,
+      "t_ms": 824300,
+      "player_position": 2,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 29,
+      "t_ms": 825500,
+      "player_position": 3,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 29,
+      "t_ms": 827300,
+      "player_position": 2,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "A"
+    },
+    {
+      "point_number": 30,
+      "t_ms": 848000,
+      "player_position": 4,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 30,
+      "t_ms": 849300,
+      "player_position": 1,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 30,
+      "t_ms": 850500,
+      "player_position": 3,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 30,
+      "t_ms": 852300,
+      "player_position": 1,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "A"
+    },
+    {
+      "point_number": 31,
+      "t_ms": 873000,
+      "player_position": 4,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 31,
+      "t_ms": 874300,
+      "player_position": 2,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 31,
+      "t_ms": 875500,
+      "player_position": 3,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 31,
+      "t_ms": 877300,
+      "player_position": 2,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "A"
+    },
+    {
+      "point_number": 32,
+      "t_ms": 898000,
+      "player_position": 4,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 32,
+      "t_ms": 899300,
+      "player_position": 1,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 32,
+      "t_ms": 900500,
+      "player_position": 3,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 32,
+      "t_ms": 902300,
+      "player_position": 1,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "A"
+    },
+    {
+      "point_number": 33,
+      "t_ms": 923000,
+      "player_position": 1,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 33,
+      "t_ms": 924300,
+      "player_position": 4,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 33,
+      "t_ms": 925500,
+      "player_position": 2,
+      "shot_type": "smash",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": 2.6
+      },
+      "speed_kmh": 96.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 34,
+      "t_ms": 948000,
+      "player_position": 1,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 34,
+      "t_ms": 949300,
+      "player_position": 3,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 34,
+      "t_ms": 950500,
+      "player_position": 2,
+      "shot_type": "forehand_volley",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 35,
+      "t_ms": 973000,
+      "player_position": 1,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 35,
+      "t_ms": 974300,
+      "player_position": 4,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 35,
+      "t_ms": 975500,
+      "player_position": 2,
+      "shot_type": "forehand_volley",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 36,
+      "t_ms": 998000,
+      "player_position": 1,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 36,
+      "t_ms": 999300,
+      "player_position": 3,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 36,
+      "t_ms": 1000500,
+      "player_position": 2,
+      "shot_type": "smash",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 7.0,
+        "z": 2.6
+      },
+      "speed_kmh": 96.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 37,
+      "t_ms": 1023000,
+      "player_position": 3,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 37,
+      "t_ms": 1024300,
+      "player_position": 2,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 37,
+      "t_ms": 1025500,
+      "player_position": 4,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 37,
+      "t_ms": 1027300,
+      "player_position": 2,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "B"
+    },
+    {
+      "point_number": 38,
+      "t_ms": 1048000,
+      "player_position": 3,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 38,
+      "t_ms": 1049300,
+      "player_position": 1,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 38,
+      "t_ms": 1050500,
+      "player_position": 4,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 38,
+      "t_ms": 1052300,
+      "player_position": 1,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "B"
+    },
+    {
+      "point_number": 39,
+      "t_ms": 1073000,
+      "player_position": 3,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 39,
+      "t_ms": 1074300,
+      "player_position": 2,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 39,
+      "t_ms": 1075500,
+      "player_position": 4,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 39,
+      "t_ms": 1077300,
+      "player_position": 2,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "B"
+    },
+    {
+      "point_number": 40,
+      "t_ms": 1098000,
+      "player_position": 3,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 40,
+      "t_ms": 1099300,
+      "player_position": 1,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 40,
+      "t_ms": 1100500,
+      "player_position": 4,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 40,
+      "t_ms": 1102300,
+      "player_position": 1,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "B"
+    },
+    {
+      "point_number": 41,
+      "t_ms": 1123000,
+      "player_position": 2,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 41,
+      "t_ms": 1124300,
+      "player_position": 4,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 41,
+      "t_ms": 1125500,
+      "player_position": 1,
+      "shot_type": "forehand_volley",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 42,
+      "t_ms": 1148000,
+      "player_position": 2,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 42,
+      "t_ms": 1149300,
+      "player_position": 3,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 42,
+      "t_ms": 1150500,
+      "player_position": 1,
+      "shot_type": "smash",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": 2.6
+      },
+      "speed_kmh": 96.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 43,
+      "t_ms": 1173000,
+      "player_position": 2,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 43,
+      "t_ms": 1174300,
+      "player_position": 4,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 43,
+      "t_ms": 1175500,
+      "player_position": 1,
+      "shot_type": "forehand_volley",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 44,
+      "t_ms": 1198000,
+      "player_position": 2,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 44,
+      "t_ms": 1199300,
+      "player_position": 3,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 44,
+      "t_ms": 1200500,
+      "player_position": 1,
+      "shot_type": "forehand_volley",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": null
+      },
+      "ball_at": {
+        "x": 4.0,
+        "y": 13.0,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 45,
+      "t_ms": 1223000,
+      "player_position": 4,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 45,
+      "t_ms": 1224300,
+      "player_position": 2,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 45,
+      "t_ms": 1225500,
+      "player_position": 3,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 45,
+      "t_ms": 1227300,
+      "player_position": 2,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "A"
+    },
+    {
+      "point_number": 46,
+      "t_ms": 1248000,
+      "player_position": 4,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 46,
+      "t_ms": 1249300,
+      "player_position": 1,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 46,
+      "t_ms": 1250500,
+      "player_position": 3,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 46,
+      "t_ms": 1252300,
+      "player_position": 1,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "A"
+    },
+    {
+      "point_number": 47,
+      "t_ms": 1273000,
+      "player_position": 4,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 47,
+      "t_ms": 1274300,
+      "player_position": 2,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 47,
+      "t_ms": 1275500,
+      "player_position": 3,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 47,
+      "t_ms": 1277300,
+      "player_position": 2,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "A"
+    },
+    {
+      "point_number": 48,
+      "t_ms": 1298000,
+      "player_position": 4,
+      "shot_type": "serve",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 3.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": 110.0,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 48,
+      "t_ms": 1299300,
+      "player_position": 1,
+      "shot_type": "forehand",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 7.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "A"
+    },
+    {
+      "point_number": 48,
+      "t_ms": 1300500,
+      "player_position": 3,
+      "shot_type": "lob",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": null
+      },
+      "ball_at": {
+        "x": 6.0,
+        "y": 18.8,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": false,
+      "off_wall": false,
+      "camera": "B"
+    },
+    {
+      "point_number": 48,
+      "t_ms": 1302300,
+      "player_position": 1,
+      "shot_type": "wall_exit",
+      "shot_type_confidence": 0.92,
+      "player_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": null
+      },
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 1.1
+      },
+      "speed_kmh": null,
+      "after_bounce": true,
+      "off_wall": true,
+      "camera": "A"
+    }
+  ],
+  "bounces": [
+    {
+      "point_number": 1,
+      "t_ms": 121100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 1,
+      "t_ms": 122400,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 1,
+      "t_ms": 123500,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 1,
+      "t_ms": 124200,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 2,
+      "t_ms": 146100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 2,
+      "t_ms": 147400,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 2,
+      "t_ms": 148500,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 2,
+      "t_ms": 149200,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 3,
+      "t_ms": 170800,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.6,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 3,
+      "t_ms": 173600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 3,
+      "t_ms": 174900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 3,
+      "t_ms": 176000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 3,
+      "t_ms": 176700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 4,
+      "t_ms": 198600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 4,
+      "t_ms": 199900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 4,
+      "t_ms": 201000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 4,
+      "t_ms": 201700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 5,
+      "t_ms": 223600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 5,
+      "t_ms": 224900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 5,
+      "t_ms": 226100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 5,
+      "t_ms": 226600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 20.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 5,
+      "t_ms": 227900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 5,
+      "t_ms": 228600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 6,
+      "t_ms": 248600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 6,
+      "t_ms": 249900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 6,
+      "t_ms": 251100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 6,
+      "t_ms": 251600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 20.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 6,
+      "t_ms": 252900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 6,
+      "t_ms": 253600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 7,
+      "t_ms": 273600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 7,
+      "t_ms": 274900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 7,
+      "t_ms": 276100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 7,
+      "t_ms": 276600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 20.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 7,
+      "t_ms": 277900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 7,
+      "t_ms": 278600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 8,
+      "t_ms": 298600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 8,
+      "t_ms": 299900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 8,
+      "t_ms": 301100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 8,
+      "t_ms": 301600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 20.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 8,
+      "t_ms": 302900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 8,
+      "t_ms": 303600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 9,
+      "t_ms": 323600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 9,
+      "t_ms": 324900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 9,
+      "t_ms": 326000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 9,
+      "t_ms": 326700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 10,
+      "t_ms": 348600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 10,
+      "t_ms": 349900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 10,
+      "t_ms": 351000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 10,
+      "t_ms": 351700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 11,
+      "t_ms": 373600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 11,
+      "t_ms": 374900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 11,
+      "t_ms": 376000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 11,
+      "t_ms": 376700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 12,
+      "t_ms": 398600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 12,
+      "t_ms": 399900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 12,
+      "t_ms": 401000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 12,
+      "t_ms": 401700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 13,
+      "t_ms": 423600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 13,
+      "t_ms": 424900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 13,
+      "t_ms": 426100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 13,
+      "t_ms": 426600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 0.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 13,
+      "t_ms": 427900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 13,
+      "t_ms": 428600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 14,
+      "t_ms": 448600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 14,
+      "t_ms": 449900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 14,
+      "t_ms": 451100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 14,
+      "t_ms": 451600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 0.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 14,
+      "t_ms": 452900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 14,
+      "t_ms": 453600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 15,
+      "t_ms": 473600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 15,
+      "t_ms": 474900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 15,
+      "t_ms": 476100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 15,
+      "t_ms": 476600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 0.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 15,
+      "t_ms": 477900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 15,
+      "t_ms": 478600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 16,
+      "t_ms": 498600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 16,
+      "t_ms": 499900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 16,
+      "t_ms": 501100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 16,
+      "t_ms": 501600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 0.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 16,
+      "t_ms": 502900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 16,
+      "t_ms": 503600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 17,
+      "t_ms": 523600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 17,
+      "t_ms": 524900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 17,
+      "t_ms": 526000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 17,
+      "t_ms": 526700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 18,
+      "t_ms": 548600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 18,
+      "t_ms": 549900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 18,
+      "t_ms": 551000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 18,
+      "t_ms": 551700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 19,
+      "t_ms": 573600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 19,
+      "t_ms": 574900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 19,
+      "t_ms": 576000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 19,
+      "t_ms": 576700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 20,
+      "t_ms": 598600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 20,
+      "t_ms": 599900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 20,
+      "t_ms": 601000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 20,
+      "t_ms": 601700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 21,
+      "t_ms": 623600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 21,
+      "t_ms": 624900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 21,
+      "t_ms": 626100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 21,
+      "t_ms": 626600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 20.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 21,
+      "t_ms": 627900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 21,
+      "t_ms": 628600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 22,
+      "t_ms": 648600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 22,
+      "t_ms": 649900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 22,
+      "t_ms": 651100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 22,
+      "t_ms": 651600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 20.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 22,
+      "t_ms": 652900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 22,
+      "t_ms": 653600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 23,
+      "t_ms": 673600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 23,
+      "t_ms": 674900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 23,
+      "t_ms": 676100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 23,
+      "t_ms": 676600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 20.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 23,
+      "t_ms": 677900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 23,
+      "t_ms": 678600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 24,
+      "t_ms": 698600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 24,
+      "t_ms": 699900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 24,
+      "t_ms": 701100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 24,
+      "t_ms": 701600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 20.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 24,
+      "t_ms": 702900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 24,
+      "t_ms": 703600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 25,
+      "t_ms": 723600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 25,
+      "t_ms": 724900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 25,
+      "t_ms": 726000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 25,
+      "t_ms": 726700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 26,
+      "t_ms": 748600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 26,
+      "t_ms": 749900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 26,
+      "t_ms": 751000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 26,
+      "t_ms": 751700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 27,
+      "t_ms": 773600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 27,
+      "t_ms": 774900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 27,
+      "t_ms": 776000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 27,
+      "t_ms": 776700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 28,
+      "t_ms": 798600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 28,
+      "t_ms": 799900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 28,
+      "t_ms": 801000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 28,
+      "t_ms": 801700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 29,
+      "t_ms": 823600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 29,
+      "t_ms": 824900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 29,
+      "t_ms": 826100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 29,
+      "t_ms": 826600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 0.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 29,
+      "t_ms": 827900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 29,
+      "t_ms": 828600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 30,
+      "t_ms": 848600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 30,
+      "t_ms": 849900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 30,
+      "t_ms": 851100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 30,
+      "t_ms": 851600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 0.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 30,
+      "t_ms": 852900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 30,
+      "t_ms": 853600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 31,
+      "t_ms": 873600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 31,
+      "t_ms": 874900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 31,
+      "t_ms": 876100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 31,
+      "t_ms": 876600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 0.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 31,
+      "t_ms": 877900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 31,
+      "t_ms": 878600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 32,
+      "t_ms": 898600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 32,
+      "t_ms": 899900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 32,
+      "t_ms": 901100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 32,
+      "t_ms": 901600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 0.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 32,
+      "t_ms": 902900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 32,
+      "t_ms": 903600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 33,
+      "t_ms": 923600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 33,
+      "t_ms": 924900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 33,
+      "t_ms": 926000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 33,
+      "t_ms": 926700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 34,
+      "t_ms": 948600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 34,
+      "t_ms": 949900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 34,
+      "t_ms": 951000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 34,
+      "t_ms": 951700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 35,
+      "t_ms": 973600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 35,
+      "t_ms": 974900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 35,
+      "t_ms": 976000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 35,
+      "t_ms": 976700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 36,
+      "t_ms": 998600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 36,
+      "t_ms": 999900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 36,
+      "t_ms": 1001000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 36,
+      "t_ms": 1001700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 37,
+      "t_ms": 1023600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 37,
+      "t_ms": 1024900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 37,
+      "t_ms": 1026100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 37,
+      "t_ms": 1026600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 20.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 37,
+      "t_ms": 1027900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 37,
+      "t_ms": 1028600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 38,
+      "t_ms": 1048600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 38,
+      "t_ms": 1049900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 38,
+      "t_ms": 1051100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 38,
+      "t_ms": 1051600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 20.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 38,
+      "t_ms": 1052900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 38,
+      "t_ms": 1053600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 39,
+      "t_ms": 1073600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 39,
+      "t_ms": 1074900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 39,
+      "t_ms": 1076100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 39,
+      "t_ms": 1076600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 20.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 39,
+      "t_ms": 1077900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 39,
+      "t_ms": 1078600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 40,
+      "t_ms": 1098600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 13.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 40,
+      "t_ms": 1099900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 40,
+      "t_ms": 1101100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 40,
+      "t_ms": 1101600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 20.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 40,
+      "t_ms": 1102900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 40,
+      "t_ms": 1103600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 41,
+      "t_ms": 1123600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 41,
+      "t_ms": 1124900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 41,
+      "t_ms": 1126000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 41,
+      "t_ms": 1126700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 42,
+      "t_ms": 1148600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 42,
+      "t_ms": 1149900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 42,
+      "t_ms": 1151000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 42,
+      "t_ms": 1151700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 43,
+      "t_ms": 1173600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 43,
+      "t_ms": 1174900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 43,
+      "t_ms": 1176000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 43,
+      "t_ms": 1176700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 44,
+      "t_ms": 1198600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 44,
+      "t_ms": 1199900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 44,
+      "t_ms": 1201000,
+      "surface": "floor",
+      "ball_at": {
+        "x": 2.0,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 44,
+      "t_ms": 1201700,
+      "surface": "floor",
+      "ball_at": {
+        "x": 1.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 45,
+      "t_ms": 1223600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 45,
+      "t_ms": 1224900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 45,
+      "t_ms": 1226100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 45,
+      "t_ms": 1226600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 0.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 45,
+      "t_ms": 1227900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 45,
+      "t_ms": 1228600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 46,
+      "t_ms": 1248600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 46,
+      "t_ms": 1249900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 46,
+      "t_ms": 1251100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 46,
+      "t_ms": 1251600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 0.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 46,
+      "t_ms": 1252900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 46,
+      "t_ms": 1253600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 47,
+      "t_ms": 1273600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 47,
+      "t_ms": 1274900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 47,
+      "t_ms": 1276100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 47,
+      "t_ms": 1276600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 0.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 47,
+      "t_ms": 1277900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 47,
+      "t_ms": 1278600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 48,
+      "t_ms": 1298600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 6.5,
+        "y": 7.0,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 48,
+      "t_ms": 1299900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 48,
+      "t_ms": 1301100,
+      "surface": "floor",
+      "ball_at": {
+        "x": 5.0,
+        "y": 1.2,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 48,
+      "t_ms": 1301600,
+      "surface": "back_glass",
+      "ball_at": {
+        "x": 5.0,
+        "y": 0.0,
+        "z": 1.4
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 48,
+      "t_ms": 1302900,
+      "surface": "floor",
+      "ball_at": {
+        "x": 8.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    },
+    {
+      "point_number": 48,
+      "t_ms": 1303600,
+      "surface": "floor",
+      "ball_at": {
+        "x": 9.0,
+        "y": 18.8,
+        "z": 0.0
+      },
+      "confidence": 0.9
+    }
+  ],
+  "score": {
+    "sets": [
+      {
+        "team_1": 6,
+        "team_2": 0
+      },
+      {
+        "team_1": 6,
+        "team_2": 0
+      }
+    ],
+    "winner_team": 1,
+    "completed": true
+  },
+  "corrections": [
+    {
+      "layer": "serve_coherence",
+      "point_number": 12,
+      "from_winner_team": 2,
+      "to_winner_team": 1
+    }
+  ],
+  "stats": [
+    {
+      "position": 1,
+      "formula_version": "1.0.0",
+      "values": {
+        "points_won": 48,
+        "winners": 24,
+        "unforced_errors": 0,
+        "forced_errors": 0,
+        "net_time_pct": 55.0,
+        "distance_m": 813.4
+      }
+    },
+    {
+      "position": 2,
+      "formula_version": "1.0.0",
+      "values": {
+        "points_won": 48,
+        "winners": 24,
+        "unforced_errors": 0,
+        "forced_errors": 0,
+        "net_time_pct": 55.0,
+        "distance_m": 814.4
+      }
+    },
+    {
+      "position": 3,
+      "formula_version": "1.0.0",
+      "values": {
+        "points_won": 0,
+        "winners": 0,
+        "unforced_errors": 0,
+        "forced_errors": 0,
+        "net_time_pct": 12.5,
+        "distance_m": 815.4
+      }
+    },
+    {
+      "position": 4,
+      "formula_version": "1.0.0",
+      "values": {
+        "points_won": 0,
+        "winners": 0,
+        "unforced_errors": 0,
+        "forced_errors": 0,
+        "net_time_pct": 12.5,
+        "distance_m": 816.4
+      }
+    }
+  ],
+  "highlights": [
+    {
+      "point_number": 1,
+      "score": 0.9,
+      "start_ms": 120000,
+      "end_ms": 129000,
+      "clip_media_id": "0192f0c0-00c8-7d3e-8f4a-5b6c7d8e00c8"
+    },
+    {
+      "point_number": 2,
+      "score": 0.83,
+      "start_ms": 145000,
+      "end_ms": 154000,
+      "clip_media_id": "0192f0c0-00c9-7d3e-8f4a-5b6c7d8e00c9"
+    },
+    {
+      "point_number": 3,
+      "score": 0.76,
+      "start_ms": 170000,
+      "end_ms": 181500,
+      "clip_media_id": "0192f0c0-00ca-7d3e-8f4a-5b6c7d8e00ca"
+    },
+    {
+      "point_number": 4,
+      "score": 0.69,
+      "start_ms": 197500,
+      "end_ms": 206500,
+      "clip_media_id": "0192f0c0-00cb-7d3e-8f4a-5b6c7d8e00cb"
+    },
+    {
+      "point_number": 5,
+      "score": 0.62,
+      "start_ms": 222500,
+      "end_ms": 231500,
+      "clip_media_id": "0192f0c0-00cc-7d3e-8f4a-5b6c7d8e00cc"
+    }
+  ]
+}
