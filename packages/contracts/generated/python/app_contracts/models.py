@@ -8,7 +8,7 @@ from enum import Enum, IntEnum, StrEnum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import AnyUrl, AwareDatetime, BaseModel, ConfigDict, EmailStr, Field, RootModel
+from pydantic import AnyUrl, AwareDatetime, BaseModel, ConfigDict, Field, RootModel
 
 
 class Uuid(RootModel[UUID]):
@@ -2238,7 +2238,10 @@ class AdminLegalData(BaseModel):
     """
     E.164.
     """
-    contact_email: EmailStr
+    contact_email: Annotated[str, Field(max_length=254)]
+    """
+    Email address.
+    """
     address: Annotated[str, Field(max_length=200)]
     """
     Street address; the API geocodes it.
@@ -2420,7 +2423,10 @@ class Owner(BaseModel):
     )
     name: Annotated[str, Field(max_length=120)]
     phone: Annotated[str, Field(pattern="^\\+[1-9]\\d{7,14}$")]
-    email: EmailStr | None = None
+    email: Annotated[str | None, Field(max_length=254)] = None
+    """
+    Email address.
+    """
 
 
 class AdminClubOnboarding(BaseModel):

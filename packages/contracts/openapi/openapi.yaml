@@ -6827,7 +6827,8 @@ components:
           description: E.164.
         contact_email:
           type: string
-          format: email
+          maxLength: 254
+          description: Email address.
         address:
           type: string
           maxLength: 200
@@ -7026,7 +7027,8 @@ components:
               pattern: '^\+[1-9]\d{7,14}$'
             email:
               type: string
-              format: email
+              maxLength: 254
+              description: Email address.
         plan:
           $ref: '#/components/schemas/ClubPlan'
         tariff_version_id:

@@ -31,5 +31,10 @@
   "WEBHOOK_SIGNATURE_INVALID": "La firma del aviso no es válida.",
   "RECORDING_NOT_ACTIVE": "No hay una grabación en curso en esa cancha.",
   "DEVICE_CERTIFICATE_INVALID": "El certificado del equipo no es válido.",
-  "DEVICE_CLUB_MISMATCH": "El equipo no pertenece a este club."
+  "DEVICE_CLUB_MISMATCH": "El equipo no pertenece a este club.",
+  "TARIFF_VERSION_NOT_FOUND": "No encontramos esa versión de tarifas.",
+  "TARIFF_TIERS_INVALID": "Los tramos de la tarifa tienen huecos o se pisan. Revisalos.",
+  "CLUB_TAX_ID_TAKEN": "Ya hay un club cargado con ese CUIT.",
+  "PAYMENT_ALREADY_RECORDED": "Ese pago ya estaba registrado.",
+  "SUPPORT_ACCESS_NOT_GRANTED": "Primero tenés que registrar el permiso para ver este video."
 }

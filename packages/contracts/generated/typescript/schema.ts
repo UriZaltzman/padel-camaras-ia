@@ -3001,7 +3001,7 @@ export interface components {
       contact_name: string;
       /** @description E.164. */
       contact_phone: string;
-      /** Format: email */
+      /** @description Email address. */
       contact_email: string;
       /** @description Street address; the API geocodes it. */
       address: string;
@@ -3091,7 +3091,7 @@ export interface components {
       owner: {
         name: string;
         phone: string;
-        /** Format: email */
+        /** @description Email address. */
         email?: string;
       };
       plan: components['schemas']['ClubPlan'];
