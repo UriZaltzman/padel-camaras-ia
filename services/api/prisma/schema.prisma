@@ -459,8 +459,8 @@ model BookingRulePriceBand {
   @@map("booking_rule_price_bands")
 }
 
-/// The non-overlap guarantee (exclusion constraint on court_id + tstzrange(starts_at, ends_at)
-/// for status held/confirmed) is added in #39; the columns it needs are already here.
+/// Non-overlap guarantee: EXCLUDE USING gist on court_id + tstzrange(starts_at, ends_at, '[)')
+/// for status held/confirmed/completed/no_show (migration `booking_exclusion_constraint`, #39).
 model Booking {
   id                   String        @id @db.Uuid
   clubId               String        @map("club_id") @db.Uuid
