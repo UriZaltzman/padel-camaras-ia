@@ -9,6 +9,7 @@
     "lint": {},
     "typecheck": {},
     "test": {
+      "env": ["TEST_DATABASE_ADMIN_URL"],
       "outputs": []
     },
     "format:check": {},
