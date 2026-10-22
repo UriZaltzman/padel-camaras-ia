@@ -149,6 +149,25 @@
       "RATE_LIMITED": "Hiciste muchas búsquedas seguidas. Esperá un momento y probá de nuevo.",
       "generic": "Algo salió mal. Probá de nuevo en un rato.",
       "network": "No pudimos conectarnos. Revisá tu conexión y probá de nuevo."
+    },
+    "emptyZone": "No hay canchas libres en esa zona y horario. Probá otra hora.",
+    "filters": {
+      "locality": "Localidad",
+      "allLocalities": "Todas",
+      "day": "Día",
+      "hour": "Hora",
+      "anyHour": "Cualquiera"
+    },
+    "view": {
+      "map": "Mapa",
+      "list": "Lista"
+    },
+    "map": {
+      "cluster_one": "Grupo de {count} club, tocá para acercar",
+      "cluster_other": "Grupo de {count} clubes, tocá para acercar",
+      "reset": "Ver todo Buenos Aires",
+      "unplaced_one": "{count} club no aparece en el mapa. Lo ves en la lista.",
+      "unplaced_other": "{count} clubes no aparecen en el mapa. Los ves en la lista."
     }
   },
   "settings": {

@@ -46,6 +46,8 @@ async function renderFind(
       <FindSlotScreen now={() => NOW} onSelectSlot={onSelectSlot} />
     </SessionProvider>,
   );
+  await screen.findByTestId('club-explorer');
+  await fireEvent.press(await screen.findByTestId('view-list'));
   await screen.findByTestId('club-list');
   return server;
 }

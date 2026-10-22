@@ -6,6 +6,8 @@ import type { Schema } from '@app/contracts';
 
 import { CLUB_TIMEZONE, type BookingDuration } from './find-slot';
 
+/** The only court of Club Demo Quilmes: no free start from 18:00. */
+const FULL_EVENING_COURT = '01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a91';
 const DEMO_CLUB_ID = '01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a60';
 
 function court(id: string, name: string, status: Schema<'CourtStatus'>): Schema<'Court'> {
@@ -71,7 +73,7 @@ export const mockClubs: Schema<'Club'>[] = [
     logo_url: null,
     sponsor_name: null,
     plan: 'loan',
-    courts: [court('01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a91', 'Cancha 1', 'active')],
+    courts: [court(FULL_EVENING_COURT, 'Cancha 1', 'active')],
     charges: {
       player_extra: { enabled: false, amount_cents: null },
       coach_plan: { type: 'coach_monthly', monthly_fee_cents: 2500000 },
@@ -111,7 +113,8 @@ function availability(
   for (let start = 8 * 60; start + duration <= 24 * 60; start += 30) {
     const startsAt = instant(date, start);
     if (Date.parse(startsAt) <= now.getTime()) continue;
-    if ((start / 30) % 3 === 1) continue; // some starts are already booked
+    if (start < 18 * 60 && (start / 30) % 3 === 1) continue; // some starts are already booked
+    if (courtId === FULL_EVENING_COURT && start >= 18 * 60) continue; // booked every evening
     slots.push({
       starts_at: startsAt,
       ends_at: instant(date, start + duration),
