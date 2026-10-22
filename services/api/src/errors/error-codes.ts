@@ -51,6 +51,12 @@ const HTTP_STATUS = {
   RECORDING_NOT_ACTIVE: 409,
   DEVICE_CERTIFICATE_INVALID: 401,
   DEVICE_CLUB_MISMATCH: 403,
+  // Internal console
+  TARIFF_VERSION_NOT_FOUND: 404,
+  TARIFF_TIERS_INVALID: 422,
+  CLUB_TAX_ID_TAKEN: 409,
+  PAYMENT_ALREADY_RECORDED: 409,
+  SUPPORT_ACCESS_NOT_GRANTED: 403,
 } as const satisfies Record<ErrorCode, number>;
 
 // `satisfies` above rejects missing codes; this rejects codes the contract does not have.

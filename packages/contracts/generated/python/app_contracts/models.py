@@ -2158,6 +2158,618 @@ class ErrorCode(StrEnum):
     RECORDING_NOT_ACTIVE = "RECORDING_NOT_ACTIVE"
     DEVICE_CERTIFICATE_INVALID = "DEVICE_CERTIFICATE_INVALID"
     DEVICE_CLUB_MISMATCH = "DEVICE_CLUB_MISMATCH"
+    TARIFF_VERSION_NOT_FOUND = "TARIFF_VERSION_NOT_FOUND"
+    TARIFF_TIERS_INVALID = "TARIFF_TIERS_INVALID"
+    CLUB_TAX_ID_TAKEN = "CLUB_TAX_ID_TAKEN"
+    PAYMENT_ALREADY_RECORDED = "PAYMENT_ALREADY_RECORDED"
+    SUPPORT_ACCESS_NOT_GRANTED = "SUPPORT_ACCESS_NOT_GRANTED"
+
+
+class AdminClubStatus(StrEnum):
+    """
+    Commercial status of a club. `trial` and `active` are healthy, `overdue` keeps service
+    while the subscription is unpaid (reminder at day 15), `suspended` cuts service (day 30 or
+    by hand), `closed` is a club that left. Moves between states are done by the endpoints
+    that name them; any other change returns `INVALID_STATE_TRANSITION`.
+
+    """
+
+    trial = "trial"
+    active = "active"
+    overdue = "overdue"
+    suspended = "suspended"
+    closed = "closed"
+
+
+class AdminTierUsage(BaseModel):
+    """
+    Where a club stands against the active-player bands of its tariff version.
+    """
+
+    active_players_90d: Annotated[int, Field(ge=0)]
+    tier: PricingTier
+    next_tier_at: Annotated[int | None, Field(ge=1)]
+    """
+    Active players at which the club moves up a band; `null` in the top band.
+    """
+
+
+class AdminClubRow(BaseModel):
+    """
+    One club in the console list.
+    """
+
+    id: Uuid
+    name: str
+    city: str
+    status: AdminClubStatus
+    plan: ClubPlan
+    tier: PricingTier
+    balance_cents: int
+    """
+    Positive is what the club owes, negative is credit. ARS cents.
+    """
+    last_payment_at: Timestamp | None
+    overdue_days: Annotated[int, Field(ge=0)]
+    """
+    Days since the oldest unpaid invoice was due; 0 when up to date.
+    """
+
+
+class AdminClubPage(Page):
+    items: list[AdminClubRow]
+
+
+class AdminLegalData(BaseModel):
+    """
+    Legal and contact data of the club (SA-03a).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    legal_name: Annotated[str, Field(max_length=160, min_length=1)]
+    tax_id: Annotated[str, Field(pattern="^\\d{11}$")]
+    """
+    CUIT, 11 digits without hyphens. Unique across clubs.
+    """
+    contact_name: Annotated[str, Field(max_length=120)]
+    contact_phone: Annotated[str, Field(pattern="^\\+[1-9]\\d{7,14}$")]
+    """
+    E.164.
+    """
+    contact_email: Annotated[str, Field(max_length=254)]
+    """
+    Email address.
+    """
+    address: Annotated[str, Field(max_length=200)]
+    """
+    Street address; the API geocodes it.
+    """
+    city: Annotated[str, Field(max_length=80)]
+
+
+class AdminClubUpdate(BaseModel):
+    """
+    Fields of a club the console may change. At least one is required.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str | None, Field(max_length=120, min_length=1)] = None
+    legal: AdminLegalData | None = None
+    plan: ClubPlan | None = None
+
+
+class AdminClubStatusChange(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    reason: Annotated[str, Field(max_length=500, min_length=3)]
+    """
+    Why. Stored in `audit_log`.
+    """
+
+
+class Kind1(StrEnum):
+    percent = "percent"
+    fixed = "fixed"
+
+
+class DepositModule(BaseModel):
+    """
+    Deposit (seña) charged when a player books.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    enabled: bool
+    kind: Kind1
+    percent: Annotated[int | None, Field(ge=1, le=100)]
+    """
+    Required when `kind` is `percent`.
+    """
+    amount_cents: AmountCents | None
+    """
+    Required when `kind` is `fixed`.
+    """
+
+
+class Mode(StrEnum):
+    own = "own"
+    generic = "generic"
+
+
+class BrandingModule(BaseModel):
+    """
+    Club white-label look.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    mode: Mode
+    logo_url: AnyUrl | None
+    primary_color: Annotated[str | None, Field(pattern="^#[0-9A-Fa-f]{6}$")]
+    secondary_color: Annotated[str | None, Field(pattern="^#[0-9A-Fa-f]{6}$")]
+
+
+class AiVideoPayer(StrEnum):
+    """
+    Who pays for recording, analysis and video. `off` turns Smart Court off for the club.
+    """
+
+    off = "off"
+    club_pays = "club_pays"
+    player_pays = "player_pays"
+
+
+class LessonMode(StrEnum):
+    """
+    Whether lessons are booked in the app or the coach is opened on WhatsApp.
+    """
+
+    app = "app"
+    whatsapp = "whatsapp"
+
+
+class AdminModules(BaseModel):
+    """
+    Feature flags of a club (SA-05).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    deposit: DepositModule
+    branding: BrandingModule
+    lesson_mode: LessonMode
+    """
+    Whether lessons are booked in the app or the coach is opened on WhatsApp.
+    """
+    ai_video: AiVideoPayer
+    tournaments: bool
+
+
+class AdminClubModules(BaseModel):
+    club_id: Uuid
+    modules: AdminModules
+    estimated_monthly_cents: AmountCents
+    """
+    Subscription tier plus the price of every enabled module.
+    """
+    tariff_version_id: Uuid
+
+
+class AdminClubModulesUpdate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    modules: AdminModules
+
+
+class AdminPaymentMethod(StrEnum):
+    transfer = "transfer"
+    cash = "cash"
+    check = "check"
+    card_in_person = "card_in_person"
+
+
+class AdminOnboardingPayment(BaseModel):
+    """
+    The first payment, taken in person (SA-04 step 3).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    amount_cents: AmountCents
+    method: AdminPaymentMethod
+    paid_on: date_aliased
+    reference: Annotated[str | None, Field(max_length=120)] = None
+    """
+    Transfer number or receipt id.
+    """
+    receipt_media_id: Uuid | None = None
+    """
+    Uploaded proof of payment, if any.
+    """
+
+
+class Kind2(StrEnum):
+    standard = "standard"
+    panoramic = "panoramic"
+
+
+class AdminOnboardingCourt(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str, Field(max_length=60)]
+    kind: Kind2
+    covered: bool
+    price_cents_per_hour: AmountCents
+
+
+class Owner(BaseModel):
+    """
+    Person invited as club owner.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str, Field(max_length=120)]
+    phone: Annotated[str, Field(pattern="^\\+[1-9]\\d{7,14}$")]
+    email: Annotated[str | None, Field(max_length=254)] = None
+    """
+    Email address.
+    """
+
+
+class AdminClubOnboarding(BaseModel):
+    """
+    Everything the on-site wizard collects (SA-04).
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str, Field(max_length=120, min_length=1)]
+    legal: AdminLegalData
+    owner: Owner
+    """
+    Person invited as club owner.
+    """
+    plan: ClubPlan
+    tariff_version_id: Uuid
+    modules: AdminModules
+    payment: AdminOnboardingPayment
+    courts: Annotated[list[AdminOnboardingCourt], Field(max_length=50, min_length=1)]
+
+
+class AdminUserRef(BaseModel):
+    id: Uuid
+    name: str
+    role: str
+    """
+    Club role (`owner`, `staff`, `coach`).
+    """
+
+
+class ActorRole(StrEnum):
+    admin = "admin"
+    sales = "sales"
+    support = "support"
+    finance = "finance"
+
+
+class AdminAuditEvent(BaseModel):
+    """
+    One immutable entry of `audit_log`.
+    """
+
+    id: Uuid
+    at: Timestamp
+    actor_id: Uuid
+    actor_role: ActorRole
+    action: str
+    """
+    Dotted key, e.g. `club.suspended`, `payment.recorded`, `video.viewed`.
+    """
+    club_id: Uuid | None
+    target: str
+    """
+    What changed, e.g. `club:0192...` or `match:0192...`.
+    """
+    reason: str | None
+
+
+class AdminAuditEventPage(Page):
+    items: list[AdminAuditEvent]
+
+
+class TrendItem(RootModel[int]):
+    root: Annotated[int, Field(ge=0)]
+
+
+class AdminUsageRow(BaseModel):
+    """
+    Usage of a club in a month (SA-06).
+    """
+
+    club_id: Uuid
+    club_name: str
+    period: Annotated[str, Field(pattern="^\\d{4}-(0[1-9]|1[0-2])$")]
+    tier_usage: AdminTierUsage
+    bookings: Annotated[int, Field(ge=0)]
+    recorded_matches: Annotated[int, Field(ge=0)]
+    storage_gb: Annotated[float, Field(ge=0.0)]
+    video_minutes: Annotated[int, Field(ge=0)]
+    estimated_cost_cents: AmountCents
+    """
+    Our infrastructure cost for the club in the month.
+    """
+    invoiced_cents: AmountCents
+    near_limit: bool
+    """
+    True when the club is within 10% of the next band.
+    """
+    trend: Annotated[list[TrendItem], Field(max_length=12)]
+    """
+    Active players at the end of each of the last months, oldest first (sparkline).
+    """
+
+
+class AdminUsagePage(Page):
+    items: list[AdminUsageRow]
+
+
+class AdminInvoiceStatus(StrEnum):
+    draft = "draft"
+    issued = "issued"
+    paid = "paid"
+    overdue = "overdue"
+    void = "void"
+
+
+class AdminInvoice(BaseModel):
+    """
+    Subscription invoice from us to a club.
+    """
+
+    id: Uuid
+    club_id: Uuid
+    club_name: str
+    period: Annotated[str, Field(pattern="^\\d{4}-(0[1-9]|1[0-2])$")]
+    status: AdminInvoiceStatus
+    amount_cents: AmountCents
+    paid_cents: AmountCents
+    due_on: date_aliased
+    invoice_number: str | None
+    """
+    ARCA number once issued.
+    """
+    issued_at: Timestamp | None
+
+
+class AdminInvoicePage(Page):
+    items: list[AdminInvoice]
+
+
+class AdminClubPayment(BaseModel):
+    id: Uuid
+    club_id: Uuid
+    amount_cents: AmountCents
+    method: AdminPaymentMethod
+    paid_on: date_aliased
+    reference: str | None
+    invoice_ids: list[Uuid]
+    recorded_by: Uuid
+    recorded_at: Timestamp
+
+
+class AdminManualPaymentCreate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    amount_cents: Annotated[int, Field(ge=1)]
+    """
+    Amount in ARS cents.
+    """
+    method: AdminPaymentMethod
+    paid_on: date_aliased
+    reference: Annotated[str | None, Field(max_length=120)] = None
+    """
+    Receipt or transfer id; unique per club.
+    """
+    invoice_ids: Annotated[list[Uuid] | None, Field(max_length=24)] = None
+    note: Annotated[str | None, Field(max_length=500)] = None
+
+
+class AdminDunningPauseUpdate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    paused_until: date_aliased | None
+    """
+    Last day of the pause, up to 60 days ahead; `null` resumes dunning.
+    """
+    reason: Annotated[str, Field(max_length=500, min_length=3)]
+
+
+class Kind3(StrEnum):
+    invoice_issued = "invoice_issued"
+    reminder_sent = "reminder_sent"
+    payment_recorded = "payment_recorded"
+    dunning_paused = "dunning_paused"
+    dunning_resumed = "dunning_resumed"
+    suspended = "suspended"
+    reactivated = "reactivated"
+
+
+class TimelineItem(BaseModel):
+    at: Timestamp
+    kind: Kind3
+
+
+class AdminClubBilling(BaseModel):
+    """
+    B2B account statement of a club (SA-08).
+    """
+
+    club_id: Uuid
+    status: AdminClubStatus
+    balance_cents: int
+    """
+    Positive is what the club owes. ARS cents.
+    """
+    overdue_days: Annotated[int, Field(ge=0)]
+    dunning_paused_until: date_aliased | None
+    invoices: list[AdminInvoice]
+    payments: list[AdminClubPayment]
+    timeline: list[TimelineItem]
+    """
+    Reminders, suspensions and reactivations, newest first.
+    """
+
+
+class Billing(BaseModel):
+    balance_cents: int
+    overdue_days: Annotated[int, Field(ge=0)]
+    last_payment_at: Timestamp | None
+
+
+class AdminClubDetail(BaseModel):
+    """
+    Club file for the console (SA-03a).
+    """
+
+    id: Uuid
+    name: str
+    status: AdminClubStatus
+    plan: ClubPlan
+    legal: AdminLegalData
+    modules: AdminModules
+    tier_usage: AdminTierUsage
+    billing: Billing
+    users: list[AdminUserRef]
+    recent_audit: Annotated[list[AdminAuditEvent], Field(max_length=20)]
+    whitelabel_url: AnyUrl
+    """
+    Link and QR payload of the club's white-label page.
+    """
+    created_at: Timestamp
+
+
+class Module(StrEnum):
+    deposit = "deposit"
+    branding_own = "branding_own"
+    lessons_app = "lessons_app"
+    ai_video_club_pays = "ai_video_club_pays"
+    ai_video_player_pays = "ai_video_player_pays"
+    tournaments = "tournaments"
+
+
+class AdminModulePrice(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    module: Module
+    monthly_cents: AmountCents
+
+
+class AdminTariffTier(BaseModel):
+    """
+    One band of active players and the monthly subscription it costs (decision
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    min_active_players: Annotated[int, Field(ge=0)]
+    max_active_players: Annotated[int | None, Field(ge=1)]
+    """
+    `null` for the top band.
+    """
+    monthly_cents: AmountCents
+
+
+class AdminTariffVersionCreate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str, Field(max_length=80, min_length=1)]
+    effective_from: date_aliased
+    tiers: Annotated[list[AdminTariffTier], Field(max_length=12, min_length=1)]
+    module_prices: Annotated[list[AdminModulePrice], Field(max_length=12)]
+
+
+class AdminTariffVersion(AdminTariffVersionCreate):
+    id: Uuid
+    published_by: Uuid
+    published_at: Timestamp
+    clubs_on_version: Annotated[int, Field(ge=0)]
+
+
+class AdminTariffVersionPage(Page):
+    items: list[AdminTariffVersion]
+
+
+class AdminInvoiceSimulationRequest(BaseModel):
+    """
+    Give `tariff_version_id` for a published version or `draft` for an unpublished one.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    tariff_version_id: Uuid | None = None
+    draft: AdminTariffVersionCreate | None = None
+    active_players: Annotated[int, Field(ge=0)]
+    modules: AdminModules
+
+
+class AdminInvoiceSimulation(BaseModel):
+    tier: PricingTier
+    subscription_cents: AmountCents
+    modules_cents: AmountCents
+    total_cents: AmountCents
+
+
+class AdminSupportAccessCreate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    match_id: Uuid
+    reason: Annotated[str, Field(max_length=500, min_length=3)]
+    """
+    Why support needs the video, e.g. a ticket id.
+    """
+    duration_minutes: Annotated[int, Field(ge=5, le=240)]
+
+
+class AdminSupportAccess(BaseModel):
+    id: Uuid
+    match_id: Uuid
+    club_id: Uuid
+    granted_to: Uuid
+    reason: str
+    expires_at: Timestamp
+    audit_event_id: Uuid
+    """
+    The `audit_log` entry that registers the permission.
+    """
+
+
+class AdminVideoUrl(BaseModel):
+    url: AnyUrl
+    expires_at: Timestamp
+    """
+    One hour after the call, or sooner if the permission ends first.
+    """
 
 
 class Score(BaseModel):
