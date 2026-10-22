@@ -1059,6 +1059,360 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/admin/clubs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List clubs (SA-03)
+     * @description Paginated list for the internal console, newest first. Filter by status, plan and zone and search by name or CUIT. Each row carries the plan, the subscription tier, the balance and the last payment. Roles: admin, sales, support, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `VALIDATION_FAILED`, `INVALID_CURSOR`.
+     */
+    get: operations['listAdminClubs'];
+    put?: never;
+    /**
+     * Create a club on site with its first payment (SA-04)
+     * @description Single call behind the 5-step on-site wizard: club, plan and modules, recorded payment, courts, link. Creates the club already `active`, invites the owner by WhatsApp or email, records the first payment (taken in person, cash or transfer) and returns the white-label link and QR data. Atomic: either everything is created or nothing is. Roles: admin, sales. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `VALIDATION_FAILED`, `CLUB_TAX_ID_TAKEN` (409, the CUIT already has a club), `TARIFF_VERSION_NOT_FOUND` (404).
+     */
+    post: operations['onboardAdminClub'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/clubs/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Club file (SA-03a)
+     * @description Everything about one club in one place: legal data, plan, modules, usage this period, billing status, internal users and the latest audit events. Roles: admin, sales, support, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `NOT_FOUND`.
+     */
+    get: operations['getAdminClub'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Update a club's data (SA-03a)
+     * @description Changes legal data, contact, address (geocoded again) or the camera plan. At least one field is required. Roles: admin, sales. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`, `CLUB_TAX_ID_TAKEN` (409).
+     */
+    patch: operations['updateAdminClub'];
+    trace?: never;
+  };
+  '/admin/clubs/{id}/suspend': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Suspend a club (SA-03)
+     * @description Cuts the club's service: players and staff see the read-only suspension screen and bookings stop (`CLUB_SERVICE_SUSPENDED`). Recording of already confirmed turns is not stopped by this call. A reason is required and goes to `audit_log`. Roles: admin, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`, `INVALID_STATE_TRANSITION` (409, the club is not `active`, `trial` or `overdue`).
+     */
+    post: operations['suspendAdminClub'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/clubs/{id}/reactivate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Reactivate a suspended club (SA-03)
+     * @description Brings a `suspended` club back to `active`. A reason is required and goes to `audit_log`. Roles: admin, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`, `INVALID_STATE_TRANSITION` (409, the club is not suspended).
+     */
+    post: operations['reactivateAdminClub'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/clubs/{id}/modules': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Club modules (SA-05)
+     * @description Feature flags of the club and the estimated monthly price they imply with the tariff version the club is on. Roles: admin, sales, support, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `NOT_FOUND`.
+     */
+    get: operations['getAdminClubModules'];
+    /**
+     * Set club modules (SA-05)
+     * @description Replaces the whole set of module flags. Turning a module off hides it from the club and its players at once (`CLUB_FEATURE_DISABLED`); existing data is kept. Returns the new estimated monthly price. Roles: admin, sales. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`.
+     */
+    put: operations['setAdminClubModules'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/clubs/{id}/billing': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Club account statement (SA-08)
+     * @description B2B account of one club: balance, overdue state, invoices, payments and the dunning timeline (reminder at day 15, service cut at day 30, section 10). Roles: admin, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `NOT_FOUND`.
+     */
+    get: operations['getAdminClubBilling'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/clubs/{id}/payments': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Record a manual payment (SA-08)
+     * @description Registers a payment received outside the platform (transfer, cash, check) against one or more open invoices, oldest first unless `invoice_ids` is given. Clears the overdue state when the balance reaches zero. Roles: admin, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`, `PAYMENT_ALREADY_RECORDED` (409, same `reference` for this club).
+     */
+    post: operations['recordAdminClubPayment'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/clubs/{id}/billing/dunning-pause': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Pause or resume dunning (SA-08)
+     * @description Stops the reminders and the automatic suspension for a club until `paused_until`, or resumes them with `paused_until: null`. Maximum 60 days ahead. Roles: admin, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`.
+     */
+    put: operations['setAdminClubDunningPause'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/usage': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Usage and metering by club (SA-06)
+     * @description One row per club for a month: active players (90 days), bookings, records, storage and video minutes, estimated cost against what was invoiced, and how close the club is to the next tier. Roles: admin, sales, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `VALIDATION_FAILED`, `INVALID_CURSOR`.
+     */
+    get: operations['listAdminUsage'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/tariffs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List tariff versions (SA-07)
+     * @description Published tariff versions, newest first: subscription price per band of active players (decision of 21/10/2026, #253) and the price of each module. Roles: admin, sales, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `INVALID_CURSOR`.
+     */
+    get: operations['listAdminTariffs'];
+    put?: never;
+    /**
+     * Publish a tariff version (SA-07)
+     * @description Publishes a new version. Existing clubs take it on their next billing cycle, new clubs from `effective_from`. A published version is never edited: publish a new one. Bands must start at 0, not overlap and leave no gap, and only the last one has no upper limit. Roles: admin only. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `VALIDATION_FAILED`, `TARIFF_TIERS_INVALID` (422, gaps or overlaps).
+     */
+    post: operations['publishAdminTariff'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/tariffs/simulate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Simulate an invoice (SA-07)
+     * @description Computes what a club would pay for a given number of active players and set of modules, with a published version or a draft one. Nothing is saved. Roles: admin, sales, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `VALIDATION_FAILED`, `TARIFF_VERSION_NOT_FOUND` (404).
+     */
+    post: operations['simulateAdminInvoice'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/invoices': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List B2B invoices (SA-08)
+     * @description Subscription invoices to clubs across the platform, newest first, filtered by status, club or due date. Roles: admin, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `VALIDATION_FAILED`, `INVALID_CURSOR`.
+     */
+    get: operations['listAdminInvoices'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/support-access': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Register permission to see a video
+     * @description Support can see a match video only with a permission registered in `audit_log` (section 12). This call registers it: who, which match, the reason (for example a ticket id) and for how long (maximum 4 hours). It does not return the video; use `GET /admin/matches/{id}/video-url` afterwards. Roles: admin, support. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`.
+     */
+    post: operations['grantAdminSupportAccess'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/matches/{id}/video-url': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Signed link to a match video for support
+     * @description Returns a signed 1-hour link to the full video, only while the caller holds an unexpired permission from `POST /admin/support-access` for this match. Every call is logged in `audit_log`. Roles: admin, support. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `NOT_FOUND`, `SUPPORT_ACCESS_NOT_GRANTED` (403, no valid permission for this match), `MEDIA_NOT_READY` (409), `MEDIA_EXPIRED` (410).
+     */
+    get: operations['getAdminMatchVideoUrl'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/audit-log': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Audit log (SA-12)
+     * @description Immutable log of sensitive actions, newest first: club changes, suspensions, payments, tariff publications and video access. Roles: admin only. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+     *
+     *     Errors: `FORBIDDEN`, `VALIDATION_FAILED`, `INVALID_CURSOR`.
+     */
+    get: operations['listAdminAuditLog'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2601,7 +2955,359 @@ export interface components {
       | 'WEBHOOK_SIGNATURE_INVALID'
       | 'RECORDING_NOT_ACTIVE'
       | 'DEVICE_CERTIFICATE_INVALID'
-      | 'DEVICE_CLUB_MISMATCH';
+      | 'DEVICE_CLUB_MISMATCH'
+      | 'TARIFF_VERSION_NOT_FOUND'
+      | 'TARIFF_TIERS_INVALID'
+      | 'CLUB_TAX_ID_TAKEN'
+      | 'PAYMENT_ALREADY_RECORDED'
+      | 'SUPPORT_ACCESS_NOT_GRANTED';
+    /**
+     * @description Commercial status of a club. `trial` and `active` are healthy, `overdue` keeps service
+     *     while the subscription is unpaid (reminder at day 15), `suspended` cuts service (day 30 or
+     *     by hand), `closed` is a club that left. Moves between states are done by the endpoints
+     *     that name them; any other change returns `INVALID_STATE_TRANSITION`.
+     * @enum {string}
+     */
+    AdminClubStatus: 'trial' | 'active' | 'overdue' | 'suspended' | 'closed';
+    /** @description Where a club stands against the active-player bands of its tariff version. */
+    AdminTierUsage: {
+      active_players_90d: number;
+      tier: components['schemas']['PricingTier'];
+      /** @description Active players at which the club moves up a band; `null` in the top band. */
+      next_tier_at: number | null;
+    };
+    /** @description One club in the console list. */
+    AdminClubRow: {
+      id: components['schemas']['Uuid'];
+      name: string;
+      city: string;
+      status: components['schemas']['AdminClubStatus'];
+      plan: components['schemas']['ClubPlan'];
+      tier: components['schemas']['PricingTier'];
+      /** @description Positive is what the club owes, negative is credit. ARS cents. */
+      balance_cents: number;
+      last_payment_at: components['schemas']['Timestamp'] | null;
+      /** @description Days since the oldest unpaid invoice was due; 0 when up to date. */
+      overdue_days: number;
+    };
+    AdminClubPage: components['schemas']['Page'] & {
+      items: components['schemas']['AdminClubRow'][];
+    };
+    /** @description Legal and contact data of the club (SA-03a). */
+    AdminLegalData: {
+      legal_name: string;
+      /** @description CUIT, 11 digits without hyphens. Unique across clubs. */
+      tax_id: string;
+      contact_name: string;
+      /** @description E.164. */
+      contact_phone: string;
+      /** Format: email */
+      contact_email: string;
+      /** @description Street address; the API geocodes it. */
+      address: string;
+      city: string;
+    };
+    /** @description Fields of a club the console may change. At least one is required. */
+    AdminClubUpdate: {
+      name?: string;
+      legal?: components['schemas']['AdminLegalData'];
+      plan?: components['schemas']['ClubPlan'];
+    };
+    AdminClubStatusChange: {
+      /** @description Why. Stored in `audit_log`. */
+      reason: string;
+    };
+    /** @description Deposit (seña) charged when a player books. */
+    DepositModule: {
+      enabled: boolean;
+      /** @enum {string} */
+      kind: 'percent' | 'fixed';
+      /** @description Required when `kind` is `percent`. */
+      percent: number | null;
+      /** @description Required when `kind` is `fixed`. */
+      amount_cents: components['schemas']['AmountCents'] | null;
+    };
+    /** @description Club white-label look. */
+    BrandingModule: {
+      /** @enum {string} */
+      mode: 'own' | 'generic';
+      /** Format: uri */
+      logo_url: string | null;
+      primary_color: string | null;
+      secondary_color: string | null;
+    };
+    /**
+     * @description Who pays for recording, analysis and video. `off` turns Smart Court off for the club.
+     * @enum {string}
+     */
+    AiVideoPayer: 'off' | 'club_pays' | 'player_pays';
+    /** @description Feature flags of a club (SA-05). */
+    AdminModules: {
+      deposit: components['schemas']['DepositModule'];
+      branding: components['schemas']['BrandingModule'];
+      /**
+       * @description Whether lessons are booked in the app or the coach is opened on WhatsApp.
+       * @enum {string}
+       */
+      lesson_mode: 'app' | 'whatsapp';
+      ai_video: components['schemas']['AiVideoPayer'];
+      tournaments: boolean;
+    };
+    AdminClubModules: {
+      club_id: components['schemas']['Uuid'];
+      modules: components['schemas']['AdminModules'];
+      /** @description Subscription tier plus the price of every enabled module. */
+      estimated_monthly_cents: components['schemas']['AmountCents'];
+      tariff_version_id: components['schemas']['Uuid'];
+    };
+    AdminClubModulesUpdate: {
+      modules: components['schemas']['AdminModules'];
+    };
+    /** @enum {string} */
+    AdminPaymentMethod: 'transfer' | 'cash' | 'check' | 'card_in_person';
+    /** @description The first payment, taken in person (SA-04 step 3). */
+    AdminOnboardingPayment: {
+      amount_cents: components['schemas']['AmountCents'];
+      method: components['schemas']['AdminPaymentMethod'];
+      /** Format: date */
+      paid_on: string;
+      /** @description Transfer number or receipt id. */
+      reference?: string;
+      /** @description Uploaded proof of payment, if any. */
+      receipt_media_id?: components['schemas']['Uuid'] | null;
+    };
+    AdminOnboardingCourt: {
+      name: string;
+      /** @enum {string} */
+      kind: 'standard' | 'panoramic';
+      covered: boolean;
+      price_cents_per_hour: components['schemas']['AmountCents'];
+    };
+    /** @description Everything the on-site wizard collects (SA-04). */
+    AdminClubOnboarding: {
+      name: string;
+      legal: components['schemas']['AdminLegalData'];
+      /** @description Person invited as club owner. */
+      owner: {
+        name: string;
+        phone: string;
+        /** Format: email */
+        email?: string;
+      };
+      plan: components['schemas']['ClubPlan'];
+      tariff_version_id: components['schemas']['Uuid'];
+      modules: components['schemas']['AdminModules'];
+      payment: components['schemas']['AdminOnboardingPayment'];
+      courts: components['schemas']['AdminOnboardingCourt'][];
+    };
+    AdminUserRef: {
+      id: components['schemas']['Uuid'];
+      name: string;
+      /** @description Club role (`owner`, `staff`, `coach`). */
+      role: string;
+    };
+    /** @description One immutable entry of `audit_log`. */
+    AdminAuditEvent: {
+      id: components['schemas']['Uuid'];
+      at: components['schemas']['Timestamp'];
+      actor_id: components['schemas']['Uuid'];
+      /** @enum {string} */
+      actor_role: 'admin' | 'sales' | 'support' | 'finance';
+      /** @description Dotted key, e.g. `club.suspended`, `payment.recorded`, `video.viewed`. */
+      action: string;
+      club_id: components['schemas']['Uuid'] | null;
+      /** @description What changed, e.g. `club:0192...` or `match:0192...`. */
+      target: string;
+      reason: string | null;
+    };
+    AdminAuditEventPage: components['schemas']['Page'] & {
+      items: components['schemas']['AdminAuditEvent'][];
+    };
+    /** @description Usage of a club in a month (SA-06). */
+    AdminUsageRow: {
+      club_id: components['schemas']['Uuid'];
+      club_name: string;
+      period: string;
+      tier_usage: components['schemas']['AdminTierUsage'];
+      bookings: number;
+      recorded_matches: number;
+      storage_gb: number;
+      video_minutes: number;
+      /** @description Our infrastructure cost for the club in the month. */
+      estimated_cost_cents: components['schemas']['AmountCents'];
+      invoiced_cents: components['schemas']['AmountCents'];
+      /** @description True when the club is within 10% of the next band. */
+      near_limit: boolean;
+      /** @description Active players at the end of each of the last months, oldest first (sparkline). */
+      trend: number[];
+    };
+    AdminUsagePage: components['schemas']['Page'] & {
+      items: components['schemas']['AdminUsageRow'][];
+    };
+    /** @enum {string} */
+    AdminInvoiceStatus: 'draft' | 'issued' | 'paid' | 'overdue' | 'void';
+    /** @description Subscription invoice from us to a club. */
+    AdminInvoice: {
+      id: components['schemas']['Uuid'];
+      club_id: components['schemas']['Uuid'];
+      club_name: string;
+      period: string;
+      status: components['schemas']['AdminInvoiceStatus'];
+      amount_cents: components['schemas']['AmountCents'];
+      paid_cents: components['schemas']['AmountCents'];
+      /** Format: date */
+      due_on: string;
+      /** @description ARCA number once issued. */
+      invoice_number: string | null;
+      issued_at: components['schemas']['Timestamp'] | null;
+    };
+    AdminInvoicePage: components['schemas']['Page'] & {
+      items: components['schemas']['AdminInvoice'][];
+    };
+    AdminClubPayment: {
+      id: components['schemas']['Uuid'];
+      club_id: components['schemas']['Uuid'];
+      amount_cents: components['schemas']['AmountCents'];
+      method: components['schemas']['AdminPaymentMethod'];
+      /** Format: date */
+      paid_on: string;
+      reference: string | null;
+      invoice_ids: components['schemas']['Uuid'][];
+      recorded_by: components['schemas']['Uuid'];
+      recorded_at: components['schemas']['Timestamp'];
+    };
+    AdminManualPaymentCreate: {
+      /** @description Amount in ARS cents. */
+      amount_cents: number;
+      method: components['schemas']['AdminPaymentMethod'];
+      /** Format: date */
+      paid_on: string;
+      /** @description Receipt or transfer id; unique per club. */
+      reference?: string;
+      invoice_ids?: components['schemas']['Uuid'][];
+      note?: string;
+    };
+    AdminDunningPauseUpdate: {
+      /** @description Last day of the pause, up to 60 days ahead; `null` resumes dunning. */
+      paused_until: string | null;
+      reason: string;
+    };
+    /** @description B2B account statement of a club (SA-08). */
+    AdminClubBilling: {
+      club_id: components['schemas']['Uuid'];
+      status: components['schemas']['AdminClubStatus'];
+      /** @description Positive is what the club owes. ARS cents. */
+      balance_cents: number;
+      overdue_days: number;
+      dunning_paused_until: string | null;
+      invoices: components['schemas']['AdminInvoice'][];
+      payments: components['schemas']['AdminClubPayment'][];
+      /** @description Reminders, suspensions and reactivations, newest first. */
+      timeline: {
+        at: components['schemas']['Timestamp'];
+        /** @enum {string} */
+        kind:
+          | 'invoice_issued'
+          | 'reminder_sent'
+          | 'payment_recorded'
+          | 'dunning_paused'
+          | 'dunning_resumed'
+          | 'suspended'
+          | 'reactivated';
+      }[];
+    };
+    /** @description Club file for the console (SA-03a). */
+    AdminClubDetail: {
+      id: components['schemas']['Uuid'];
+      name: string;
+      status: components['schemas']['AdminClubStatus'];
+      plan: components['schemas']['ClubPlan'];
+      legal: components['schemas']['AdminLegalData'];
+      modules: components['schemas']['AdminModules'];
+      tier_usage: components['schemas']['AdminTierUsage'];
+      billing: {
+        balance_cents: number;
+        overdue_days: number;
+        last_payment_at: components['schemas']['Timestamp'] | null;
+      };
+      users: components['schemas']['AdminUserRef'][];
+      recent_audit: components['schemas']['AdminAuditEvent'][];
+      /**
+       * Format: uri
+       * @description Link and QR payload of the club's white-label page.
+       */
+      whitelabel_url: string;
+      created_at: components['schemas']['Timestamp'];
+    };
+    AdminModulePrice: {
+      /** @enum {string} */
+      module:
+        | 'deposit'
+        | 'branding_own'
+        | 'lessons_app'
+        | 'ai_video_club_pays'
+        | 'ai_video_player_pays'
+        | 'tournaments';
+      monthly_cents: components['schemas']['AmountCents'];
+    };
+    /** @description One band of active players and the monthly subscription it costs (decision */
+    AdminTariffTier: {
+      min_active_players: number;
+      /** @description `null` for the top band. */
+      max_active_players: number | null;
+      monthly_cents: components['schemas']['AmountCents'];
+    };
+    AdminTariffVersionCreate: {
+      name: string;
+      /** Format: date */
+      effective_from: string;
+      tiers: components['schemas']['AdminTariffTier'][];
+      module_prices: components['schemas']['AdminModulePrice'][];
+    };
+    AdminTariffVersion: components['schemas']['AdminTariffVersionCreate'] & {
+      id: components['schemas']['Uuid'];
+      published_by: components['schemas']['Uuid'];
+      published_at: components['schemas']['Timestamp'];
+      clubs_on_version: number;
+    };
+    AdminTariffVersionPage: components['schemas']['Page'] & {
+      items: components['schemas']['AdminTariffVersion'][];
+    };
+    /** @description Give `tariff_version_id` for a published version or `draft` for an unpublished one. */
+    AdminInvoiceSimulationRequest: {
+      tariff_version_id?: components['schemas']['Uuid'];
+      draft?: components['schemas']['AdminTariffVersionCreate'];
+      active_players: number;
+      modules: components['schemas']['AdminModules'];
+    };
+    AdminInvoiceSimulation: {
+      tier: components['schemas']['PricingTier'];
+      subscription_cents: components['schemas']['AmountCents'];
+      modules_cents: components['schemas']['AmountCents'];
+      total_cents: components['schemas']['AmountCents'];
+    };
+    AdminSupportAccessCreate: {
+      match_id: components['schemas']['Uuid'];
+      /** @description Why support needs the video, e.g. a ticket id. */
+      reason: string;
+      duration_minutes: number;
+    };
+    AdminSupportAccess: {
+      id: components['schemas']['Uuid'];
+      match_id: components['schemas']['Uuid'];
+      club_id: components['schemas']['Uuid'];
+      granted_to: components['schemas']['Uuid'];
+      reason: string;
+      expires_at: components['schemas']['Timestamp'];
+      /** @description The `audit_log` entry that registers the permission. */
+      audit_event_id: components['schemas']['Uuid'];
+    };
+    AdminVideoUrl: {
+      /** Format: uri */
+      url: string;
+      /** @description One hour after the call, or sooner if the permission ends first. */
+      expires_at: components['schemas']['Timestamp'];
+    };
   };
   responses: {
     /** @description Malformed request (`VALIDATION_FAILED`, `INVALID_CURSOR`). */
@@ -2926,6 +3632,47 @@ export type SchemaPage = components['schemas']['Page'];
 export type SchemaError = components['schemas']['Error'];
 export type SchemaValidationIssue = components['schemas']['ValidationIssue'];
 export type SchemaErrorCode = components['schemas']['ErrorCode'];
+export type SchemaAdminClubStatus = components['schemas']['AdminClubStatus'];
+export type SchemaAdminTierUsage = components['schemas']['AdminTierUsage'];
+export type SchemaAdminClubRow = components['schemas']['AdminClubRow'];
+export type SchemaAdminClubPage = components['schemas']['AdminClubPage'];
+export type SchemaAdminLegalData = components['schemas']['AdminLegalData'];
+export type SchemaAdminClubUpdate = components['schemas']['AdminClubUpdate'];
+export type SchemaAdminClubStatusChange = components['schemas']['AdminClubStatusChange'];
+export type SchemaDepositModule = components['schemas']['DepositModule'];
+export type SchemaBrandingModule = components['schemas']['BrandingModule'];
+export type SchemaAiVideoPayer = components['schemas']['AiVideoPayer'];
+export type SchemaAdminModules = components['schemas']['AdminModules'];
+export type SchemaAdminClubModules = components['schemas']['AdminClubModules'];
+export type SchemaAdminClubModulesUpdate = components['schemas']['AdminClubModulesUpdate'];
+export type SchemaAdminPaymentMethod = components['schemas']['AdminPaymentMethod'];
+export type SchemaAdminOnboardingPayment = components['schemas']['AdminOnboardingPayment'];
+export type SchemaAdminOnboardingCourt = components['schemas']['AdminOnboardingCourt'];
+export type SchemaAdminClubOnboarding = components['schemas']['AdminClubOnboarding'];
+export type SchemaAdminUserRef = components['schemas']['AdminUserRef'];
+export type SchemaAdminAuditEvent = components['schemas']['AdminAuditEvent'];
+export type SchemaAdminAuditEventPage = components['schemas']['AdminAuditEventPage'];
+export type SchemaAdminUsageRow = components['schemas']['AdminUsageRow'];
+export type SchemaAdminUsagePage = components['schemas']['AdminUsagePage'];
+export type SchemaAdminInvoiceStatus = components['schemas']['AdminInvoiceStatus'];
+export type SchemaAdminInvoice = components['schemas']['AdminInvoice'];
+export type SchemaAdminInvoicePage = components['schemas']['AdminInvoicePage'];
+export type SchemaAdminClubPayment = components['schemas']['AdminClubPayment'];
+export type SchemaAdminManualPaymentCreate = components['schemas']['AdminManualPaymentCreate'];
+export type SchemaAdminDunningPauseUpdate = components['schemas']['AdminDunningPauseUpdate'];
+export type SchemaAdminClubBilling = components['schemas']['AdminClubBilling'];
+export type SchemaAdminClubDetail = components['schemas']['AdminClubDetail'];
+export type SchemaAdminModulePrice = components['schemas']['AdminModulePrice'];
+export type SchemaAdminTariffTier = components['schemas']['AdminTariffTier'];
+export type SchemaAdminTariffVersionCreate = components['schemas']['AdminTariffVersionCreate'];
+export type SchemaAdminTariffVersion = components['schemas']['AdminTariffVersion'];
+export type SchemaAdminTariffVersionPage = components['schemas']['AdminTariffVersionPage'];
+export type SchemaAdminInvoiceSimulationRequest =
+  components['schemas']['AdminInvoiceSimulationRequest'];
+export type SchemaAdminInvoiceSimulation = components['schemas']['AdminInvoiceSimulation'];
+export type SchemaAdminSupportAccessCreate = components['schemas']['AdminSupportAccessCreate'];
+export type SchemaAdminSupportAccess = components['schemas']['AdminSupportAccess'];
+export type SchemaAdminVideoUrl = components['schemas']['AdminVideoUrl'];
 export type ResponseBadRequest = components['responses']['BadRequest'];
 export type ResponseUnauthorized = components['responses']['Unauthorized'];
 export type ResponseForbidden = components['responses']['Forbidden'];
@@ -4741,6 +5488,637 @@ export interface operations {
            *     }
            */
           'application/json': components['schemas']['SettlementPage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listAdminClubs: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor from a previous page's `next_cursor`. Omit it for the first page. */
+        cursor?: components['parameters']['Cursor'];
+        /** @description Maximum number of items in the page. */
+        limit?: components['parameters']['Limit'];
+        /** @description Text matched against the club name, legal name and CUIT. */
+        q?: string;
+        /** @description Only clubs in this status. */
+        status?: components['schemas']['AdminClubStatus'];
+        /** @description Only clubs with this camera plan. */
+        plan?: components['schemas']['ClubPlan'];
+        /** @description Locality or partido of the club. */
+        zone?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of clubs. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminClubPage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  onboardAdminClub: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AdminClubOnboarding'];
+      };
+    };
+    responses: {
+      /** @description The club, created and active. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminClubDetail'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  getAdminClub: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The club file. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminClubDetail'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  updateAdminClub: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AdminClubUpdate'];
+      };
+    };
+    responses: {
+      /** @description The updated club file. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminClubDetail'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  suspendAdminClub: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AdminClubStatusChange'];
+      };
+    };
+    responses: {
+      /** @description The club, now suspended. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminClubDetail'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  reactivateAdminClub: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AdminClubStatusChange'];
+      };
+    };
+    responses: {
+      /** @description The club, active again. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminClubDetail'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  getAdminClubModules: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current modules. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminClubModules'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  setAdminClubModules: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AdminClubModulesUpdate'];
+      };
+    };
+    responses: {
+      /** @description Modules saved. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminClubModules'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  getAdminClubBilling: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The statement. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminClubBilling'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  recordAdminClubPayment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AdminManualPaymentCreate'];
+      };
+    };
+    responses: {
+      /** @description The recorded payment. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminClubPayment'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  setAdminClubDunningPause: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AdminDunningPauseUpdate'];
+      };
+    };
+    responses: {
+      /** @description The statement after the change. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminClubBilling'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listAdminUsage: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor from a previous page's `next_cursor`. Omit it for the first page. */
+        cursor?: components['parameters']['Cursor'];
+        /** @description Maximum number of items in the page. */
+        limit?: components['parameters']['Limit'];
+        /** @description Month as `YYYY-MM` in the America/Argentina/Buenos_Aires time zone. Defaults to the current month. */
+        period?: string;
+        /** @description True keeps only clubs close to changing tier. */
+        near_limit?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of usage rows. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminUsagePage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listAdminTariffs: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor from a previous page's `next_cursor`. Omit it for the first page. */
+        cursor?: components['parameters']['Cursor'];
+        /** @description Maximum number of items in the page. */
+        limit?: components['parameters']['Limit'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of tariff versions. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminTariffVersionPage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  publishAdminTariff: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AdminTariffVersionCreate'];
+      };
+    };
+    responses: {
+      /** @description The published version. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminTariffVersion'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['UnprocessableEntity'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  simulateAdminInvoice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AdminInvoiceSimulationRequest'];
+      };
+    };
+    responses: {
+      /** @description The simulated invoice. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminInvoiceSimulation'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listAdminInvoices: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor from a previous page's `next_cursor`. Omit it for the first page. */
+        cursor?: components['parameters']['Cursor'];
+        /** @description Maximum number of items in the page. */
+        limit?: components['parameters']['Limit'];
+        /** @description Only this club's invoices. */
+        club_id?: components['schemas']['Uuid'];
+        /** @description Only invoices in this status. */
+        status?: components['schemas']['AdminInvoiceStatus'];
+        /** @description Only invoices due on or before this local date. */
+        due_before?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of invoices. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminInvoicePage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  grantAdminSupportAccess: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AdminSupportAccessCreate'];
+      };
+    };
+    responses: {
+      /** @description The permission, now in the audit log. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminSupportAccess'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  getAdminMatchVideoUrl: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Match id. */
+        id: components['parameters']['MatchId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The signed link. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminVideoUrl'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listAdminAuditLog: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor from a previous page's `next_cursor`. Omit it for the first page. */
+        cursor?: components['parameters']['Cursor'];
+        /** @description Maximum number of items in the page. */
+        limit?: components['parameters']['Limit'];
+        /** @description Only events about this club. */
+        club_id?: components['schemas']['Uuid'];
+        /** @description Only this action key, e.g. `club.suspended`. */
+        action?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of events. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminAuditEventPage'];
         };
       };
       400: components['responses']['BadRequest'];

@@ -91,6 +91,8 @@ tags:
     description: Court availability, holds, invites, cancellations and fixed weekly turns.
   - name: ClubAdmin
     description: Club panel for staff and owner. Staff never see personal stats or money.
+  - name: Admin
+    description: Internal console for our team - clubs, onboarding, modules, usage, tariffs, B2B billing, support access and audit.
 
 # Every operation must:
 # - document `429` and reference `components/responses` for every 4xx and 5xx response;
@@ -2374,6 +2376,817 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
+  /admin/clubs:
+    get:
+      operationId: listAdminClubs
+      tags: [Admin]
+      summary: List clubs (SA-03)
+      description: |
+        Paginated list for the internal console, newest first. Filter by status, plan and zone and search by name or CUIT. Each row carries the plan, the subscription tier, the balance and the last payment. Roles: admin, sales, support, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `VALIDATION_FAILED`, `INVALID_CURSOR`.
+
+      x-required-role: admin,sales,support,finance
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: q
+          in: query
+          required: false
+          description: Text matched against the club name, legal name and CUIT.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+        - name: status
+          in: query
+          required: false
+          description: Only clubs in this status.
+          schema:
+            $ref: '#/components/schemas/AdminClubStatus'
+        - name: plan
+          in: query
+          required: false
+          description: Only clubs with this camera plan.
+          schema:
+            $ref: '#/components/schemas/ClubPlan'
+        - name: zone
+          in: query
+          required: false
+          description: Locality or partido of the club.
+          schema:
+            type: string
+            maxLength: 80
+      responses:
+        '200':
+          description: One page of clubs.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminClubPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      operationId: onboardAdminClub
+      tags: [Admin]
+      summary: Create a club on site with its first payment (SA-04)
+      description: |
+        Single call behind the 5-step on-site wizard: club, plan and modules, recorded payment, courts, link. Creates the club already `active`, invites the owner by WhatsApp or email, records the first payment (taken in person, cash or transfer) and returns the white-label link and QR data. Atomic: either everything is created or nothing is. Roles: admin, sales. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `VALIDATION_FAILED`, `CLUB_TAX_ID_TAKEN` (409, the CUIT already has a club), `TARIFF_VERSION_NOT_FOUND` (404).
+
+      x-required-role: admin,sales
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminClubOnboarding'
+      responses:
+        '201':
+          description: The club, created and active.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminClubDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/clubs/{id}:
+    get:
+      operationId: getAdminClub
+      tags: [Admin]
+      summary: Club file (SA-03a)
+      description: |
+        Everything about one club in one place: legal data, plan, modules, usage this period, billing status, internal users and the latest audit events. Roles: admin, sales, support, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `NOT_FOUND`.
+
+      x-required-role: admin,sales,support,finance
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+      responses:
+        '200':
+          description: The club file.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminClubDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      operationId: updateAdminClub
+      tags: [Admin]
+      summary: Update a club's data (SA-03a)
+      description: |
+        Changes legal data, contact, address (geocoded again) or the camera plan. At least one field is required. Roles: admin, sales. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`, `CLUB_TAX_ID_TAKEN` (409).
+
+      x-required-role: admin,sales
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminClubUpdate'
+      responses:
+        '200':
+          description: The updated club file.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminClubDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/clubs/{id}/suspend:
+    post:
+      operationId: suspendAdminClub
+      tags: [Admin]
+      summary: Suspend a club (SA-03)
+      description: |
+        Cuts the club's service: players and staff see the read-only suspension screen and bookings stop (`CLUB_SERVICE_SUSPENDED`). Recording of already confirmed turns is not stopped by this call. A reason is required and goes to `audit_log`. Roles: admin, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`, `INVALID_STATE_TRANSITION` (409, the club is not `active`, `trial` or `overdue`).
+
+      x-required-role: admin,finance
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminClubStatusChange'
+      responses:
+        '200':
+          description: The club, now suspended.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminClubDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/clubs/{id}/reactivate:
+    post:
+      operationId: reactivateAdminClub
+      tags: [Admin]
+      summary: Reactivate a suspended club (SA-03)
+      description: |
+        Brings a `suspended` club back to `active`. A reason is required and goes to `audit_log`. Roles: admin, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`, `INVALID_STATE_TRANSITION` (409, the club is not suspended).
+
+      x-required-role: admin,finance
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminClubStatusChange'
+      responses:
+        '200':
+          description: The club, active again.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminClubDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/clubs/{id}/modules:
+    get:
+      operationId: getAdminClubModules
+      tags: [Admin]
+      summary: Club modules (SA-05)
+      description: |
+        Feature flags of the club and the estimated monthly price they imply with the tariff version the club is on. Roles: admin, sales, support, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `NOT_FOUND`.
+
+      x-required-role: admin,sales,support,finance
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+      responses:
+        '200':
+          description: Current modules.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminClubModules'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      operationId: setAdminClubModules
+      tags: [Admin]
+      summary: Set club modules (SA-05)
+      description: |
+        Replaces the whole set of module flags. Turning a module off hides it from the club and its players at once (`CLUB_FEATURE_DISABLED`); existing data is kept. Returns the new estimated monthly price. Roles: admin, sales. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`.
+
+      x-required-role: admin,sales
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminClubModulesUpdate'
+      responses:
+        '200':
+          description: Modules saved.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminClubModules'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/clubs/{id}/billing:
+    get:
+      operationId: getAdminClubBilling
+      tags: [Admin]
+      summary: Club account statement (SA-08)
+      description: |
+        B2B account of one club: balance, overdue state, invoices, payments and the dunning timeline (reminder at day 15, service cut at day 30, section 10). Roles: admin, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `NOT_FOUND`.
+
+      x-required-role: admin,finance
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+      responses:
+        '200':
+          description: The statement.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminClubBilling'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/clubs/{id}/payments:
+    post:
+      operationId: recordAdminClubPayment
+      tags: [Admin]
+      summary: Record a manual payment (SA-08)
+      description: |
+        Registers a payment received outside the platform (transfer, cash, check) against one or more open invoices, oldest first unless `invoice_ids` is given. Clears the overdue state when the balance reaches zero. Roles: admin, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`, `PAYMENT_ALREADY_RECORDED` (409, same `reference` for this club).
+
+      x-required-role: admin,finance
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminManualPaymentCreate'
+      responses:
+        '201':
+          description: The recorded payment.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminClubPayment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/clubs/{id}/billing/dunning-pause:
+    put:
+      operationId: setAdminClubDunningPause
+      tags: [Admin]
+      summary: Pause or resume dunning (SA-08)
+      description: |
+        Stops the reminders and the automatic suspension for a club until `paused_until`, or resumes them with `paused_until: null`. Maximum 60 days ahead. Roles: admin, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`.
+
+      x-required-role: admin,finance
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminDunningPauseUpdate'
+      responses:
+        '200':
+          description: The statement after the change.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminClubBilling'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/usage:
+    get:
+      operationId: listAdminUsage
+      tags: [Admin]
+      summary: Usage and metering by club (SA-06)
+      description: |
+        One row per club for a month: active players (90 days), bookings, records, storage and video minutes, estimated cost against what was invoiced, and how close the club is to the next tier. Roles: admin, sales, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `VALIDATION_FAILED`, `INVALID_CURSOR`.
+
+      x-required-role: admin,sales,finance
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: period
+          in: query
+          required: false
+          description: Month as `YYYY-MM` in the America/Argentina/Buenos_Aires time zone. Defaults to the current month.
+          schema:
+            type: string
+            pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+        - name: near_limit
+          in: query
+          required: false
+          description: 'True keeps only clubs close to changing tier.'
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: One page of usage rows.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUsagePage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/tariffs:
+    get:
+      operationId: listAdminTariffs
+      tags: [Admin]
+      summary: List tariff versions (SA-07)
+      description: |
+        Published tariff versions, newest first: subscription price per band of active players (decision of 21/10/2026, #253) and the price of each module. Roles: admin, sales, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `INVALID_CURSOR`.
+
+      x-required-role: admin,sales,finance
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of tariff versions.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTariffVersionPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      operationId: publishAdminTariff
+      tags: [Admin]
+      summary: Publish a tariff version (SA-07)
+      description: |
+        Publishes a new version. Existing clubs take it on their next billing cycle, new clubs from `effective_from`. A published version is never edited: publish a new one. Bands must start at 0, not overlap and leave no gap, and only the last one has no upper limit. Roles: admin only. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `VALIDATION_FAILED`, `TARIFF_TIERS_INVALID` (422, gaps or overlaps).
+
+      x-required-role: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminTariffVersionCreate'
+      responses:
+        '201':
+          description: The published version.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTariffVersion'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/tariffs/simulate:
+    post:
+      operationId: simulateAdminInvoice
+      tags: [Admin]
+      summary: Simulate an invoice (SA-07)
+      description: |
+        Computes what a club would pay for a given number of active players and set of modules, with a published version or a draft one. Nothing is saved. Roles: admin, sales, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `VALIDATION_FAILED`, `TARIFF_VERSION_NOT_FOUND` (404).
+
+      x-required-role: admin,sales,finance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminInvoiceSimulationRequest'
+      responses:
+        '200':
+          description: The simulated invoice.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminInvoiceSimulation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/invoices:
+    get:
+      operationId: listAdminInvoices
+      tags: [Admin]
+      summary: List B2B invoices (SA-08)
+      description: |
+        Subscription invoices to clubs across the platform, newest first, filtered by status, club or due date. Roles: admin, finance. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `VALIDATION_FAILED`, `INVALID_CURSOR`.
+
+      x-required-role: admin,finance
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: club_id
+          in: query
+          required: false
+          description: Only this club's invoices.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+        - name: status
+          in: query
+          required: false
+          description: Only invoices in this status.
+          schema:
+            $ref: '#/components/schemas/AdminInvoiceStatus'
+        - name: due_before
+          in: query
+          required: false
+          description: Only invoices due on or before this local date.
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: One page of invoices.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminInvoicePage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/support-access:
+    post:
+      operationId: grantAdminSupportAccess
+      tags: [Admin]
+      summary: Register permission to see a video
+      description: |
+        Support can see a match video only with a permission registered in `audit_log` (section 12). This call registers it: who, which match, the reason (for example a ticket id) and for how long (maximum 4 hours). It does not return the video; use `GET /admin/matches/{id}/video-url` afterwards. Roles: admin, support. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`.
+
+      x-required-role: admin,support
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminSupportAccessCreate'
+      responses:
+        '201':
+          description: The permission, now in the audit log.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSupportAccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/matches/{id}/video-url:
+    get:
+      operationId: getAdminMatchVideoUrl
+      tags: [Admin]
+      summary: Signed link to a match video for support
+      description: |
+        Returns a signed 1-hour link to the full video, only while the caller holds an unexpired permission from `POST /admin/support-access` for this match. Every call is logged in `audit_log`. Roles: admin, support. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `NOT_FOUND`, `SUPPORT_ACCESS_NOT_GRANTED` (403, no valid permission for this match), `MEDIA_NOT_READY` (409), `MEDIA_EXPIRED` (410).
+
+      x-required-role: admin,support
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+      responses:
+        '200':
+          description: The signed link.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminVideoUrl'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/audit-log:
+    get:
+      operationId: listAdminAuditLog
+      tags: [Admin]
+      summary: Audit log (SA-12)
+      description: |
+        Immutable log of sensitive actions, newest first: club changes, suspensions, payments, tariff publications and video access. Roles: admin only. Only internal staff (`/admin/*` never accepts a club or player token). Every write is recorded in `audit_log` with the actor, the club and the before/after values (section 12).
+
+        Errors: `FORBIDDEN`, `VALIDATION_FAILED`, `INVALID_CURSOR`.
+
+      x-required-role: admin
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: club_id
+          in: query
+          required: false
+          description: Only events about this club.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+        - name: action
+          in: query
+          required: false
+          description: Only this action key, e.g. `club.suspended`.
+          schema:
+            type: string
+            maxLength: 80
+      responses:
+        '200':
+          description: One page of events.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAuditEventPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
 components:
   securitySchemes:
     deviceMtls:
@@ -5795,6 +6608,12 @@ components:
         - RECORDING_NOT_ACTIVE
         - DEVICE_CERTIFICATE_INVALID
         - DEVICE_CLUB_MISMATCH
+        # Internal console
+        - TARIFF_VERSION_NOT_FOUND
+        - TARIFF_TIERS_INVALID
+        - CLUB_TAX_ID_TAKEN
+        - PAYMENT_ALREADY_RECORDED
+        - SUPPORT_ACCESS_NOT_GRANTED
       x-error-catalog:
         - code: VALIDATION_FAILED
           http_status: 400
@@ -5901,6 +6720,873 @@ components:
         - code: DEVICE_CLUB_MISMATCH
           http_status: 403
           description: The device tried to act on a match, court or upload of another club.
+        - code: TARIFF_VERSION_NOT_FOUND
+          http_status: 404
+          description: The tariff version does not exist.
+        - code: TARIFF_TIERS_INVALID
+          http_status: 422
+          description: The bands of a tariff version have gaps, overlaps or no open top band.
+        - code: CLUB_TAX_ID_TAKEN
+          http_status: 409
+          description: Another club already has this CUIT.
+        - code: PAYMENT_ALREADY_RECORDED
+          http_status: 409
+          description: A manual payment with the same reference was already recorded for this club.
+        - code: SUPPORT_ACCESS_NOT_GRANTED
+          http_status: 403
+          description: No unexpired support permission is registered in `audit_log` for this match.
+
+    # Internal console (SA-03 to SA-08, 21/10/2026 specification). Roles are internal staff
+    # (admin, sales, support, finance), never club or player roles.
+    AdminClubStatus:
+      type: string
+      description: |
+        Commercial status of a club. `trial` and `active` are healthy, `overdue` keeps service
+        while the subscription is unpaid (reminder at day 15), `suspended` cuts service (day 30 or
+        by hand), `closed` is a club that left. Moves between states are done by the endpoints
+        that name them; any other change returns `INVALID_STATE_TRANSITION`.
+      enum: [trial, active, overdue, suspended, closed]
+
+    AdminTierUsage:
+      type: object
+      description: Where a club stands against the active-player bands of its tariff version.
+      required: [active_players_90d, tier, next_tier_at]
+      properties:
+        active_players_90d:
+          type: integer
+          minimum: 0
+        tier:
+          $ref: '#/components/schemas/PricingTier'
+        next_tier_at:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+          description: Active players at which the club moves up a band; `null` in the top band.
+
+    AdminClubRow:
+      type: object
+      description: One club in the console list.
+      required: [id, name, city, status, plan, tier, balance_cents, last_payment_at, overdue_days]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        city:
+          type: string
+        status:
+          $ref: '#/components/schemas/AdminClubStatus'
+        plan:
+          $ref: '#/components/schemas/ClubPlan'
+        tier:
+          $ref: '#/components/schemas/PricingTier'
+        balance_cents:
+          type: integer
+          description: Positive is what the club owes, negative is credit. ARS cents.
+        last_payment_at:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        overdue_days:
+          type: integer
+          minimum: 0
+          description: Days since the oldest unpaid invoice was due; 0 when up to date.
+
+    AdminClubPage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AdminClubRow'
+
+    AdminLegalData:
+      type: object
+      description: Legal and contact data of the club (SA-03a).
+      required: [legal_name, tax_id, contact_name, contact_phone, contact_email, address, city]
+      additionalProperties: false
+      properties:
+        legal_name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        tax_id:
+          type: string
+          pattern: '^\d{11}$'
+          description: CUIT, 11 digits without hyphens. Unique across clubs.
+        contact_name:
+          type: string
+          maxLength: 120
+        contact_phone:
+          type: string
+          pattern: '^\+[1-9]\d{7,14}$'
+          description: E.164.
+        contact_email:
+          type: string
+          format: email
+        address:
+          type: string
+          maxLength: 200
+          description: Street address; the API geocodes it.
+        city:
+          type: string
+          maxLength: 80
+
+    AdminClubUpdate:
+      type: object
+      description: Fields of a club the console may change. At least one is required.
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        legal:
+          $ref: '#/components/schemas/AdminLegalData'
+        plan:
+          $ref: '#/components/schemas/ClubPlan'
+
+    AdminClubStatusChange:
+      type: object
+      required: [reason]
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+          description: Why. Stored in `audit_log`.
+
+    DepositModule:
+      type: object
+      description: Deposit (seña) charged when a player books.
+      required: [enabled, kind, percent, amount_cents]
+      additionalProperties: false
+      properties:
+        enabled:
+          type: boolean
+        kind:
+          type: string
+          enum: [percent, fixed]
+        percent:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+          maximum: 100
+          description: Required when `kind` is `percent`.
+        amount_cents:
+          oneOf:
+            - $ref: '#/components/schemas/AmountCents'
+            - type: 'null'
+          description: Required when `kind` is `fixed`.
+
+    BrandingModule:
+      type: object
+      description: Club white-label look.
+      required: [mode, logo_url, primary_color, secondary_color]
+      additionalProperties: false
+      properties:
+        mode:
+          type: string
+          enum: [own, generic]
+        logo_url:
+          type:
+            - string
+            - 'null'
+          format: uri
+        primary_color:
+          type:
+            - string
+            - 'null'
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        secondary_color:
+          type:
+            - string
+            - 'null'
+          pattern: '^#[0-9A-Fa-f]{6}$'
+
+    AiVideoPayer:
+      type: string
+      description: Who pays for recording, analysis and video. `off` turns Smart Court off for the club.
+      enum: [off, club_pays, player_pays]
+
+    AdminModules:
+      type: object
+      description: Feature flags of a club (SA-05).
+      required: [deposit, branding, lesson_mode, ai_video, tournaments]
+      additionalProperties: false
+      properties:
+        deposit:
+          $ref: '#/components/schemas/DepositModule'
+        branding:
+          $ref: '#/components/schemas/BrandingModule'
+        lesson_mode:
+          type: string
+          enum: [app, whatsapp]
+          description: Whether lessons are booked in the app or the coach is opened on WhatsApp.
+        ai_video:
+          $ref: '#/components/schemas/AiVideoPayer'
+        tournaments:
+          type: boolean
+
+    AdminClubModules:
+      type: object
+      required: [club_id, modules, estimated_monthly_cents, tariff_version_id]
+      properties:
+        club_id:
+          $ref: '#/components/schemas/Uuid'
+        modules:
+          $ref: '#/components/schemas/AdminModules'
+        estimated_monthly_cents:
+          $ref: '#/components/schemas/AmountCents'
+          description: Subscription tier plus the price of every enabled module.
+        tariff_version_id:
+          $ref: '#/components/schemas/Uuid'
+
+    AdminClubModulesUpdate:
+      type: object
+      required: [modules]
+      additionalProperties: false
+      properties:
+        modules:
+          $ref: '#/components/schemas/AdminModules'
+
+    AdminPaymentMethod:
+      type: string
+      enum: [transfer, cash, check, card_in_person]
+
+    AdminOnboardingPayment:
+      type: object
+      description: The first payment, taken in person (SA-04 step 3).
+      required: [amount_cents, method, paid_on]
+      additionalProperties: false
+      properties:
+        amount_cents:
+          $ref: '#/components/schemas/AmountCents'
+        method:
+          $ref: '#/components/schemas/AdminPaymentMethod'
+        paid_on:
+          type: string
+          format: date
+        reference:
+          type: string
+          maxLength: 120
+          description: Transfer number or receipt id.
+        receipt_media_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+          description: Uploaded proof of payment, if any.
+
+    AdminOnboardingCourt:
+      type: object
+      required: [name, kind, covered, price_cents_per_hour]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          maxLength: 60
+        kind:
+          type: string
+          enum: [standard, panoramic]
+        covered:
+          type: boolean
+        price_cents_per_hour:
+          $ref: '#/components/schemas/AmountCents'
+
+    AdminClubOnboarding:
+      type: object
+      description: Everything the on-site wizard collects (SA-04).
+      required: [name, legal, owner, plan, tariff_version_id, modules, payment, courts]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        legal:
+          $ref: '#/components/schemas/AdminLegalData'
+        owner:
+          type: object
+          description: Person invited as club owner.
+          required: [name, phone]
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+              maxLength: 120
+            phone:
+              type: string
+              pattern: '^\+[1-9]\d{7,14}$'
+            email:
+              type: string
+              format: email
+        plan:
+          $ref: '#/components/schemas/ClubPlan'
+        tariff_version_id:
+          $ref: '#/components/schemas/Uuid'
+        modules:
+          $ref: '#/components/schemas/AdminModules'
+        payment:
+          $ref: '#/components/schemas/AdminOnboardingPayment'
+        courts:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/AdminOnboardingCourt'
+
+    AdminUserRef:
+      type: object
+      required: [id, name, role]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        role:
+          type: string
+          description: Club role (`owner`, `staff`, `coach`).
+
+    AdminAuditEvent:
+      type: object
+      description: One immutable entry of `audit_log`.
+      required: [id, at, actor_id, actor_role, action, club_id, target, reason]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        at:
+          $ref: '#/components/schemas/Timestamp'
+        actor_id:
+          $ref: '#/components/schemas/Uuid'
+        actor_role:
+          type: string
+          enum: [admin, sales, support, finance]
+        action:
+          type: string
+          description: Dotted key, e.g. `club.suspended`, `payment.recorded`, `video.viewed`.
+        club_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        target:
+          type: string
+          description: What changed, e.g. `club:0192...` or `match:0192...`.
+        reason:
+          type:
+            - string
+            - 'null'
+
+    AdminAuditEventPage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AdminAuditEvent'
+
+    AdminUsageRow:
+      type: object
+      description: Usage of a club in a month (SA-06).
+      required:
+        - club_id
+        - club_name
+        - period
+        - tier_usage
+        - bookings
+        - recorded_matches
+        - storage_gb
+        - video_minutes
+        - estimated_cost_cents
+        - invoiced_cents
+        - near_limit
+        - trend
+      properties:
+        club_id:
+          $ref: '#/components/schemas/Uuid'
+        club_name:
+          type: string
+        period:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+        tier_usage:
+          $ref: '#/components/schemas/AdminTierUsage'
+        bookings:
+          type: integer
+          minimum: 0
+        recorded_matches:
+          type: integer
+          minimum: 0
+        storage_gb:
+          type: number
+          minimum: 0
+        video_minutes:
+          type: integer
+          minimum: 0
+        estimated_cost_cents:
+          $ref: '#/components/schemas/AmountCents'
+          description: Our infrastructure cost for the club in the month.
+        invoiced_cents:
+          $ref: '#/components/schemas/AmountCents'
+        near_limit:
+          type: boolean
+          description: True when the club is within 10% of the next band.
+        trend:
+          type: array
+          maxItems: 12
+          description: Active players at the end of each of the last months, oldest first (sparkline).
+          items:
+            type: integer
+            minimum: 0
+
+    AdminUsagePage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AdminUsageRow'
+
+    AdminInvoiceStatus:
+      type: string
+      enum: [draft, issued, paid, overdue, void]
+
+    AdminInvoice:
+      type: object
+      description: Subscription invoice from us to a club.
+      required:
+        [
+          id,
+          club_id,
+          club_name,
+          period,
+          status,
+          amount_cents,
+          paid_cents,
+          due_on,
+          invoice_number,
+          issued_at,
+        ]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        club_id:
+          $ref: '#/components/schemas/Uuid'
+        club_name:
+          type: string
+        period:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+        status:
+          $ref: '#/components/schemas/AdminInvoiceStatus'
+        amount_cents:
+          $ref: '#/components/schemas/AmountCents'
+        paid_cents:
+          $ref: '#/components/schemas/AmountCents'
+        due_on:
+          type: string
+          format: date
+        invoice_number:
+          type:
+            - string
+            - 'null'
+          description: ARCA number once issued.
+        issued_at:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+
+    AdminInvoicePage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AdminInvoice'
+
+    AdminClubPayment:
+      type: object
+      required:
+        [
+          id,
+          club_id,
+          amount_cents,
+          method,
+          paid_on,
+          reference,
+          invoice_ids,
+          recorded_by,
+          recorded_at,
+        ]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        club_id:
+          $ref: '#/components/schemas/Uuid'
+        amount_cents:
+          $ref: '#/components/schemas/AmountCents'
+        method:
+          $ref: '#/components/schemas/AdminPaymentMethod'
+        paid_on:
+          type: string
+          format: date
+        reference:
+          type:
+            - string
+            - 'null'
+        invoice_ids:
+          type: array
+          items:
+            $ref: '#/components/schemas/Uuid'
+        recorded_by:
+          $ref: '#/components/schemas/Uuid'
+        recorded_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    AdminManualPaymentCreate:
+      type: object
+      required: [amount_cents, method, paid_on]
+      additionalProperties: false
+      properties:
+        amount_cents:
+          type: integer
+          minimum: 1
+          description: Amount in ARS cents.
+        method:
+          $ref: '#/components/schemas/AdminPaymentMethod'
+        paid_on:
+          type: string
+          format: date
+        reference:
+          type: string
+          maxLength: 120
+          description: Receipt or transfer id; unique per club.
+        invoice_ids:
+          type: array
+          maxItems: 24
+          items:
+            $ref: '#/components/schemas/Uuid'
+        note:
+          type: string
+          maxLength: 500
+
+    AdminDunningPauseUpdate:
+      type: object
+      required: [paused_until, reason]
+      additionalProperties: false
+      properties:
+        paused_until:
+          oneOf:
+            - type: string
+              format: date
+            - type: 'null'
+          description: Last day of the pause, up to 60 days ahead; `null` resumes dunning.
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+
+    AdminClubBilling:
+      type: object
+      description: B2B account statement of a club (SA-08).
+      required:
+        [
+          club_id,
+          status,
+          balance_cents,
+          overdue_days,
+          dunning_paused_until,
+          invoices,
+          payments,
+          timeline,
+        ]
+      properties:
+        club_id:
+          $ref: '#/components/schemas/Uuid'
+        status:
+          $ref: '#/components/schemas/AdminClubStatus'
+        balance_cents:
+          type: integer
+          description: Positive is what the club owes. ARS cents.
+        overdue_days:
+          type: integer
+          minimum: 0
+        dunning_paused_until:
+          oneOf:
+            - type: string
+              format: date
+            - type: 'null'
+        invoices:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminInvoice'
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminClubPayment'
+        timeline:
+          type: array
+          description: Reminders, suspensions and reactivations, newest first.
+          items:
+            type: object
+            required: [at, kind]
+            properties:
+              at:
+                $ref: '#/components/schemas/Timestamp'
+              kind:
+                type: string
+                enum:
+                  [
+                    invoice_issued,
+                    reminder_sent,
+                    payment_recorded,
+                    dunning_paused,
+                    dunning_resumed,
+                    suspended,
+                    reactivated,
+                  ]
+
+    AdminClubDetail:
+      type: object
+      description: Club file for the console (SA-03a).
+      required:
+        [
+          id,
+          name,
+          status,
+          plan,
+          legal,
+          modules,
+          tier_usage,
+          billing,
+          users,
+          recent_audit,
+          whitelabel_url,
+          created_at,
+        ]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        status:
+          $ref: '#/components/schemas/AdminClubStatus'
+        plan:
+          $ref: '#/components/schemas/ClubPlan'
+        legal:
+          $ref: '#/components/schemas/AdminLegalData'
+        modules:
+          $ref: '#/components/schemas/AdminModules'
+        tier_usage:
+          $ref: '#/components/schemas/AdminTierUsage'
+        billing:
+          type: object
+          required: [balance_cents, overdue_days, last_payment_at]
+          properties:
+            balance_cents:
+              type: integer
+            overdue_days:
+              type: integer
+              minimum: 0
+            last_payment_at:
+              oneOf:
+                - $ref: '#/components/schemas/Timestamp'
+                - type: 'null'
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUserRef'
+        recent_audit:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/AdminAuditEvent'
+        whitelabel_url:
+          type: string
+          format: uri
+          description: Link and QR payload of the club's white-label page.
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    AdminModulePrice:
+      type: object
+      required: [module, monthly_cents]
+      additionalProperties: false
+      properties:
+        module:
+          type: string
+          enum:
+            [
+              deposit,
+              branding_own,
+              lessons_app,
+              ai_video_club_pays,
+              ai_video_player_pays,
+              tournaments,
+            ]
+        monthly_cents:
+          $ref: '#/components/schemas/AmountCents'
+
+    AdminTariffTier:
+      type: object
+      description: One band of active players and the monthly subscription it costs (decision #253).
+      required: [min_active_players, max_active_players, monthly_cents]
+      additionalProperties: false
+      properties:
+        min_active_players:
+          type: integer
+          minimum: 0
+        max_active_players:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+          description: '`null` for the top band.'
+        monthly_cents:
+          $ref: '#/components/schemas/AmountCents'
+
+    AdminTariffVersionCreate:
+      type: object
+      required: [name, effective_from, tiers, module_prices]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        effective_from:
+          type: string
+          format: date
+        tiers:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items:
+            $ref: '#/components/schemas/AdminTariffTier'
+        module_prices:
+          type: array
+          maxItems: 12
+          items:
+            $ref: '#/components/schemas/AdminModulePrice'
+
+    AdminTariffVersion:
+      allOf:
+        - $ref: '#/components/schemas/AdminTariffVersionCreate'
+        - type: object
+          required: [id, published_by, published_at, clubs_on_version]
+          properties:
+            id:
+              $ref: '#/components/schemas/Uuid'
+            published_by:
+              $ref: '#/components/schemas/Uuid'
+            published_at:
+              $ref: '#/components/schemas/Timestamp'
+            clubs_on_version:
+              type: integer
+              minimum: 0
+
+    AdminTariffVersionPage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AdminTariffVersion'
+
+    AdminInvoiceSimulationRequest:
+      type: object
+      description: Give `tariff_version_id` for a published version or `draft` for an unpublished one.
+      required: [active_players, modules]
+      additionalProperties: false
+      properties:
+        tariff_version_id:
+          $ref: '#/components/schemas/Uuid'
+        draft:
+          $ref: '#/components/schemas/AdminTariffVersionCreate'
+        active_players:
+          type: integer
+          minimum: 0
+        modules:
+          $ref: '#/components/schemas/AdminModules'
+
+    AdminInvoiceSimulation:
+      type: object
+      required: [tier, subscription_cents, modules_cents, total_cents]
+      properties:
+        tier:
+          $ref: '#/components/schemas/PricingTier'
+        subscription_cents:
+          $ref: '#/components/schemas/AmountCents'
+        modules_cents:
+          $ref: '#/components/schemas/AmountCents'
+        total_cents:
+          $ref: '#/components/schemas/AmountCents'
+
+    AdminSupportAccessCreate:
+      type: object
+      required: [match_id, reason, duration_minutes]
+      additionalProperties: false
+      properties:
+        match_id:
+          $ref: '#/components/schemas/Uuid'
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+          description: Why support needs the video, e.g. a ticket id.
+        duration_minutes:
+          type: integer
+          minimum: 5
+          maximum: 240
+
+    AdminSupportAccess:
+      type: object
+      required: [id, match_id, club_id, granted_to, reason, expires_at, audit_event_id]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        match_id:
+          $ref: '#/components/schemas/Uuid'
+        club_id:
+          $ref: '#/components/schemas/Uuid'
+        granted_to:
+          $ref: '#/components/schemas/Uuid'
+        reason:
+          type: string
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+        audit_event_id:
+          $ref: '#/components/schemas/Uuid'
+          description: The `audit_log` entry that registers the permission.
+
+    AdminVideoUrl:
+      type: object
+      required: [url, expires_at]
+      properties:
+        url:
+          type: string
+          format: uri
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+          description: One hour after the call, or sooner if the permission ends first.
 
   examples:
     ClubDashboardExample:
