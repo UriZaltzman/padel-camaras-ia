@@ -954,6 +954,111 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/club-admin/dashboard': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Today's view of the club (staff and owner)
+     * @description Bookings and occupancy of the day (in the club's time zone), live status of every court
+     *     and camera, and the club device health. Never includes personal stats (section 12).
+     *
+     *     `revenue` and `billing` are for the owner; they are `null` for staff.
+     *
+     *     Errors: `FORBIDDEN` (the caller is not staff or owner of the club), `NOT_FOUND`.
+     */
+    get: operations['getClubDashboard'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/club-admin/bookings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List the club's bookings (staff and owner)
+     * @description Bookings of the club between `from` and `to` (at most 31 days), ordered by start. Each
+     *     carries the booker's name and phone so the front desk can reach them; no stats.
+     */
+    get: operations['listClubBookings'];
+    put?: never;
+    /**
+     * Quick booking from the front desk (phone and turn)
+     * @description For turns that still arrive by WhatsApp (section 9, step 7). The booking is created
+     *     `confirmed` with `source: panel`, under the same exclusion constraint as
+     *     `POST /bookings`. If the phone has no account, a pending account is created and the
+     *     person gets a WhatsApp to activate it and accept the terms and privacy policy.
+     *     `deposit: paid_at_club` records a deposit taken in cash or transfer at the desk.
+     *     Accepts `recurrence` for fixed weekly turns, like `POST /bookings`.
+     *
+     *     Errors: `BOOKING_SLOT_TAKEN` (409), `BOOKING_SLOT_INVALID` (422), `FORBIDDEN`,
+     *     `NOT_FOUND` (court), `VALIDATION_FAILED` (400).
+     */
+    post: operations['createClubBooking'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/club-admin/recording/{court}/stop': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Cut the recording of a court now (staff and owner)
+     * @description Ends the current recording of the court before the turn ends (players left early). The
+     *     match moves `recording` → `recorded` and the club device receives the stop over the
+     *     court channel; `match.recorded` is emitted. Idempotent for 60 seconds: a second call for
+     *     the same match returns the same result.
+     *
+     *     Errors: `RECORDING_NOT_ACTIVE` (409), `FORBIDDEN`, `NOT_FOUND`.
+     */
+    post: operations['stopCourtRecording'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/club-admin/settlements': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List the club's monthly settlements (owner only)
+     * @description One settlement per month, newest first (section 10). The subscription line is priced by
+     *     the tier of active players in the last 90 days (decision of 21/10/2026, #253), not by
+     *     number of courts. Staff get `FORBIDDEN`.
+     */
+    get: operations['listClubSettlements'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2277,6 +2382,153 @@ export interface components {
       cancelled_booking_ids: components['schemas']['Uuid'][];
     };
     /**
+     * @description `recording` (a turn is being recorded), `idle`, `camera_offline` (one or both cameras
+     *     down) or `maintenance` (court not active).
+     * @enum {string}
+     */
+    CourtLiveStatus: 'recording' | 'idle' | 'camera_offline' | 'maintenance';
+    /**
+     * @description End of the court where the camera is mounted (section 5).
+     * @enum {string}
+     */
+    CameraEnd: 'A' | 'B';
+    CameraState: {
+      end: components['schemas']['CameraEnd'];
+      online: boolean;
+    };
+    CourtLive: {
+      court: components['schemas']['EntityRef'];
+      status: components['schemas']['CourtLiveStatus'];
+      cameras: components['schemas']['CameraState'][];
+      current_match_id: components['schemas']['Uuid'] | null;
+      /** @description Scheduled end of the current recording. */
+      current_until: components['schemas']['Timestamp'] | null;
+      next_booking_at: components['schemas']['Timestamp'] | null;
+    };
+    /** @description Last heartbeat of a club device (section 4, `health`). */
+    DeviceHealthSummary: {
+      device_id: components['schemas']['Uuid'];
+      /** @description False when no heartbeat arrived in the last 3 minutes. */
+      online: boolean;
+      last_seen_at: components['schemas']['Timestamp'];
+      disk_free_pct: number;
+      gpu_temp_c: number | null;
+      /** @description Estimated minutes to empty the upload queue. */
+      upload_queue_minutes: number;
+    };
+    /**
+     * @description Band of active players (distinct players with at least one recorded match in the club in
+     *     the last 90 days) that sets the monthly subscription (decision of 21/10/2026, #253).
+     *     Bands and prices live in the contract with the club; see `docs/pendientes.md`.
+     */
+    PricingTier: {
+      name: string;
+      min_active_players: number;
+      /** @description `null` for the top band. */
+      max_active_players: number | null;
+    };
+    /** @description Owner only. Where the club stands on its subscription this month. */
+    ClubBillingSummary: {
+      active_players_90d: number;
+      tier: components['schemas']['PricingTier'];
+      subscription_cents: components['schemas']['AmountCents'];
+      /** @description Unpaid subscription; shown after 15 days, service cut at 30 (section 10). */
+      debt_cents: components['schemas']['AmountCents'];
+    };
+    /** @description Owner only. Money of the day, in ARS cents. */
+    ClubRevenueSummary: {
+      bookings_cents: components['schemas']['AmountCents'];
+      deposits_cents: components['schemas']['AmountCents'];
+      player_extras_cents: components['schemas']['AmountCents'];
+    };
+    ClubDashboard: {
+      club_id: components['schemas']['Uuid'];
+      /** Format: date */
+      date: string;
+      bookings_count: number;
+      /** @description Booked minutes over open minutes of every active court. */
+      occupancy_pct: number;
+      matches_published: number;
+      matches_failed: number;
+      courts: components['schemas']['CourtLive'][];
+      devices: components['schemas']['DeviceHealthSummary'][];
+      /** @description `null` for staff. */
+      revenue: components['schemas']['ClubRevenueSummary'] | null;
+      /** @description `null` for staff. */
+      billing: components['schemas']['ClubBillingSummary'] | null;
+    };
+    /** @description Who booked, so the front desk can reach them. No stats. */
+    ClubBookingContact: {
+      user_id: components['schemas']['Uuid'];
+      name: string | null;
+      phone: components['schemas']['PhoneNumber'] | null;
+      /** @description True when the account was created from the panel and not activated yet. */
+      account_pending: boolean;
+    };
+    ClubBooking: components['schemas']['Booking'] & {
+      court_name: string;
+      booker: components['schemas']['ClubBookingContact'];
+      /** @description The recorded match, once recording started. */
+      match_id: components['schemas']['Uuid'] | null;
+    };
+    ClubBookingPage: components['schemas']['Page'] & {
+      items: components['schemas']['ClubBooking'][];
+    };
+    ClubBookingCreate: {
+      court_id: components['schemas']['Uuid'];
+      starts_at: components['schemas']['Timestamp'];
+      duration_minutes: components['schemas']['BookingDuration'];
+      phone: components['schemas']['PhoneNumber'];
+      /** @description Name for a new pending account. Ignored if the phone has an account. */
+      name?: string;
+      /**
+       * @description `none` or `paid_at_club` (cash or transfer at the desk). Defaults to `none`.
+       * @enum {string}
+       */
+      deposit?: 'none' | 'paid_at_club';
+      recurrence?: components['schemas']['BookingRecurrence'];
+      /** @description Marks the turn "do not record" (for example an escuelita). */
+      no_record?: boolean;
+    };
+    RecordingStop: {
+      court_id: components['schemas']['Uuid'];
+      match_id: components['schemas']['Uuid'];
+      match_status: components['schemas']['MatchStatus'];
+      stopped_at: components['schemas']['Timestamp'];
+    };
+    SettlementSubscription: {
+      /** @description Active players at the close of the period. */
+      active_players_90d: number;
+      tier: components['schemas']['PricingTier'];
+      amount_cents: components['schemas']['AmountCents'];
+    };
+    /**
+     * @description Monthly summary of a club (section 10). All amounts in ARS cents.
+     *     `net_payable_by_club_cents` = subscription + commissions minus `collected_by_platform_cents`
+     *     (money we collected because the club had not connected its Mercado Pago account, which
+     *     we owe the club), floored at 0; when we owe more than the club does, we transfer the
+     *     difference to the club.
+     */
+    Settlement: {
+      id: components['schemas']['Uuid'];
+      /** @description Month, `YYYY-MM`. */
+      period: string;
+      status: components['schemas']['SettlementStatus'];
+      subscription: components['schemas']['SettlementSubscription'];
+      player_payments_cents: components['schemas']['AmountCents'];
+      lesson_payments_cents: components['schemas']['AmountCents'];
+      deposits_cents: components['schemas']['AmountCents'];
+      commissions_cents: components['schemas']['AmountCents'];
+      collected_by_platform_cents: components['schemas']['AmountCents'];
+      net_payable_by_club_cents: components['schemas']['AmountCents'];
+      /** @description ARCA invoice number, once `invoiced`. */
+      invoice_number: string | null;
+      created_at: components['schemas']['Timestamp'];
+    };
+    SettlementPage: components['schemas']['Page'] & {
+      items: components['schemas']['Settlement'][];
+    };
+    /**
      * @description Base of every paginated response. A list operation combines it with `allOf` and adds an
      *     `items` array of its own type.
      */
@@ -2472,6 +2724,8 @@ export interface components {
     Cursor: string;
     /** @description Maximum number of items in the page. */
     Limit: number;
+    /** @description Club the panel acts on. The caller must be staff or owner of it. */
+    ClubIdQuery: components['schemas']['Uuid'];
     /** @description Club id. */
     ClubId: components['schemas']['Uuid'];
     /** @description Lesson id. */
@@ -2651,6 +2905,23 @@ export type SchemaBookingCancelScope = components['schemas']['BookingCancelScope
 export type SchemaBookingCancelRequest = components['schemas']['BookingCancelRequest'];
 export type SchemaRefundStatus = components['schemas']['RefundStatus'];
 export type SchemaBookingCancellation = components['schemas']['BookingCancellation'];
+export type SchemaCourtLiveStatus = components['schemas']['CourtLiveStatus'];
+export type SchemaCameraEnd = components['schemas']['CameraEnd'];
+export type SchemaCameraState = components['schemas']['CameraState'];
+export type SchemaCourtLive = components['schemas']['CourtLive'];
+export type SchemaDeviceHealthSummary = components['schemas']['DeviceHealthSummary'];
+export type SchemaPricingTier = components['schemas']['PricingTier'];
+export type SchemaClubBillingSummary = components['schemas']['ClubBillingSummary'];
+export type SchemaClubRevenueSummary = components['schemas']['ClubRevenueSummary'];
+export type SchemaClubDashboard = components['schemas']['ClubDashboard'];
+export type SchemaClubBookingContact = components['schemas']['ClubBookingContact'];
+export type SchemaClubBooking = components['schemas']['ClubBooking'];
+export type SchemaClubBookingPage = components['schemas']['ClubBookingPage'];
+export type SchemaClubBookingCreate = components['schemas']['ClubBookingCreate'];
+export type SchemaRecordingStop = components['schemas']['RecordingStop'];
+export type SchemaSettlementSubscription = components['schemas']['SettlementSubscription'];
+export type SchemaSettlement = components['schemas']['Settlement'];
+export type SchemaSettlementPage = components['schemas']['SettlementPage'];
 export type SchemaPage = components['schemas']['Page'];
 export type SchemaError = components['schemas']['Error'];
 export type SchemaValidationIssue = components['schemas']['ValidationIssue'];
@@ -2668,6 +2939,7 @@ export type ResponseBadGateway = components['responses']['BadGateway'];
 export type ResponseServiceUnavailable = components['responses']['ServiceUnavailable'];
 export type ParameterCursor = components['parameters']['Cursor'];
 export type ParameterLimit = components['parameters']['Limit'];
+export type ParameterClubIdQuery = components['parameters']['ClubIdQuery'];
 export type ParameterClubId = components['parameters']['ClubId'];
 export type ParameterLessonId = components['parameters']['LessonId'];
 export type ParameterCourtId = components['parameters']['CourtId'];
@@ -4264,6 +4536,218 @@ export interface operations {
       429: components['responses']['TooManyRequests'];
       500: components['responses']['InternalError'];
       502: components['responses']['BadGateway'];
+    };
+  };
+  getClubDashboard: {
+    parameters: {
+      query: {
+        /** @description Club the panel acts on. The caller must be staff or owner of it. */
+        club_id: components['parameters']['ClubIdQuery'];
+        /** @description Local date in the club's time zone. Defaults to today. */
+        date?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The dashboard. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ClubDashboard'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listClubBookings: {
+    parameters: {
+      query: {
+        /** @description Club the panel acts on. The caller must be staff or owner of it. */
+        club_id: components['parameters']['ClubIdQuery'];
+        /** @description Opaque cursor from a previous page's `next_cursor`. Omit it for the first page. */
+        cursor?: components['parameters']['Cursor'];
+        /** @description Maximum number of items in the page. */
+        limit?: components['parameters']['Limit'];
+        from: components['schemas']['Timestamp'];
+        to: components['schemas']['Timestamp'];
+        court_id?: components['schemas']['Uuid'];
+        status?: components['schemas']['BookingStatus'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of bookings. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ClubBookingPage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  createClubBooking: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "court_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61",
+         *       "starts_at": "2026-10-23T22:00:00Z",
+         *       "duration_minutes": 90,
+         *       "phone": "+5491155550188",
+         *       "name": "Diego Ruiz",
+         *       "deposit": "none"
+         *     }
+         */
+        'application/json': components['schemas']['ClubBookingCreate'];
+      };
+    };
+    responses: {
+      /** @description The confirmed booking. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ClubBooking'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  stopCourtRecording: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Court id. */
+        court: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The recording was stopped. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "court_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61",
+           *       "match_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b",
+           *       "match_status": "recorded",
+           *       "stopped_at": "2026-10-23T23:12:00Z"
+           *     }
+           */
+          'application/json': components['schemas']['RecordingStop'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listClubSettlements: {
+    parameters: {
+      query: {
+        /** @description Club the panel acts on. The caller must be staff or owner of it. */
+        club_id: components['parameters']['ClubIdQuery'];
+        /** @description Opaque cursor from a previous page's `next_cursor`. Omit it for the first page. */
+        cursor?: components['parameters']['Cursor'];
+        /** @description Maximum number of items in the page. */
+        limit?: components['parameters']['Limit'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of settlements. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "items": [
+           *         {
+           *           "id": "0192f9e4-5a6b-7c8d-9e0f-1a2b3c4d5e6f",
+           *           "period": "2026-10",
+           *           "status": "invoiced",
+           *           "subscription": {
+           *             "active_players_90d": 212,
+           *             "tier": {
+           *               "name": "Tramo 2",
+           *               "min_active_players": 151,
+           *               "max_active_players": 300
+           *             },
+           *             "amount_cents": 45000000
+           *           },
+           *           "player_payments_cents": 18000000,
+           *           "lesson_payments_cents": 9000000,
+           *           "deposits_cents": 24000000,
+           *           "commissions_cents": 2700000,
+           *           "collected_by_platform_cents": 0,
+           *           "net_payable_by_club_cents": 47700000,
+           *           "invoice_number": "0003-00000123",
+           *           "created_at": "2026-11-01T03:00:00Z"
+           *         }
+           *       ],
+           *       "next_cursor": null
+           *     }
+           */
+          'application/json': components['schemas']['SettlementPage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
     };
   };
 }

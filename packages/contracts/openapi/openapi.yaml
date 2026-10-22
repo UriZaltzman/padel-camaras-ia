@@ -89,6 +89,8 @@ tags:
     description: Mercado Pago checkouts (deposits, extras, lessons) and the payment webhook.
   - name: Bookings
     description: Court availability, holds, invites, cancellations and fixed weekly turns.
+  - name: ClubAdmin
+    description: Club panel for staff and owner. Staff never see personal stats or money.
 
 # Every operation must:
 # - document `429` and reference `components/responses` for every 4xx and 5xx response;
@@ -2118,6 +2120,260 @@ paths:
         '502':
           $ref: '#/components/responses/BadGateway'
 
+  /club-admin/dashboard:
+    get:
+      operationId: getClubDashboard
+      tags: [ClubAdmin]
+      summary: Today's view of the club (staff and owner)
+      description: |
+        Bookings and occupancy of the day (in the club's time zone), live status of every court
+        and camera, and the club device health. Never includes personal stats (section 12).
+
+        `revenue` and `billing` are for the owner; they are `null` for staff.
+
+        Errors: `FORBIDDEN` (the caller is not staff or owner of the club), `NOT_FOUND`.
+      parameters:
+        - $ref: '#/components/parameters/ClubIdQuery'
+        - name: date
+          in: query
+          required: false
+          description: Local date in the club's time zone. Defaults to today.
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: The dashboard.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClubDashboard'
+              examples:
+                owner:
+                  $ref: '#/components/examples/ClubDashboardExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /club-admin/bookings:
+    get:
+      operationId: listClubBookings
+      tags: [ClubAdmin]
+      summary: List the club's bookings (staff and owner)
+      description: |
+        Bookings of the club between `from` and `to` (at most 31 days), ordered by start. Each
+        carries the booker's name and phone so the front desk can reach them; no stats.
+      parameters:
+        - $ref: '#/components/parameters/ClubIdQuery'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: from
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Timestamp'
+        - name: to
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Timestamp'
+        - name: court_id
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/Uuid'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/BookingStatus'
+      responses:
+        '200':
+          description: One page of bookings.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClubBookingPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createClubBooking
+      tags: [ClubAdmin]
+      summary: Quick booking from the front desk (phone and turn)
+      description: |
+        For turns that still arrive by WhatsApp (section 9, step 7). The booking is created
+        `confirmed` with `source: panel`, under the same exclusion constraint as
+        `POST /bookings`. If the phone has no account, a pending account is created and the
+        person gets a WhatsApp to activate it and accept the terms and privacy policy.
+        `deposit: paid_at_club` records a deposit taken in cash or transfer at the desk.
+        Accepts `recurrence` for fixed weekly turns, like `POST /bookings`.
+
+        Errors: `BOOKING_SLOT_TAKEN` (409), `BOOKING_SLOT_INVALID` (422), `FORBIDDEN`,
+        `NOT_FOUND` (court), `VALIDATION_FAILED` (400).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClubBookingCreate'
+            example:
+              court_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61
+              starts_at: '2026-10-23T22:00:00Z'
+              duration_minutes: 90
+              phone: '+5491155550188'
+              name: Diego Ruiz
+              deposit: none
+      responses:
+        '201':
+          description: The confirmed booking.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClubBooking'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /club-admin/recording/{court}/stop:
+    post:
+      operationId: stopCourtRecording
+      tags: [ClubAdmin]
+      summary: Cut the recording of a court now (staff and owner)
+      description: |
+        Ends the current recording of the court before the turn ends (players left early). The
+        match moves `recording` → `recorded` and the club device receives the stop over the
+        court channel; `match.recorded` is emitted. Idempotent for 60 seconds: a second call for
+        the same match returns the same result.
+
+        Errors: `RECORDING_NOT_ACTIVE` (409), `FORBIDDEN`, `NOT_FOUND`.
+      parameters:
+        - name: court
+          in: path
+          required: true
+          description: Court id.
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: The recording was stopped.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordingStop'
+              example:
+                court_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61
+                match_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b
+                match_status: recorded
+                stopped_at: '2026-10-23T23:12:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /club-admin/settlements:
+    get:
+      operationId: listClubSettlements
+      tags: [ClubAdmin]
+      summary: List the club's monthly settlements (owner only)
+      description: |
+        One settlement per month, newest first (section 10). The subscription line is priced by
+        the tier of active players in the last 90 days (decision of 21/10/2026, #253), not by
+        number of courts. Staff get `FORBIDDEN`.
+      parameters:
+        - $ref: '#/components/parameters/ClubIdQuery'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of settlements.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettlementPage'
+              example:
+                items:
+                  - id: 0192f9e4-5a6b-7c8d-9e0f-1a2b3c4d5e6f
+                    period: 2026-10
+                    status: invoiced
+                    subscription:
+                      active_players_90d: 212
+                      tier:
+                        name: Tramo 2
+                        min_active_players: 151
+                        max_active_players: 300
+                      amount_cents: 45000000
+                    player_payments_cents: 18000000
+                    lesson_payments_cents: 9000000
+                    deposits_cents: 24000000
+                    commissions_cents: 2700000
+                    collected_by_platform_cents: 0
+                    net_payable_by_club_cents: 47700000
+                    invoice_number: 0003-00000123
+                    created_at: '2026-11-01T03:00:00Z'
+                next_cursor: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
 components:
   securitySchemes:
     deviceMtls:
@@ -2155,6 +2411,13 @@ components:
         maximum: 50
         default: 20
 
+    ClubIdQuery:
+      name: club_id
+      in: query
+      required: true
+      description: Club the panel acts on. The caller must be staff or owner of it.
+      schema:
+        $ref: '#/components/schemas/Uuid'
     ClubId:
       name: id
       in: path
@@ -5098,6 +5361,341 @@ components:
           items:
             $ref: '#/components/schemas/Uuid'
 
+    # Club admin panel (sections 11 and 12). Staff see bookings, cameras and matches without
+    # personal stats; the owner also sees revenue and settlements.
+    CourtLiveStatus:
+      type: string
+      description: |
+        `recording` (a turn is being recorded), `idle`, `camera_offline` (one or both cameras
+        down) or `maintenance` (court not active).
+      enum: [recording, idle, camera_offline, maintenance]
+
+    CameraEnd:
+      type: string
+      description: End of the court where the camera is mounted (section 5).
+      enum: [A, B]
+
+    CameraState:
+      type: object
+      required: [end, online]
+      properties:
+        end:
+          $ref: '#/components/schemas/CameraEnd'
+        online:
+          type: boolean
+
+    CourtLive:
+      type: object
+      required: [court, status, cameras, current_match_id, current_until, next_booking_at]
+      properties:
+        court:
+          $ref: '#/components/schemas/EntityRef'
+        status:
+          $ref: '#/components/schemas/CourtLiveStatus'
+        cameras:
+          type: array
+          items:
+            $ref: '#/components/schemas/CameraState'
+        current_match_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        current_until:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+          description: Scheduled end of the current recording.
+        next_booking_at:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+
+    DeviceHealthSummary:
+      type: object
+      description: Last heartbeat of a club device (section 4, `health`).
+      required: [device_id, online, last_seen_at, disk_free_pct, gpu_temp_c, upload_queue_minutes]
+      properties:
+        device_id:
+          $ref: '#/components/schemas/Uuid'
+        online:
+          type: boolean
+          description: False when no heartbeat arrived in the last 3 minutes.
+        last_seen_at:
+          $ref: '#/components/schemas/Timestamp'
+        disk_free_pct:
+          type: number
+          minimum: 0
+          maximum: 100
+        gpu_temp_c:
+          type:
+            - number
+            - 'null'
+        upload_queue_minutes:
+          type: integer
+          minimum: 0
+          description: Estimated minutes to empty the upload queue.
+
+    PricingTier:
+      type: object
+      description: |
+        Band of active players (distinct players with at least one recorded match in the club in
+        the last 90 days) that sets the monthly subscription (decision of 21/10/2026, #253).
+        Bands and prices live in the contract with the club; see `docs/pendientes.md`.
+      required: [name, min_active_players, max_active_players]
+      properties:
+        name:
+          type: string
+        min_active_players:
+          type: integer
+          minimum: 0
+        max_active_players:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+          description: '`null` for the top band.'
+
+    ClubBillingSummary:
+      type: object
+      description: Owner only. Where the club stands on its subscription this month.
+      required: [active_players_90d, tier, subscription_cents, debt_cents]
+      properties:
+        active_players_90d:
+          type: integer
+          minimum: 0
+        tier:
+          $ref: '#/components/schemas/PricingTier'
+        subscription_cents:
+          $ref: '#/components/schemas/AmountCents'
+        debt_cents:
+          $ref: '#/components/schemas/AmountCents'
+          description: Unpaid subscription; shown after 15 days, service cut at 30 (section 10).
+
+    ClubRevenueSummary:
+      type: object
+      description: Owner only. Money of the day, in ARS cents.
+      required: [bookings_cents, deposits_cents, player_extras_cents]
+      properties:
+        bookings_cents:
+          $ref: '#/components/schemas/AmountCents'
+        deposits_cents:
+          $ref: '#/components/schemas/AmountCents'
+        player_extras_cents:
+          $ref: '#/components/schemas/AmountCents'
+
+    ClubDashboard:
+      type: object
+      required:
+        - club_id
+        - date
+        - bookings_count
+        - occupancy_pct
+        - matches_published
+        - matches_failed
+        - courts
+        - devices
+        - revenue
+        - billing
+      properties:
+        club_id:
+          $ref: '#/components/schemas/Uuid'
+        date:
+          type: string
+          format: date
+        bookings_count:
+          type: integer
+          minimum: 0
+        occupancy_pct:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Booked minutes over open minutes of every active court.
+        matches_published:
+          type: integer
+          minimum: 0
+        matches_failed:
+          type: integer
+          minimum: 0
+        courts:
+          type: array
+          items:
+            $ref: '#/components/schemas/CourtLive'
+        devices:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceHealthSummary'
+        revenue:
+          oneOf:
+            - $ref: '#/components/schemas/ClubRevenueSummary'
+            - type: 'null'
+          description: '`null` for staff.'
+        billing:
+          oneOf:
+            - $ref: '#/components/schemas/ClubBillingSummary'
+            - type: 'null'
+          description: '`null` for staff.'
+
+    ClubBookingContact:
+      type: object
+      description: Who booked, so the front desk can reach them. No stats.
+      required: [user_id, name, phone, account_pending]
+      properties:
+        user_id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type:
+            - string
+            - 'null'
+        phone:
+          oneOf:
+            - $ref: '#/components/schemas/PhoneNumber'
+            - type: 'null'
+        account_pending:
+          type: boolean
+          description: True when the account was created from the panel and not activated yet.
+
+    ClubBooking:
+      allOf:
+        - $ref: '#/components/schemas/Booking'
+        - type: object
+          required: [court_name, booker, match_id]
+          properties:
+            court_name:
+              type: string
+            booker:
+              $ref: '#/components/schemas/ClubBookingContact'
+            match_id:
+              oneOf:
+                - $ref: '#/components/schemas/Uuid'
+                - type: 'null'
+              description: The recorded match, once recording started.
+
+    ClubBookingPage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ClubBooking'
+
+    ClubBookingCreate:
+      type: object
+      required: [court_id, starts_at, duration_minutes, phone]
+      additionalProperties: false
+      properties:
+        court_id:
+          $ref: '#/components/schemas/Uuid'
+        starts_at:
+          $ref: '#/components/schemas/Timestamp'
+        duration_minutes:
+          $ref: '#/components/schemas/BookingDuration'
+        phone:
+          $ref: '#/components/schemas/PhoneNumber'
+        name:
+          type: string
+          maxLength: 80
+          description: Name for a new pending account. Ignored if the phone has an account.
+        deposit:
+          type: string
+          description: '`none` or `paid_at_club` (cash or transfer at the desk). Defaults to `none`.'
+          enum: [none, paid_at_club]
+        recurrence:
+          $ref: '#/components/schemas/BookingRecurrence'
+        no_record:
+          type: boolean
+          description: Marks the turn "do not record" (for example an escuelita).
+
+    RecordingStop:
+      type: object
+      required: [court_id, match_id, match_status, stopped_at]
+      properties:
+        court_id:
+          $ref: '#/components/schemas/Uuid'
+        match_id:
+          $ref: '#/components/schemas/Uuid'
+        match_status:
+          $ref: '#/components/schemas/MatchStatus'
+        stopped_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    SettlementSubscription:
+      type: object
+      required: [active_players_90d, tier, amount_cents]
+      properties:
+        active_players_90d:
+          type: integer
+          minimum: 0
+          description: Active players at the close of the period.
+        tier:
+          $ref: '#/components/schemas/PricingTier'
+        amount_cents:
+          $ref: '#/components/schemas/AmountCents'
+
+    Settlement:
+      type: object
+      description: |
+        Monthly summary of a club (section 10). All amounts in ARS cents.
+        `net_payable_by_club_cents` = subscription + commissions minus `collected_by_platform_cents`
+        (money we collected because the club had not connected its Mercado Pago account, which
+        we owe the club), floored at 0; when we owe more than the club does, we transfer the
+        difference to the club.
+      required:
+        - id
+        - period
+        - status
+        - subscription
+        - player_payments_cents
+        - lesson_payments_cents
+        - deposits_cents
+        - commissions_cents
+        - collected_by_platform_cents
+        - net_payable_by_club_cents
+        - invoice_number
+        - created_at
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        period:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          description: Month, `YYYY-MM`.
+        status:
+          $ref: '#/components/schemas/SettlementStatus'
+        subscription:
+          $ref: '#/components/schemas/SettlementSubscription'
+        player_payments_cents:
+          $ref: '#/components/schemas/AmountCents'
+        lesson_payments_cents:
+          $ref: '#/components/schemas/AmountCents'
+        deposits_cents:
+          $ref: '#/components/schemas/AmountCents'
+        commissions_cents:
+          $ref: '#/components/schemas/AmountCents'
+        collected_by_platform_cents:
+          $ref: '#/components/schemas/AmountCents'
+        net_payable_by_club_cents:
+          $ref: '#/components/schemas/AmountCents'
+        invoice_number:
+          type:
+            - string
+            - 'null'
+          description: ARCA invoice number, once `invoiced`.
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    SettlementPage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Settlement'
     Page:
       type: object
       description: |
@@ -5305,6 +5903,47 @@ components:
           description: The device tried to act on a match, court or upload of another club.
 
   examples:
+    ClubDashboardExample:
+      summary: Dashboard seen by the owner
+      value:
+        club_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a60
+        date: '2026-10-23'
+        bookings_count: 31
+        occupancy_pct: 78.5
+        matches_published: 12
+        matches_failed: 0
+        courts:
+          - court:
+              id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61
+              name: Cancha 1
+            status: recording
+            cameras:
+              - end: A
+                online: true
+              - end: B
+                online: true
+            current_match_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b
+            current_until: '2026-10-23T23:30:00Z'
+            next_booking_at: '2026-10-23T23:30:00Z'
+        devices:
+          - device_id: 01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a80
+            online: true
+            last_seen_at: '2026-10-23T22:41:00Z'
+            disk_free_pct: 63.2
+            gpu_temp_c: 71
+            upload_queue_minutes: 95
+        revenue:
+          bookings_cents: 93000000
+          deposits_cents: 24000000
+          player_extras_cents: 0
+        billing:
+          active_players_90d: 212
+          tier:
+            name: Tramo 2
+            min_active_players: 151
+            max_active_players: 300
+          subscription_cents: 45000000
+          debt_cents: 0
     UserExample:
       summary: A player's profile
       value:
