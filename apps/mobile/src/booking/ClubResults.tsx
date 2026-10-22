@@ -1,5 +1,5 @@
-// How the clubs found are shown. Today a list; the map with logo pins (#259) implements the same
-// ClubResultsProps and is swapped in by FindSlotScreen without touching the rest of the flow.
+// How the clubs found are shown: this list, or the map with logo pins (ClubMap, #259). Both take
+// ClubResultsProps, so FindSlotScreen swaps them without touching the rest of the flow.
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 

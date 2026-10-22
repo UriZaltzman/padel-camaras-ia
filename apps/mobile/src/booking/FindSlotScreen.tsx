@@ -2,7 +2,7 @@
 // GET /clubs/{id}, pick a duration (60, 90 or 120) and a day within the player booking horizon,
 // and list the free starts of every active court with GET /courts/{id}/availability.
 // Picking a slot hands it to `onSelectSlot`; holding and paying it belongs to the booking issue.
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -15,7 +15,8 @@ import { color, theme } from '@app/ui/tokens';
 import { useApi } from '../api/client';
 import { defaultLocale } from '../i18n';
 import { fonts } from '../theme/fonts';
-import { ClubList, type ClubResultsView } from './ClubResults';
+import { ClubExplorer } from './ClubExplorer';
+import type { ClubResultsView } from './ClubResults';
 import {
   BookingApiError,
   DURATIONS,
@@ -44,7 +45,7 @@ export interface SelectedSlot {
 }
 
 interface FindSlotScreenProps {
-  /** Club results view: the list today, the map of #259 later. */
+  /** Replaces the club explorer (map, filters and list), for example in tests. */
   Results?: ClubResultsView;
   onSelectSlot?: (selected: SelectedSlot) => void;
   /** Injected in tests to pin "today". */
@@ -60,7 +61,7 @@ function ErrorText({ error }: { error: unknown }) {
   );
 }
 
-export function FindSlotScreen({ Results = ClubList, onSelectSlot, now }: FindSlotScreenProps) {
+export function FindSlotScreen({ Results, onSelectSlot, now }: FindSlotScreenProps) {
   const { t } = useTranslation();
   const api = useApi();
   const [query, setQuery] = useState('');
@@ -80,6 +81,8 @@ export function FindSlotScreen({ Results = ClubList, onSelectSlot, now }: FindSl
       return data.items;
     },
     enabled: clubId === null,
+    // Typing in the search keeps the explorer (and its filters) mounted while results reload.
+    placeholderData: keepPreviousData,
     retry,
   });
 
@@ -138,8 +141,18 @@ export function FindSlotScreen({ Results = ClubList, onSelectSlot, now }: FindSl
               {t('findSlot.noClubs')}
             </Text>
           )}
-          {clubs.data && clubs.data.length > 0 && (
+          {clubs.data && clubs.data.length > 0 && Results && (
             <Results
+              clubs={clubs.data}
+              onSelect={(c) => {
+                setSelected(null);
+                setClubId(c.id);
+              }}
+            />
+          )}
+          {clubs.data && clubs.data.length > 0 && !Results && (
+            <ClubExplorer
+              dates={dates}
               clubs={clubs.data}
               onSelect={(c) => {
                 setSelected(null);
