@@ -3,6 +3,7 @@ import type { Schema } from '@app/contracts';
 import { t } from '@/i18n';
 
 import { demoClub } from './mock-data';
+import { handleClubBookingsRequest, newClubBookingsMockState } from './mock-club-bookings';
 import { handlePlayerRequest, newPlayerMockState, type PlayerMockState } from './mock-player';
 
 /**
@@ -17,10 +18,13 @@ export function createMockFetch(
 ): typeof fetch {
   // In-memory copy, so a PATCH is seen by the next GET in the same session.
   let club: Schema<'Club'> = structuredClone(seed);
+  const clubBookings = newClubBookingsMockState(club);
 
   return async (input, init) => {
     const request = input instanceof Request ? input : new Request(input, init);
     const { pathname } = new URL(request.url);
+    const clubAnswer = await handleClubBookingsRequest(request, clubBookings, json);
+    if (clubAnswer) return clubAnswer;
     const answer = await handlePlayerRequest(request, player, () => club, json);
     if (answer) return answer;
     const match = /\/clubs\/([^/]+)(\/settings)?$/.exec(pathname);
