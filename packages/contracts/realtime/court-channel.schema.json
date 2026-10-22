@@ -1,0 +1,676 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/UriZaltzman/padel-camaras-ia/packages/contracts/realtime/court-channel.schema.json",
+  "title": "CourtChannel",
+  "description": "Real-time channel per court (section 11). URL: `wss://<api host>/v1/realtime/courts/{court_id}`, subprotocol `court.v1`. The app (players) and the club device connect to the same court channel; the server routes each message by direction (`AppToServer`, `ServerToApp`, `DeviceToServer`, `ServerToDevice`). Every message is a JSON text frame with the envelope `{type, id, sent_at, court_id, payload}`; `id` is a UUID v7 used for deduplication (the receiver ignores an `id` it already processed). Ping/pong are WebSocket control frames every 25 seconds. Authentication: the app sends `auth` first; the device presents its mTLS client certificate (the same one as `/device/*`) and only connects to courts of its club, otherwise the upgrade fails with `DEVICE_CERTIFICATE_INVALID` or `DEVICE_CLUB_MISMATCH`.",
+  "$defs": {
+    "RecordingState": {
+      "title": "RecordingState",
+      "type": "string",
+      "enum": [
+        "scheduled",
+        "starting",
+        "recording",
+        "stopping",
+        "stopped",
+        "camera_offline",
+        "no_record"
+      ],
+      "description": "`no_record`: the turn is marked \"do not record\" (escuelita, minor without guardian permission, or requested)."
+    },
+    "CameraStatus": {
+      "title": "CameraStatus",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["end", "online"],
+      "properties": {
+        "end": {
+          "enum": ["A", "B"]
+        },
+        "online": {
+          "type": "boolean"
+        }
+      }
+    },
+    "AuthMessage": {
+      "title": "AuthMessage",
+      "description": "App → server. First message of an app connection, within 5 seconds of opening it; the token never goes in the URL. Device connections skip it: they are authenticated by their mTLS certificate during the TLS handshake.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "sent_at", "court_id", "payload"],
+      "properties": {
+        "type": {
+          "const": "auth"
+        },
+        "id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "sent_at": {
+          "$ref": "../events/common.schema.json#/$defs/Timestamp"
+        },
+        "court_id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["access_token"],
+          "properties": {
+            "access_token": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The 15-minute access token. Send `auth` again with a renewed token before it expires to keep the connection."
+            }
+          }
+        }
+      }
+    },
+    "ClipTapMessage": {
+      "title": "ClipTapMessage",
+      "description": "App → server. A player taps \"clip\" in the app during their turn. The server stamps its own receive time (the phone clock is not trusted) and forwards a `clip.request` to the club device. At most one tap per user every 10 seconds; extra taps get `error` `RATE_LIMITED`.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "sent_at", "court_id", "payload"],
+      "properties": {
+        "type": {
+          "const": "clip.tap"
+        },
+        "id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "sent_at": {
+          "$ref": "../events/common.schema.json#/$defs/Timestamp"
+        },
+        "court_id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["match_id", "client_tapped_at"],
+          "properties": {
+            "match_id": {
+              "$ref": "../events/common.schema.json#/$defs/Uuid"
+            },
+            "client_tapped_at": {
+              "$ref": "../events/common.schema.json#/$defs/Timestamp",
+              "description": "Phone time of the tap, for latency metrics only."
+            }
+          }
+        }
+      }
+    },
+    "ClipRequestMessage": {
+      "title": "ClipRequestMessage",
+      "description": "Server → device. The device cuts a clip of the `before_ms` before and the `after_ms` after `tapped_at` (30 + 5 seconds, section 4) in under 10 seconds and uploads it with `POST /device/uploads` (`kind: clip`, `source: app`).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "sent_at", "court_id", "payload"],
+      "properties": {
+        "type": {
+          "const": "clip.request"
+        },
+        "id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "sent_at": {
+          "$ref": "../events/common.schema.json#/$defs/Timestamp"
+        },
+        "court_id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "request_id",
+            "match_id",
+            "requested_by_user_id",
+            "tapped_at",
+            "before_ms",
+            "after_ms"
+          ],
+          "properties": {
+            "request_id": {
+              "$ref": "../events/common.schema.json#/$defs/Uuid"
+            },
+            "match_id": {
+              "$ref": "../events/common.schema.json#/$defs/Uuid"
+            },
+            "requested_by_user_id": {
+              "$ref": "../events/common.schema.json#/$defs/Uuid"
+            },
+            "tapped_at": {
+              "$ref": "../events/common.schema.json#/$defs/Timestamp"
+            },
+            "before_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 60000
+            },
+            "after_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 30000
+            }
+          }
+        }
+      }
+    },
+    "ClipProgressMessage": {
+      "title": "ClipProgressMessage",
+      "description": "Device → server. The device reports a clip request: `cutting` when accepted, `uploaded` with the media id once the upload completed, or `failed` with a stable `code`.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "sent_at", "court_id", "payload"],
+      "properties": {
+        "type": {
+          "const": "clip.progress"
+        },
+        "id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "sent_at": {
+          "$ref": "../events/common.schema.json#/$defs/Timestamp"
+        },
+        "court_id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["request_id", "status", "media_id", "code"],
+          "properties": {
+            "request_id": {
+              "$ref": "../events/common.schema.json#/$defs/Uuid"
+            },
+            "status": {
+              "enum": ["cutting", "uploaded", "failed"]
+            },
+            "media_id": {
+              "anyOf": [
+                {
+                  "$ref": "../events/common.schema.json#/$defs/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "code": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[A-Z][A-Z0-9_]*$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "ClipStatusMessage": {
+      "title": "ClipStatusMessage",
+      "description": "Server → app. Sent only to the player who tapped. `ready` carries the clip and its media id (fetch it with `GET /media/{id}/url`, never a URL here).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "sent_at", "court_id", "payload"],
+      "properties": {
+        "type": {
+          "const": "clip.status"
+        },
+        "id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "sent_at": {
+          "$ref": "../events/common.schema.json#/$defs/Timestamp"
+        },
+        "court_id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["request_id", "match_id", "status", "clip_id", "media_id"],
+          "properties": {
+            "request_id": {
+              "$ref": "../events/common.schema.json#/$defs/Uuid"
+            },
+            "match_id": {
+              "$ref": "../events/common.schema.json#/$defs/Uuid"
+            },
+            "status": {
+              "enum": ["queued", "cutting", "ready", "failed"]
+            },
+            "clip_id": {
+              "anyOf": [
+                {
+                  "$ref": "../events/common.schema.json#/$defs/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "media_id": {
+              "anyOf": [
+                {
+                  "$ref": "../events/common.schema.json#/$defs/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "RecordingReportMessage": {
+      "title": "RecordingReportMessage",
+      "description": "Device → server. The device reports the recording state of the court on every change and every 30 seconds while recording.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "sent_at", "court_id", "payload"],
+      "properties": {
+        "type": {
+          "const": "recording.report"
+        },
+        "id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "sent_at": {
+          "$ref": "../events/common.schema.json#/$defs/Timestamp"
+        },
+        "court_id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["match_id", "state", "started_at", "ends_at", "cameras"],
+          "properties": {
+            "match_id": {
+              "anyOf": [
+                {
+                  "$ref": "../events/common.schema.json#/$defs/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "state": {
+              "$ref": "#/$defs/RecordingState"
+            },
+            "started_at": {
+              "anyOf": [
+                {
+                  "$ref": "../events/common.schema.json#/$defs/Timestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "ends_at": {
+              "anyOf": [
+                {
+                  "$ref": "../events/common.schema.json#/$defs/Timestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "cameras": {
+              "type": "array",
+              "maxItems": 2,
+              "items": {
+                "$ref": "#/$defs/CameraStatus"
+              }
+            }
+          }
+        }
+      }
+    },
+    "RecordingStatusMessage": {
+      "title": "RecordingStatusMessage",
+      "description": "Server → app. Recording state of the court for the app (\"grabando\" badge and clip button). Sent on connect and on every change. `clip_enabled` is true only for players of the current turn while recording.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "sent_at", "court_id", "payload"],
+      "properties": {
+        "type": {
+          "const": "recording.status"
+        },
+        "id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "sent_at": {
+          "$ref": "../events/common.schema.json#/$defs/Timestamp"
+        },
+        "court_id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["match_id", "state", "started_at", "ends_at", "clip_enabled"],
+          "properties": {
+            "match_id": {
+              "anyOf": [
+                {
+                  "$ref": "../events/common.schema.json#/$defs/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "state": {
+              "$ref": "#/$defs/RecordingState"
+            },
+            "started_at": {
+              "anyOf": [
+                {
+                  "$ref": "../events/common.schema.json#/$defs/Timestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "ends_at": {
+              "anyOf": [
+                {
+                  "$ref": "../events/common.schema.json#/$defs/Timestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "clip_enabled": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "RecordingStopMessage": {
+      "title": "RecordingStopMessage",
+      "description": "Server → device. The club cut the recording from the panel (`POST /club-admin/recording/{court}/stop`). The device stops and answers with `recording.report` `stopped`.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "sent_at", "court_id", "payload"],
+      "properties": {
+        "type": {
+          "const": "recording.stop"
+        },
+        "id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "sent_at": {
+          "$ref": "../events/common.schema.json#/$defs/Timestamp"
+        },
+        "court_id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["match_id", "requested_by_user_id"],
+          "properties": {
+            "match_id": {
+              "$ref": "../events/common.schema.json#/$defs/Uuid"
+            },
+            "requested_by_user_id": {
+              "$ref": "../events/common.schema.json#/$defs/Uuid"
+            }
+          }
+        }
+      }
+    },
+    "ErrorMessage": {
+      "title": "ErrorMessage",
+      "description": "Server → app or device. Same `code` catalog as the REST API (`ErrorCode` in openapi.yaml): `UNAUTHENTICATED`, `ACCESS_TOKEN_EXPIRED`, `FORBIDDEN` (not a player of the current turn), `RECORDING_NOT_ACTIVE`, `RATE_LIMITED`, `VALIDATION_FAILED`. `message` is `es-AR` for the user. `in_reply_to` is the `id` of the message that failed.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "sent_at", "court_id", "payload"],
+      "properties": {
+        "type": {
+          "const": "error"
+        },
+        "id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "sent_at": {
+          "$ref": "../events/common.schema.json#/$defs/Timestamp"
+        },
+        "court_id": {
+          "$ref": "../events/common.schema.json#/$defs/Uuid"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message", "in_reply_to"],
+          "properties": {
+            "code": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]*$"
+            },
+            "message": {
+              "type": "string"
+            },
+            "in_reply_to": {
+              "anyOf": [
+                {
+                  "$ref": "../events/common.schema.json#/$defs/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "AppToServer": {
+      "title": "AppToServer",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/AuthMessage"
+        },
+        {
+          "$ref": "#/$defs/ClipTapMessage"
+        }
+      ]
+    },
+    "ServerToApp": {
+      "title": "ServerToApp",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/RecordingStatusMessage"
+        },
+        {
+          "$ref": "#/$defs/ClipStatusMessage"
+        },
+        {
+          "$ref": "#/$defs/ErrorMessage"
+        }
+      ]
+    },
+    "DeviceToServer": {
+      "title": "DeviceToServer",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/RecordingReportMessage"
+        },
+        {
+          "$ref": "#/$defs/ClipProgressMessage"
+        }
+      ]
+    },
+    "ServerToDevice": {
+      "title": "ServerToDevice",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ClipRequestMessage"
+        },
+        {
+          "$ref": "#/$defs/RecordingStopMessage"
+        },
+        {
+          "$ref": "#/$defs/ErrorMessage"
+        }
+      ]
+    }
+  },
+  "anyOf": [
+    {
+      "$ref": "#/$defs/AppToServer"
+    },
+    {
+      "$ref": "#/$defs/ServerToApp"
+    },
+    {
+      "$ref": "#/$defs/DeviceToServer"
+    },
+    {
+      "$ref": "#/$defs/ServerToDevice"
+    }
+  ],
+  "examples": [
+    {
+      "type": "auth",
+      "id": "0192f1a0-1b2c-7d3e-8f4a-5b6c7d8e9f01",
+      "sent_at": "2026-10-23T22:10:00Z",
+      "court_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61",
+      "payload": {
+        "access_token": "eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiIwMTky..."
+      }
+    },
+    {
+      "type": "recording.status",
+      "id": "0192f1a0-1b2c-7d3e-8f4a-5b6c7d8e9f02",
+      "sent_at": "2026-10-23T22:10:00Z",
+      "court_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61",
+      "payload": {
+        "match_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b",
+        "state": "recording",
+        "started_at": "2026-10-23T21:58:00Z",
+        "ends_at": "2026-10-23T23:32:00Z",
+        "clip_enabled": true
+      }
+    },
+    {
+      "type": "clip.tap",
+      "id": "0192f1a0-1b2c-7d3e-8f4a-5b6c7d8e9f03",
+      "sent_at": "2026-10-23T22:31:15Z",
+      "court_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61",
+      "payload": {
+        "match_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b",
+        "client_tapped_at": "2026-10-23T22:31:14Z"
+      }
+    },
+    {
+      "type": "clip.request",
+      "id": "0192f1a0-1b2c-7d3e-8f4a-5b6c7d8e9f04",
+      "sent_at": "2026-10-23T22:31:15Z",
+      "court_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61",
+      "payload": {
+        "request_id": "0192f1a0-1b2c-7d3e-8f4a-5b6c7d8e9f10",
+        "match_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b",
+        "requested_by_user_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f",
+        "tapped_at": "2026-10-23T22:31:15Z",
+        "before_ms": 30000,
+        "after_ms": 5000
+      }
+    },
+    {
+      "type": "clip.progress",
+      "id": "0192f1a0-1b2c-7d3e-8f4a-5b6c7d8e9f05",
+      "sent_at": "2026-10-23T22:31:21Z",
+      "court_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61",
+      "payload": {
+        "request_id": "0192f1a0-1b2c-7d3e-8f4a-5b6c7d8e9f10",
+        "status": "cutting",
+        "media_id": null,
+        "code": null
+      }
+    },
+    {
+      "type": "clip.progress",
+      "id": "0192f1a0-1b2c-7d3e-8f4a-5b6c7d8e9f06",
+      "sent_at": "2026-10-23T22:31:29Z",
+      "court_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61",
+      "payload": {
+        "request_id": "0192f1a0-1b2c-7d3e-8f4a-5b6c7d8e9f10",
+        "status": "uploaded",
+        "media_id": "0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a51",
+        "code": null
+      }
+    },
+    {
+      "type": "clip.status",
+      "id": "0192f1a0-1b2c-7d3e-8f4a-5b6c7d8e9f07",
+      "sent_at": "2026-10-23T22:31:29Z",
+      "court_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61",
+      "payload": {
+        "request_id": "0192f1a0-1b2c-7d3e-8f4a-5b6c7d8e9f10",
+        "match_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b",
+        "status": "ready",
+        "clip_id": "0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a50",
+        "media_id": "0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4a51"
+      }
+    },
+    {
+      "type": "recording.report",
+      "id": "0192f1a0-1b2c-7d3e-8f4a-5b6c7d8e9f08",
+      "sent_at": "2026-10-23T22:32:00Z",
+      "court_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61",
+      "payload": {
+        "match_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b",
+        "state": "recording",
+        "started_at": "2026-10-23T21:58:00Z",
+        "ends_at": "2026-10-23T23:32:00Z",
+        "cameras": [
+          {
+            "end": "A",
+            "online": true
+          },
+          {
+            "end": "B",
+            "online": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "recording.stop",
+      "id": "0192f1a0-1b2c-7d3e-8f4a-5b6c7d8e9f09",
+      "sent_at": "2026-10-23T23:12:00Z",
+      "court_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61",
+      "payload": {
+        "match_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5b",
+        "requested_by_user_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a71"
+      }
+    },
+    {
+      "type": "error",
+      "id": "0192f1a0-1b2c-7d3e-8f4a-5b6c7d8e9f0a",
+      "sent_at": "2026-10-23T22:31:20Z",
+      "court_id": "01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a61",
+      "payload": {
+        "code": "RATE_LIMITED",
+        "message": "Esperá unos segundos para marcar otro clip.",
+        "in_reply_to": "0192f1a0-1b2c-7d3e-8f4a-5b6c7d8e9f03"
+      }
+    }
+  ]
+}
