@@ -143,7 +143,7 @@ describe('claim player', () => {
     await fireEvent.press(screen.getByTestId('match-claim-3'));
     // Once claimed, the user holds a place and the step goes away.
     await waitFor(() => expect(screen.queryByTestId('match-claim')).toBeNull());
-    expect(calls).toContain('POST /matches/' + MOCK_MATCH_ID + '/claim-player');
+    expect(calls).toContain('POST /v1/matches/' + MOCK_MATCH_ID + '/claim-player');
   });
 
   it('is offered only to a user without a place', () => {
