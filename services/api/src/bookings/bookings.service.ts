@@ -13,6 +13,7 @@ import {
   type CourtRules,
   type StoredBooking,
 } from './bookings.repository';
+import { KeyedMutex } from './keyed-mutex';
 import { depositFor, localDate } from './slots';
 
 export interface BookingCreateInput {
@@ -49,6 +50,8 @@ export interface BookingDto {
 
 @Injectable()
 export class BookingsService {
+  private readonly mutex = new KeyedMutex();
+
   constructor(
     private readonly repo: BookingsRepository,
     private readonly availability: AvailabilityService,
@@ -71,6 +74,14 @@ export class BookingsService {
       }
     }
 
+    return this.mutex.run(input.court_id, () => this.hold(auth, input, idempotencyKey));
+  }
+
+  private async hold(
+    auth: AccessIdentity,
+    input: BookingCreateInput,
+    idempotencyKey?: string,
+  ): Promise<BookingDto> {
     const court = await this.repo.findCourt(input.court_id);
     if (!court) throw new AppError('NOT_FOUND');
     setLogContext({ club_id: court.clubId });
