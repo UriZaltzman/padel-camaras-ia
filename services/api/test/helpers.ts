@@ -74,6 +74,8 @@ export async function createTestApp(
     .useValue(new InMemoryOtpStore())
     .overrideProvider(WHATSAPP_PROVIDER)
     .useValue(whatsapp)
+    .overrideProvider(BOOKING_IDEMPOTENCY)
+    .useValue(new InMemoryBookingIdempotency())
     .overrideProvider(CLOCK)
     .useValue(clock);
   // With a real database the Prisma repository stays; without one the club list is empty.
