@@ -565,15 +565,48 @@ describe.skipIf(!adminUrl)('RLS attacks', () => {
     expect([null, '']).toContain(after?.v);
   });
 
-  it('the runtime role cannot escalate: no SET ROLE to a privileged role, no RESET to the owner', async () => {
-    await expect(sql(player, `SET LOCAL ROLE postgres`)).rejects.toThrow(
-      /permission denied|does not exist/,
+  it('with the production-like login role: no escalation, and a query that forgets run() sees nothing', async () => {
+    const login = `rls_app_${uuid().replaceAll('-', '').slice(0, 8)}`;
+    psql(
+      adminUrl as string,
+      `CREATE ROLE ${login} LOGIN PASSWORD 'pw' NOSUPERUSER NOBYPASSRLS NOINHERIT; GRANT app_runtime TO ${login}`,
     );
-    const [r] = (await sql(
-      player,
-      `SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user`,
-    )) as { rolsuper: boolean; rolbypassrls: boolean }[];
-    expect(r).toEqual({ rolsuper: false, rolbypassrls: false });
+    const u = new URL(db.url);
+    u.username = login;
+    u.password = 'pw';
+    const appPrisma = new PrismaService(loadEnv({ ...VALID_ENV, DATABASE_URL: u.toString() }));
+    try {
+      const client = (
+        appPrisma as unknown as { client: { $queryRawUnsafe: (s: string) => Promise<unknown[]> } }
+      ).client;
+      // Forgetting SET ROLE: the login role owns nothing and bypasses nothing, and NOINHERIT keeps
+      // app_runtime's privileges away until SET ROLE, so the table is not even readable.
+      await expect(client.$queryRawUnsafe('SELECT count(*) FROM bookings')).rejects.toThrow(
+        /permission denied/,
+      );
+      // Through run() it works, and cannot climb out of app_runtime.
+      const ctx: DbContext = { role: 'player', userId: A.player };
+      await expect(
+        appPrisma.run(ctx, (tx) => tx.$queryRawUnsafe(`SET LOCAL ROLE postgres`)),
+      ).rejects.toThrow(/permission denied|does not exist/);
+      await expect(
+        appPrisma.run(ctx, (tx) => tx.$queryRawUnsafe(`SET LOCAL ROLE ${login}`)),
+      ).resolves.toBeDefined();
+      const [r] = (await appPrisma.run(ctx, (tx) =>
+        tx.$queryRawUnsafe(
+          `SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user`,
+        ),
+      )) as { rolsuper: boolean; rolbypassrls: boolean }[];
+      expect(r).toEqual({ rolsuper: false, rolbypassrls: false });
+      expect(
+        await appPrisma.run(ctx, (tx) =>
+          tx.$queryRawUnsafe(`SELECT id FROM matches WHERE id = '${B.match}'`),
+        ),
+      ).toEqual([]);
+    } finally {
+      await appPrisma.onModuleDestroy();
+      psql(adminUrl as string, `DROP OWNED BY ${login}; DROP ROLE ${login}`);
+    }
   });
 
   it('every write by internal support leaves an audit_log row, and support cannot erase it', async () => {
