@@ -75,6 +75,6 @@ export const demoClub: Schema<'Club'> = {
     branding: { mode: 'generic', logo_url: null, primary_color: null, secondary_color: null },
     lesson_mode: 'app',
     ai_video: 'off',
-    tournaments: false,
+    tournaments: true,
   },
 };
