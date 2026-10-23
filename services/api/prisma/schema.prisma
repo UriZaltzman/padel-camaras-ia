@@ -192,6 +192,10 @@ model Club {
   depositCents           Int?     @map("deposit_cents")
   /// Mercado Pago account that receives the club's share (split payments).
   mercadopagoCollectorId String?  @map("mercadopago_collector_id")
+  /// How many days ahead a player may book, 1..14 (§3.2); staff always up to 365.
+  playerHorizonDays      Int      @default(14) @map("player_horizon_days") @db.SmallInt
+  /// Local time the farthest day opens for players; null = it is open all day.
+  bookingWindowOpensAt   DateTime? @map("booking_window_opens_at") @db.Time(0)
   createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -201,6 +205,7 @@ model Club {
   bookingSlotsRules     BookingSlotsRule[]
   bookingRulePriceBands BookingRulePriceBand[]
   bookings              Booking[]
+  courtBlocks           CourtBlock[]
   bookingPlayers        BookingPlayer[]
   devices               Device[]
   cameras               Camera[]
@@ -424,6 +429,8 @@ enum BookingStatus {
 enum BookingOrigin {
   app
   panel
+  /// Court block (maintenance, holiday, closure): occupies the court under the same constraint.
+  block
 
   @@map("booking_origin")
 }
@@ -529,11 +536,40 @@ model Booking {
   players   BookingPlayer[]
   matches   Match[]
   payments  Payment[]
+  courtBlock CourtBlock?
 
   @@index([courtId, startsAt])
   @@index([clubId, startsAt])
   @@index([status, holdExpiresAt])
   @@map("bookings")
+}
+
+enum CourtBlockKind {
+  maintenance
+  holiday
+  closure
+
+  @@map("court_block_kind")
+}
+
+/// Metadata of a block. The block itself is a `bookings` row (origin `block`, status
+/// `confirmed`, price 0), so the exclusion constraint of #39 keeps it from overlapping anything.
+model CourtBlock {
+  id        String           @id @db.Uuid
+  clubId    String           @map("club_id") @db.Uuid
+  bookingId String           @unique @map("booking_id") @db.Uuid
+  kind      CourtBlockKind
+  reason    String?
+  /// Shared by the occurrences of one recurring block.
+  seriesId  String?          @map("series_id") @db.Uuid
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  club    Club    @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([clubId])
+  @@index([seriesId])
+  @@map("court_blocks")
 }
 
 model BookingPlayer {

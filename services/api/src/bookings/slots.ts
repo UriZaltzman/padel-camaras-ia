@@ -25,8 +25,35 @@ export interface SlotInput {
   occupied: Interval[];
   now: Date;
   minNoticeMinutes: number;
-  /** Slots starting after `now + horizonDays` are dropped. */
+  /** Days starting after today (local) + `horizonDays` offer nothing. */
   horizonDays: number;
+  /**
+   * Local minutes after midnight at which the farthest day opens (§3.2); before that moment
+   * the window is one day shorter. Omitted = the farthest day is open all day.
+   */
+  windowOpensAtMinutes?: number | null;
+}
+
+/** Adds whole days to a `YYYY-MM-DD` date. */
+export function addDays(date: string, days: number): string {
+  const [y = 0, m = 1, d = 1] = date.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+/** Last local day bookable with this horizon, given the optional daily opening time. */
+export function lastBookableDate(
+  now: Date,
+  timezone: string,
+  horizonDays: number,
+  windowOpensAtMinutes?: number | null,
+): string {
+  const today = localDate(now, timezone);
+  const sinceMidnight = (now.getTime() - localToUtc(today, 0, timezone).getTime()) / MINUTE;
+  const opened =
+    windowOpensAtMinutes === null ||
+    windowOpensAtMinutes === undefined ||
+    sinceMidnight >= windowOpensAtMinutes;
+  return addDays(today, opened ? horizonDays : horizonDays - 1);
 }
 
 const MINUTE = 60_000;
@@ -112,7 +139,13 @@ export function depositFor(deposit: SlotInput['deposit'], amountCents: number): 
 export function generateSlots(input: SlotInput): Slot[] {
   const weekday = weekdayOf(input.date);
   const earliest = input.now.getTime() + input.minNoticeMinutes * MINUTE;
-  const latest = input.now.getTime() + input.horizonDays * 24 * 60 * MINUTE;
+  const lastDate = lastBookableDate(
+    input.now,
+    input.timezone,
+    input.horizonDays,
+    input.windowOpensAtMinutes,
+  );
+  if (input.date > lastDate) return [];
   const byStart = new Map<number, Slot>();
 
   for (const rule of input.rules) {
@@ -131,7 +164,7 @@ export function generateSlots(input: SlotInput): Slot[] {
       const startAt = localToUtc(input.date, start, input.timezone);
       const endAt = localToUtc(input.date, start + input.durationMinutes, input.timezone);
       const t = startAt.getTime();
-      if (t < earliest || t > latest) continue;
+      if (t < earliest) continue;
       if (input.occupied.some((o) => t < o.end.getTime() && endAt.getTime() > o.start.getTime()))
         continue;
       if (!byStart.has(t)) {

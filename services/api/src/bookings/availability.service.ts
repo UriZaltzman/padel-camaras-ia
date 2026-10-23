@@ -4,7 +4,8 @@ import { AppError } from '../errors/app-error';
 import {
   AVAILABILITY_CACHE_SECONDS,
   MIN_NOTICE_MINUTES,
-  playerHorizonDays,
+  horizonFor,
+  type BookingAudience,
 } from './booking-policy';
 import { BookingsRepository, type CourtRules } from './bookings.repository';
 import { generateSlots, localToUtc, type Slot } from './slots';
@@ -61,7 +62,7 @@ export class AvailabilityService {
     court: CourtRules,
     date: string,
     durationMinutes: number,
-    options: { ignoreOccupancy?: boolean } = {},
+    options: { ignoreOccupancy?: boolean; audience?: BookingAudience } = {},
   ): Promise<Slot[]> {
     if (court.status !== 'active') return [];
     const now = this.clock.now();
@@ -79,12 +80,18 @@ export class AvailabilityService {
       occupied,
       now,
       minNoticeMinutes: MIN_NOTICE_MINUTES,
-      horizonDays: playerHorizonDays(),
+      horizonDays: horizonFor(options.audience ?? 'player', court.playerHorizonDays),
+      // Staff are not held back by the daily opening of the farthest day.
+      windowOpensAtMinutes: options.audience === 'staff' ? null : court.windowOpensAtMinutes,
     });
   }
 
   invalidate(courtId: string): void {
     this.cache.delete(courtId);
+  }
+
+  invalidateAll(): void {
+    this.cache.clear();
   }
 
   private async compute(

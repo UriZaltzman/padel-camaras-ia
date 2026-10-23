@@ -36,7 +36,9 @@ export class PrismaBookingsRepository extends BookingsRepository {
       tx.court.findUnique({
         where: { id: courtId },
         include: {
-          club: { select: { timezone: true } },
+          club: {
+            select: { timezone: true, playerHorizonDays: true, bookingWindowOpensAt: true },
+          },
           bookingSlotsRules: {
             where: { active: true },
             orderBy: { opensAt: 'asc' },
@@ -55,6 +57,11 @@ export class PrismaBookingsRepository extends BookingsRepository {
       rules: court.bookingSlotsRules.map(toRule),
       deposit: depositOf(first),
       cancellationRefundHours: first?.cancellationHours ?? 24,
+      playerHorizonDays: court.club.playerHorizonDays,
+      windowOpensAtMinutes: court.club.bookingWindowOpensAt
+        ? court.club.bookingWindowOpensAt.getUTCHours() * 60 +
+          court.club.bookingWindowOpensAt.getUTCMinutes()
+        : null,
     };
   }
 
