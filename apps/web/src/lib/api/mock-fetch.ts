@@ -5,6 +5,7 @@ import { t } from '@/i18n';
 import { demoClub } from './mock-data';
 import { handleAdminRequest } from './mock-admin';
 import { handleClubCashRequest, newClubCashMockState } from './mock-club-cash';
+import { handleClubBlocksRequest, newClubBlocksMockState } from './mock-club-blocks';
 import { handleClubBookingsRequest, newClubBookingsMockState } from './mock-club-bookings';
 import { handlePlayerRequest, newPlayerMockState, type PlayerMockState } from './mock-player';
 
@@ -22,6 +23,7 @@ export function createMockFetch(
   let club: Schema<'Club'> = structuredClone(seed);
   const clubBookings = newClubBookingsMockState(club);
   const clubCash = newClubCashMockState(club.id);
+  const clubBlocks = newClubBlocksMockState();
 
   return async (input, init) => {
     const request = input instanceof Request ? input : new Request(input, init);
@@ -30,6 +32,15 @@ export function createMockFetch(
     if (adminAnswer) return adminAnswer;
     const clubAnswer = await handleClubBookingsRequest(request, clubBookings, json);
     if (clubAnswer) return clubAnswer;
+    const blocksAnswer = await handleClubBlocksRequest(
+      request,
+      clubBlocks,
+      clubBookings,
+      club.id,
+      club.courts.map((c) => c.id),
+      json,
+    );
+    if (blocksAnswer) return blocksAnswer;
     const cashAnswer = await handleClubCashRequest(request, clubCash, json);
     if (cashAnswer) return cashAnswer;
     const answer = await handlePlayerRequest(request, player, () => club, json);

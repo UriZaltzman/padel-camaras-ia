@@ -1405,6 +1405,79 @@ class CourtStatus(StrEnum):
     inactive = "inactive"
 
 
+class CourtBlockKind(StrEnum):
+    maintenance = "maintenance"
+    holiday = "holiday"
+    closure = "closure"
+
+
+class BlockBookingsPolicy(StrEnum):
+    cancel_and_refund = "cancel_and_refund"
+    move = "move"
+    abort = "abort"
+
+
+class CourtBlock(BaseModel):
+    id: Uuid
+    court_id: Uuid
+    starts_at: Timestamp
+    ends_at: Timestamp
+    kind: CourtBlockKind
+    reason: str | None
+    series_id: UUID | None
+    """
+    Shared by the occurrences of a recurring block.
+    """
+
+
+class Frequency(StrEnum):
+    daily = "daily"
+    weekly = "weekly"
+
+
+class Recurrence(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    frequency: Frequency
+    until: date_aliased
+
+
+class CourtBlockCreate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    court_ids: Annotated[list[Uuid], Field(max_length=20, min_length=1)]
+    starts_at: Timestamp
+    ends_at: Timestamp
+    kind: CourtBlockKind
+    reason: Annotated[str | None, Field(max_length=200, min_length=1)] = None
+    recurrence: Recurrence | None = None
+    existing_bookings_policy: BlockBookingsPolicy | None = None
+
+
+class CourtBlockHolidayImport(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    year: Annotated[int, Field(ge=2026, le=2100)]
+    court_ids: Annotated[list[Uuid], Field(max_length=20, min_length=1)]
+    dates: Annotated[list[date_aliased] | None, Field(max_length=53, min_length=1)] = None
+    existing_bookings_policy: BlockBookingsPolicy | None = None
+
+
+class MovedItem(BaseModel):
+    booking_id: Uuid
+    court_id: Uuid
+
+
+class CourtBlockResult(BaseModel):
+    blocks: list[CourtBlock]
+    cancelled_booking_ids: list[Uuid]
+    refunded_cents: AmountCents
+    moved: list[MovedItem]
+
+
 class Weekday(StrEnum):
     mon = "mon"
     tue = "tue"
@@ -1687,7 +1760,7 @@ class GuardianConsent(BaseModel):
     """
 
 
-class Frequency(StrEnum):
+class Frequency1(StrEnum):
     weekly = "weekly"
 
 
@@ -1707,7 +1780,7 @@ class BookingRecurrence(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    frequency: Frequency
+    frequency: Frequency1
     weeks_ahead: WeeksAhead
     """
     Weeks generated ahead, renewed every week (section 9).
