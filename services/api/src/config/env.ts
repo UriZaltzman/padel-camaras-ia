@@ -19,6 +19,11 @@ export const envSchema = z
     /** Secret that signs Mercado Pago webhooks (`x-signature`). Unset until the Mercado Pago account exists: the webhook then rejects everything. */
     MERCADOPAGO_WEBHOOK_SECRET: z.string().min(16).optional(),
     /** Access token of our Mercado Pago application. Unset until the account exists: checkouts then fail with PAYMENT_PROVIDER_ERROR. */
+    /**
+     * Internal staff allowlist: JSON object `{ "<user id>": "admin|sales|support|finance" }`.
+     * Unset or empty means nobody is staff, so every `/admin` call answers 403 (fail closed).
+     */
+    INTERNAL_STAFF: z.string().optional(),
     MERCADOPAGO_ACCESS_TOKEN: z.string().min(1).optional(),
   })
   .superRefine((env, ctx) => {

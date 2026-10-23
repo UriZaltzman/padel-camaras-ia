@@ -1,3 +1,4 @@
+import { AdminModule } from './admin/admin.module';
 import { Module, type DynamicModule } from '@nestjs/common';
 import type { Env } from './config/env';
 import { EnvModule } from './config/env.module';
@@ -22,6 +23,7 @@ export class AppModule {
         AuthModule,
         ClubsModule,
         ClubModulesModule,
+        AdminModule,
         BookingsModule,
         PaymentsModule,
         HealthModule,

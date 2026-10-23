@@ -2434,11 +2434,14 @@ class AdminModules(BaseModel):
 class AdminClubModules(BaseModel):
     club_id: Uuid
     modules: AdminModules
-    estimated_monthly_cents: AmountCents
+    estimated_monthly_cents: AmountCents | None
     """
-    Subscription tier plus the price of every enabled module.
+    Subscription tier plus the price of every enabled module. `null` while the club has no subscription to price against.
     """
-    tariff_version_id: Uuid
+    tariff_version_id: Uuid | None
+    """
+    Tariff version the estimate uses. `null` together with `estimated_monthly_cents`.
+    """
 
 
 class AdminClubModulesUpdate(BaseModel):
@@ -3097,3 +3100,7 @@ class Club(BaseModel):
     plan: ClubPlan
     courts: list[Court]
     charges: ChargeSettings
+    modules: AdminModules
+    """
+    Modules active for the club (SA-05). Apps and panels hide what is off; its endpoints answer `CLUB_FEATURE_DISABLED`. Only internal staff change them (`PUT /admin/clubs/{id}/modules`).
+    """

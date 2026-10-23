@@ -1,3 +1,4 @@
+import { InMemoryStaffDirectory, StaffDirectory } from '../src/admin/staff-directory';
 import { Writable } from 'node:stream';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -67,6 +68,8 @@ export async function createTestApp(
   const { logger, lines } = memoryLogger(env);
   // Nothing in tests talks to Redis, WhatsApp or the wall clock.
   const modules = new InMemoryClubModulesRepository();
+  const clubs = new InMemoryClubsRepository();
+  const staff = new InMemoryStaffDirectory();
   const whatsapp = new FakeWhatsAppProvider();
   const clock = new FakeClock();
   const builder = Test.createTestingModule({
@@ -89,7 +92,9 @@ export async function createTestApp(
       ? builder
       : builder
           .overrideProvider(ClubsRepository)
-          .useValue(new InMemoryClubsRepository())
+          .useValue(clubs)
+          .overrideProvider(StaffDirectory)
+          .useValue(staff)
           .overrideProvider(BookingsRepository)
           .useValue(new InMemoryBookingsRepository())
           .overrideProvider(ClubModulesRepository)
@@ -100,5 +105,5 @@ export async function createTestApp(
   });
   configureApp(app, logger);
   await app.init();
-  return { app, logs: lines, whatsapp, clock, modules };
+  return { app, logs: lines, whatsapp, clock, modules, clubs, staff, moduleRef };
 }

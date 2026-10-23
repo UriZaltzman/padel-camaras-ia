@@ -2514,6 +2514,8 @@ export interface components {
       plan: components['schemas']['ClubPlan'];
       courts: components['schemas']['Court'][];
       charges: components['schemas']['ChargeSettings'];
+      /** @description Modules active for the club (SA-05). Apps and panels hide what is off; its endpoints answer `CLUB_FEATURE_DISABLED`. Only internal staff change them (`PUT /admin/clubs/{id}/modules`). */
+      modules: components['schemas']['AdminModules'];
     };
     /**
      * @description `active` takes bookings; `maintenance` is temporarily closed (no new bookings);
@@ -3170,9 +3172,10 @@ export interface components {
     AdminClubModules: {
       club_id: components['schemas']['Uuid'];
       modules: components['schemas']['AdminModules'];
-      /** @description Subscription tier plus the price of every enabled module. */
-      estimated_monthly_cents: components['schemas']['AmountCents'];
-      tariff_version_id: components['schemas']['Uuid'];
+      /** @description Subscription tier plus the price of every enabled module. `null` while the club has no subscription to price against. */
+      estimated_monthly_cents: components['schemas']['AmountCents'] | null;
+      /** @description Tariff version the estimate uses. `null` together with `estimated_monthly_cents`. */
+      tariff_version_id: components['schemas']['Uuid'] | null;
     };
     AdminClubModulesUpdate: {
       modules: components['schemas']['AdminModules'];

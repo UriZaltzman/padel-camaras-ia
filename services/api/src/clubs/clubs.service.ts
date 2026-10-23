@@ -6,6 +6,7 @@ import { currentLogContext, setLogContext } from '../logging/request-context';
 import type { ClubDto, ClubSettingsUpdate, ClubSummaryDto } from './club-model';
 import { ClubAccessService } from './club-access.service';
 import { assertSettingsValid, clubSettingsUpdateSchema } from './club-settings';
+import { ClubModulesService } from '../club-modules/club-modules.service';
 import { ClubsRepository } from './clubs.repository';
 
 export interface ClubSummaryPage {
@@ -44,6 +45,7 @@ export class ClubsService {
   constructor(
     private readonly clubs: ClubsRepository,
     private readonly access: ClubAccessService,
+    private readonly modules: ClubModulesService,
   ) {}
 
   async list(query: { q?: string; cursor?: string; limit: number }): Promise<ClubSummaryPage> {
@@ -73,7 +75,7 @@ export class ClubsService {
   async get(id: string): Promise<ClubDto> {
     const club = await this.clubs.findById(id);
     if (!club) throw new AppError('NOT_FOUND');
-    return club;
+    return { ...club, modules: await this.modules.get(id) };
   }
 
   /** Owner only. Changes apply to bookings created afterwards. */
@@ -83,10 +85,11 @@ export class ClubsService {
     const update = assertSettingsValid(parseInput(clubSettingsUpdateSchema, body));
     unsupportedCharges(update);
     setLogContext({ club_id: clubId });
-    return this.clubs.updateSettings(db, clubId, update, {
+    const club = await this.clubs.updateSettings(db, clubId, update, {
       actorUserId: auth.userId,
       requestId: currentLogContext()?.request_id,
     });
+    return { ...club, modules: await this.modules.get(clubId) };
   }
 }
 
