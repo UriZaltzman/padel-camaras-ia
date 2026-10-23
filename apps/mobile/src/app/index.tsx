@@ -1,3 +1,5 @@
+import { useRouter } from 'expo-router';
+
 import { HomeScreen } from '../home/HomeScreen';
 import { mockNextBooking } from '../home/mock-home';
 import { shouldUseMockApi } from '../auth/session';
@@ -8,5 +10,11 @@ const loadNextBooking = shouldUseMockApi(process.env.EXPO_PUBLIC_API_MOCK, __DEV
   : undefined;
 
 export default function HomeRoute() {
-  return <HomeScreen loadNextBooking={loadNextBooking} />;
+  const router = useRouter();
+  return (
+    <HomeScreen
+      loadNextBooking={loadNextBooking}
+      onOpenTournaments={(clubId) => router.push(`/tournaments/${clubId}`)}
+    />
+  );
 }
