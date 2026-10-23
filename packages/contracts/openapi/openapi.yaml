@@ -2322,6 +2322,126 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /club-admin/cash-register:
+    get:
+      operationId: getClubCashRegister
+      tags: [ClubAdmin]
+      summary: Daily cash register of the club (staff and owner)
+      description: |
+        Movements of one club day (`America/Argentina/Buenos_Aires`), totals by payment method,
+        manual expenses and, once closed, the counted cash, the difference and the PDF. A day with
+        no movement returns `status: open` and empty lists.
+      parameters:
+        - $ref: '#/components/parameters/ClubIdQuery'
+        - name: date
+          in: query
+          required: true
+          description: Club-local day, `YYYY-MM-DD`.
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: The cash register of the day.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashRegister'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /club-admin/cash-register/expenses:
+    post:
+      operationId: createClubCashExpense
+      tags: [ClubAdmin]
+      summary: Record a manual expense in the day's cash register
+      description: |
+        Errors: `INVALID_STATE_TRANSITION` (409, the day is already closed), `FORBIDDEN`,
+        `VALIDATION_FAILED` (400).
+      parameters:
+        - $ref: '#/components/parameters/ClubIdQuery'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CashExpenseCreate'
+      responses:
+        '201':
+          description: The updated cash register.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashRegister'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /club-admin/cash-register/close:
+    post:
+      operationId: closeClubCashRegister
+      tags: [ClubAdmin]
+      summary: Close the day's cash register with the counted cash
+      description: |
+        Stores the counted cash, the difference against the expected cash (cash income minus
+        expenses) and the PDF of the closing. A closed day cannot be changed.
+
+        Errors: `INVALID_STATE_TRANSITION` (409, already closed), `FORBIDDEN`,
+        `VALIDATION_FAILED` (400).
+      parameters:
+        - $ref: '#/components/parameters/ClubIdQuery'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CashRegisterClose'
+      responses:
+        '200':
+          description: The closed cash register.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashRegister'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /club-admin/settlements:
     get:
       operationId: listClubSettlements
@@ -6393,6 +6513,123 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/ClubBooking'
+
+    CashPaymentMethod:
+      type: string
+      enum: [cash, transfer, card, mercado_pago]
+
+    CashMovement:
+      type: object
+      required: [id, kind, method, amount_cents, description, occurred_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        kind:
+          type: string
+          enum: [income, expense]
+        method:
+          $ref: '#/components/schemas/CashPaymentMethod'
+        amount_cents:
+          $ref: '#/components/schemas/AmountCents'
+        description:
+          type: string
+          maxLength: 200
+        booking_id:
+          description: Booking the income belongs to, if any.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        occurred_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    CashMethodTotal:
+      type: object
+      required: [method, income_cents]
+      properties:
+        method:
+          $ref: '#/components/schemas/CashPaymentMethod'
+        income_cents:
+          $ref: '#/components/schemas/AmountCents'
+
+    CashRegister:
+      type: object
+      required:
+        - club_id
+        - date
+        - status
+        - movements
+        - totals_by_method
+        - expenses_cents
+        - expected_cash_cents
+      properties:
+        club_id:
+          $ref: '#/components/schemas/Uuid'
+        date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [open, closed]
+        movements:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashMovement'
+        totals_by_method:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashMethodTotal'
+        expenses_cents:
+          $ref: '#/components/schemas/AmountCents'
+        expected_cash_cents:
+          type: integer
+          description: Cash income minus expenses.
+        counted_cash_cents:
+          description: Set once closed.
+          oneOf:
+            - $ref: '#/components/schemas/AmountCents'
+            - type: 'null'
+        difference_cents:
+          description: Counted minus expected. Set once closed.
+          oneOf:
+            - type: integer
+            - type: 'null'
+        closed_at:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        pdf_url:
+          description: Signed link to the closing PDF (1 hour). Set once closed.
+          oneOf:
+            - type: string
+              format: uri
+            - type: 'null'
+
+    CashExpenseCreate:
+      type: object
+      required: [date, amount_cents, description]
+      additionalProperties: false
+      properties:
+        date:
+          type: string
+          format: date
+        amount_cents:
+          type: integer
+          minimum: 1
+        description:
+          type: string
+          minLength: 1
+          maxLength: 200
+
+    CashRegisterClose:
+      type: object
+      required: [date, counted_cash_cents]
+      additionalProperties: false
+      properties:
+        date:
+          type: string
+          format: date
+        counted_cash_cents:
+          $ref: '#/components/schemas/AmountCents'
 
     ClubBookingCreate:
       type: object
