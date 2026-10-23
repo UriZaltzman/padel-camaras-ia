@@ -17,6 +17,8 @@ const court = (deposit: CourtRules['deposit']): CourtRules => ({
   status: 'active',
   deposit,
   cancellationRefundHours: 24,
+  playerHorizonDays: 14,
+  windowOpensAtMinutes: null,
   rules: [
     {
       days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],

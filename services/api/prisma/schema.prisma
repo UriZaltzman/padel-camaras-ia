@@ -170,26 +170,30 @@ enum CourtStatus {
 }
 
 model Club {
-  id                     String   @id @db.Uuid
+  id                     String    @id @db.Uuid
   name                   String
   address                String?
   /// 11 digits, no dashes.
-  cuit                   String?  @unique
+  cuit                   String?   @unique
   /// IANA zone, e.g. America/Argentina/Buenos_Aires.
-  timezone               String   @default("America/Argentina/Buenos_Aires")
-  logoUrl                String?  @map("logo_url")
-  sponsorName            String?  @map("sponsor_name")
-  sponsorLogoUrl         String?  @map("sponsor_logo_url")
+  timezone               String    @default("America/Argentina/Buenos_Aires")
+  logoUrl                String?   @map("logo_url")
+  sponsorName            String?   @map("sponsor_name")
+  sponsorLogoUrl         String?   @map("sponsor_logo_url")
   plan                   ClubPlan
   // Charge settings (§10).
   /// Price a player pays for the match extras; null = the club does not charge.
-  playerExtraPriceCents  Int?     @map("player_extra_price_cents")
+  playerExtraPriceCents  Int?      @map("player_extra_price_cents")
   /// Booking deposit; null = no deposit required.
-  depositCents           Int?     @map("deposit_cents")
+  depositCents           Int?      @map("deposit_cents")
   /// Mercado Pago account that receives the club's share (split payments).
-  mercadopagoCollectorId String?  @map("mercadopago_collector_id")
-  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  mercadopagoCollectorId String?   @map("mercadopago_collector_id")
+  /// How many days ahead a player may book, 1..14 (§3.2); staff always up to 365.
+  playerHorizonDays      Int       @default(14) @map("player_horizon_days") @db.SmallInt
+  /// Local time the farthest day opens for players; null = it is open all day.
+  bookingWindowOpensAt   DateTime? @map("booking_window_opens_at") @db.Time(0)
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   memberships           Membership[]
   courts                Court[]

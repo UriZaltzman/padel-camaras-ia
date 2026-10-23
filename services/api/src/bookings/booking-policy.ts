@@ -20,3 +20,13 @@ export function playerHorizonDays(configured?: number | null): number {
     Math.max(PLAYER_HORIZON_MIN_DAYS, Math.trunc(configured)),
   );
 }
+
+export type BookingAudience = 'player' | 'staff';
+
+/** Days ahead a booking may be made: the club's setting for players, 365 for staff. */
+export function horizonFor(
+  audience: BookingAudience,
+  configuredPlayerDays?: number | null,
+): number {
+  return audience === 'staff' ? STAFF_HORIZON_MAX_DAYS : playerHorizonDays(configuredPlayerDays);
+}
