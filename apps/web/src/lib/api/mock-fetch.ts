@@ -3,6 +3,7 @@ import type { Schema } from '@app/contracts';
 import { t } from '@/i18n';
 
 import { demoClub } from './mock-data';
+import { handleAdminRequest } from './mock-admin';
 import { handleClubBookingsRequest, newClubBookingsMockState } from './mock-club-bookings';
 import { handlePlayerRequest, newPlayerMockState, type PlayerMockState } from './mock-player';
 
@@ -23,6 +24,8 @@ export function createMockFetch(
   return async (input, init) => {
     const request = input instanceof Request ? input : new Request(input, init);
     const { pathname } = new URL(request.url);
+    const adminAnswer = await handleAdminRequest(request, json);
+    if (adminAnswer) return adminAnswer;
     const clubAnswer = await handleClubBookingsRequest(request, clubBookings, json);
     if (clubAnswer) return clubAnswer;
     const answer = await handlePlayerRequest(request, player, () => club, json);

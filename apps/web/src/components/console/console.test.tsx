@@ -1,0 +1,71 @@
+import type { ApiClient } from '@app/contracts';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+
+import { buildApiClient } from '@/lib/api/client';
+import { parseBom } from '@/lib/hardware/bom';
+
+import { ClubDetail } from './club-detail';
+import { ClubsList } from './clubs-list';
+import { QuoteTool } from './quote-tool';
+
+const bom = parseBom(`
+fx_ars_per_usd: 1000
+markup_purchase_plan: 0.25
+per_court:
+  - { item: "Cámara", qty: 2, usd_estimated_total: 100, status: TODO_COTIZAR }
+per_club:
+  - { item: "PC", qty: 1, usd_estimated_total: 500, status: QUOTED }
+`);
+
+function client(): ApiClient {
+  return buildApiClient({
+    NEXT_PUBLIC_API_URL: 'http://localhost:3000/v1',
+    NEXT_PUBLIC_API_MOCK: true,
+  });
+}
+
+const wrap = (ui: React.ReactElement) =>
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      {ui}
+    </QueryClientProvider>,
+  );
+
+describe('QuoteTool', () => {
+  it('computes from the bom it is given and recomputes with the courts', () => {
+    render(<QuoteTool bom={bom} />);
+    expect(screen.getByTestId('cost').textContent).toContain('US$ 700');
+    fireEvent.change(screen.getByLabelText('Cantidad de canchas'), { target: { value: '4' } });
+    expect(screen.getByTestId('cost').textContent).toContain('US$ 900');
+    expect(screen.getByRole('note').textContent).toContain('TODO_COTIZAR');
+  });
+});
+
+describe('ClubsList', () => {
+  it('lists clubs and filters by status', async () => {
+    wrap(<ClubsList client={client()} />);
+    expect(await screen.findByText('Club Demo Norte')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Suspendido' }));
+    expect(await screen.findByText('Club Demo Centro')).toBeTruthy();
+    expect(screen.queryByText('Club Demo Norte')).toBeNull();
+  });
+
+  it('shows the empty state when nothing matches', async () => {
+    wrap(<ClubsList client={client()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Dado de baja' }));
+    expect(await screen.findByText('Ningún club coincide con el filtro.')).toBeTruthy();
+  });
+});
+
+describe('ClubDetail', () => {
+  it('switches tabs', async () => {
+    wrap(<ClubDetail clubId="01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a02" client={client()} />);
+    expect(await screen.findByRole('heading', { name: 'Club Demo Sur' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'Contrato' }));
+    expect(screen.getByText(/Compra: el club es dueño/)).toBeTruthy();
+  });
+});
