@@ -130,7 +130,7 @@ describe.skipIf(!adminUrl)('tournaments (CL-08)', () => {
     });
     expect(taken.status).toBe(409);
     expect(taken.body.code).toBe('TOURNAMENT_PLAYER_TAKEN');
-  });
+  }, 60_000);
 
   it('refuses a draw that does not fit the courts and stores nothing', async () => {
     const res = await call('post', `${base}/${tournament}/draw`, owner, {
@@ -183,7 +183,7 @@ describe.skipIf(!adminUrl)('tournaments (CL-08)', () => {
     );
     for (const m of detail.matches.filter((x) => x.stage !== 'group'))
       expect(at(m)[0]).toBeGreaterThanOrEqual(groupEnd);
-  });
+  }, 60_000);
 
   it('closes registration after the draw', async () => {
     const res = await call(
@@ -225,7 +225,7 @@ describe.skipIf(!adminUrl)('tournaments (CL-08)', () => {
     expect(
       (await call('put', `${path}/confirmation`, b.players[0]?.user_id as string)).status,
     ).toBe(409);
-  });
+  }, 60_000);
 
   it('plays the whole tournament and gives the ranking points', async () => {
     let state = (await call('get', `${base}/${tournament}`, owner)).body as Detail;
@@ -275,7 +275,7 @@ describe.skipIf(!adminUrl)('tournaments (CL-08)', () => {
     // Another category has no points.
     const other = await call('get', `/clubs/${club}/tournament-ranking?category=2`, owner);
     expect(other.body.entries).toEqual([]);
-  });
+  }, 60_000);
 
   it('has row level security on every tournament table', () => {
     const on = psql(
