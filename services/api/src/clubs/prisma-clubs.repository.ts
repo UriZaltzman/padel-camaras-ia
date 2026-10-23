@@ -20,7 +20,7 @@ import { ClubsRepository, type SettingsAudit } from './clubs.repository';
 // Public reads act as an anonymous player: the directory is readable by players (RLS).
 const PUBLIC: DbContext = { role: 'player' };
 
-const COURT_INCLUDE = {
+export const COURT_INCLUDE = {
   courts: {
     orderBy: { name: 'asc' },
     include: {
@@ -34,8 +34,8 @@ const COURT_INCLUDE = {
 } satisfies Prisma.ClubInclude;
 
 type ClubRow = Prisma.ClubGetPayload<{ include: typeof COURT_INCLUDE }>;
-type CourtRow = ClubRow['courts'][number];
-type RuleRow = CourtRow['bookingSlotsRules'][number];
+export type CourtRow = ClubRow['courts'][number];
+export type RuleRow = CourtRow['bookingSlotsRules'][number];
 
 /** `time` columns carry no date; 24:00 is stored as 00:00 and read back as 24:00 for end times. */
 export function toDbTime(local: string): Date {
@@ -48,7 +48,7 @@ export function fromDbTime(value: Date, isEnd: boolean): string {
   return isEnd && hh === '00' && mm === '00' ? '24:00' : `${hh}:${mm}`;
 }
 
-function depositOf(rule: RuleRow | undefined): Deposit {
+export function depositOf(rule: RuleRow | undefined): Deposit {
   if (!rule || rule.depositKind === 'none') return { type: 'none' };
   if (rule.depositKind === 'fixed') {
     return { type: 'fixed', amount_cents: rule.depositAmountCents ?? 0 };
@@ -56,7 +56,7 @@ function depositOf(rule: RuleRow | undefined): Deposit {
   return { type: 'percent', percent: Math.round((rule.depositBps ?? 0) / 100) };
 }
 
-function toRule(rule: RuleRow): BookingRule {
+export function toRule(rule: RuleRow): BookingRule {
   const bands = new Map<string, PriceBand>();
   for (const row of rule.priceBands) {
     const starts = fromDbTime(row.startsAt, false);
