@@ -112,6 +112,9 @@ model User {
   payments           Payment[]
   rating             Rating?
   lessonsAsCoach     Lesson[]
+  lessonStudents     LessonStudent[] @relation("LessonStudentUser")
+  coachGrantsGiven   CoachAccessGrant[] @relation("CoachGrantStudent")
+  coachGrantsHeld    CoachAccessGrant[] @relation("CoachGrantCoach")
   notifications      Notification[]
   auditActions       AuditLog[]
 
@@ -212,6 +215,9 @@ model Club {
   payments              Payment[]
   settlements           Settlement[]
   lessons               Lesson[]
+  lessonStudents        LessonStudent[]
+  lessonNotes           LessonNote[]
+  coachAccessGrants     CoachAccessGrant[]
   notifications         Notification[]
   auditLogs             AuditLog[]
   processingJobs        ProcessingJob[]
@@ -1008,6 +1014,9 @@ model Lesson {
   priceCents  Int?     @map("price_cents")
   /// Coach notes (POST /lessons/{id}/notes).
   notes       String?
+  /// `private`, `group` or `school` (CHECK in the migration SQL).
+  kind        String   @default("private")
+  focus       String?
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -1015,10 +1024,72 @@ model Lesson {
   match    Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
   coach    User?     @relation(fields: [coachUserId], references: [id], onDelete: SetNull)
   payments Payment[]
+  students LessonStudent[]
+  noteRows LessonNote[]
 
   @@index([coachUserId])
   @@index([clubId])
   @@map("lessons")
+}
+
+/// A student invited to a lesson; `accepted` links them (and gives the coach that lesson).
+model LessonStudent {
+  id         String    @id @db.Uuid
+  clubId     String    @map("club_id") @db.Uuid
+  lessonId   String    @map("lesson_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  accepted   Boolean   @default(false)
+  acceptedAt DateTime? @map("accepted_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user   User   @relation("LessonStudentUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, userId])
+  @@index([userId])
+  @@index([clubId])
+  @@map("lesson_students")
+}
+
+/// A coach note, optionally pinned to a video moment with a drawing and marked as plan item.
+model LessonNote {
+  id                String   @id @db.Uuid
+  clubId            String   @map("club_id") @db.Uuid
+  lessonId          String   @map("lesson_id") @db.Uuid
+  studentUserId     String?  @map("student_user_id") @db.Uuid
+  text              String
+  atMs              Int?     @map("at_ms")
+  drawing           Json?
+  isPlan            Boolean  @default(false) @map("is_plan")
+  visibleToStudents Boolean  @default(true) @map("visible_to_students")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId])
+  @@index([clubId])
+  @@map("lesson_notes")
+}
+
+/// Student consent (§12): `matches_and_lessons` lets the coach see the student's matches and
+/// stats. Without a row (or after `revoked_at`) the coach only sees the lessons they taught.
+model CoachAccessGrant {
+  id            String    @id @db.Uuid
+  clubId        String    @map("club_id") @db.Uuid
+  coachUserId   String    @map("coach_user_id") @db.Uuid
+  studentUserId String    @map("student_user_id") @db.Uuid
+  grantedAt     DateTime  @default(now()) @map("granted_at") @db.Timestamptz(3)
+  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(3)
+
+  club    Club @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  coach   User @relation("CoachGrantCoach", fields: [coachUserId], references: [id], onDelete: Cascade)
+  student User @relation("CoachGrantStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, coachUserId, studentUserId])
+  @@index([studentUserId])
+  @@map("coach_access_grants")
 }
 
 enum NotificationChannel {

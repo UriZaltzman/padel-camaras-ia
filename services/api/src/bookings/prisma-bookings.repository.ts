@@ -17,7 +17,7 @@ import type { Interval } from './slots';
 // Public data (court rules, club directory) is readable by any player under RLS.
 const PUBLIC: DbContext = { role: 'player' };
 
-function isExclusionViolation(error: unknown): boolean {
+export function isExclusionViolation(error: unknown): boolean {
   const text =
     error instanceof Error
       ? `${error.message} ${JSON.stringify((error as { meta?: unknown }).meta ?? '')}`
