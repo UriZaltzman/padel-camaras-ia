@@ -11,9 +11,13 @@ export class AppError extends Error {
   constructor(
     readonly code: ErrorCode,
     readonly details?: Record<string, unknown>,
-    options?: { cause?: unknown },
+    options?: { cause?: unknown; retryAfterSeconds?: number },
   ) {
-    super(code, options);
+    super(code, options?.cause === undefined ? undefined : { cause: options.cause });
     this.name = 'AppError';
+    this.retryAfterSeconds = options?.retryAfterSeconds;
   }
+
+  /** Sent as the `Retry-After` header (rate limits). */
+  readonly retryAfterSeconds?: number;
 }

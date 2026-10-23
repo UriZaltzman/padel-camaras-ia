@@ -1,101 +1,11 @@
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
-import { createServer } from 'node:net';
 import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
-import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DEAD_LETTER_QUEUE, EventBus, EVENTS_QUEUE } from '../../src/events/event-bus';
 import { DEFAULT_IDEMPOTENCY } from '../../src/events/idempotency';
 import { memoryLogger } from '../helpers';
+import { available, startRedis, type RedisTarget } from '../redis-target';
 import { bookingConfirmed } from './fixtures';
-
-// Real Redis, from (in order): REDIS_TEST_URL, a local `redis-server`, or Testcontainers.
-// Without any of them the suite is skipped with the reason below.
-interface RedisTarget {
-  url: string;
-  stop: () => Promise<void>;
-}
-
-function hasCommand(cmd: string): boolean {
-  try {
-    execFileSync('which', [cmd], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function hasDocker(): boolean {
-  try {
-    execFileSync('docker', ['info'], { stdio: 'ignore', timeout: 10_000 });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, () => {
-      const address = server.address();
-      server.close(() =>
-        typeof address === 'object' && address ? resolve(address.port) : reject(new Error()),
-      );
-    });
-  });
-}
-
-async function startLocalRedis(): Promise<RedisTarget> {
-  const port = await freePort();
-  const child: ChildProcess = spawn(
-    'redis-server',
-    ['--port', String(port), '--save', '', '--appendonly', 'no'],
-    { stdio: 'ignore' },
-  );
-  const url = `redis://127.0.0.1:${port}`;
-  for (let i = 0; i < 50; i += 1) {
-    const probe = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 0 });
-    try {
-      await probe.connect();
-      await probe.quit();
-      break;
-    } catch {
-      probe.disconnect();
-      await new Promise((r) => setTimeout(r, 100));
-    }
-  }
-  return {
-    url,
-    stop: () => {
-      child.kill();
-      return Promise.resolve();
-    },
-  };
-}
-
-async function startContainer(): Promise<RedisTarget> {
-  const container: StartedTestContainer = await new GenericContainer('redis:7-alpine')
-    .withExposedPorts(6379)
-    .start();
-  return {
-    url: `redis://${container.getHost()}:${container.getMappedPort(6379)}`,
-    stop: async () => {
-      await container.stop();
-    },
-  };
-}
-
-const externalUrl = process.env.REDIS_TEST_URL;
-const localRedis = !externalUrl && hasCommand('redis-server');
-const docker = !externalUrl && !localRedis && hasDocker();
-const available = Boolean(externalUrl) || localRedis || docker;
-const SKIP_REASON =
-  'no Redis for the event bus integration test: set REDIS_TEST_URL, install redis-server, or start Docker';
-
-if (!available) {
-  console.warn(`[skip] ${SKIP_REASON}`);
-}
 
 function waitFor(check: () => Promise<boolean>, timeoutMs = 15_000): Promise<void> {
   const start = Date.now();
@@ -114,11 +24,7 @@ describe.skipIf(!available)('EventBus on a real Redis', () => {
   let admin: Redis;
 
   beforeAll(async () => {
-    target = externalUrl
-      ? { url: externalUrl, stop: () => Promise.resolve() }
-      : localRedis
-        ? await startLocalRedis()
-        : await startContainer();
+    target = await startRedis();
     admin = new Redis(target.url, { maxRetriesPerRequest: null });
     await admin.flushdb();
   }, 120_000);
