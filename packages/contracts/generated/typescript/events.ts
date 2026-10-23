@@ -350,6 +350,7 @@ export interface components {
       payload: {
         payment_id: components['schemas']['Uuid'];
         user_id: components['schemas']['Uuid'];
+        club_id: components['schemas']['Uuid'];
         booking_id: components['schemas']['Uuid'] | null;
         /** @constant */
         status: 'refunded';

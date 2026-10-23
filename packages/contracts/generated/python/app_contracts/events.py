@@ -443,6 +443,7 @@ class PaymentRefundedPayload(BaseModel):
     )
     payment_id: Uuid
     user_id: Uuid
+    club_id: Uuid
     booking_id: Uuid | None
     status: Literal["refunded"]
     amount_cents: AmountCents
