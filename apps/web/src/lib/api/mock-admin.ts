@@ -13,6 +13,8 @@ const tier = (name: string, min: number, max: number | null): Schema<'PricingTie
   max_active_players: max,
 });
 
+const CREATED: Schema<'AdminClubDetail'>[] = [];
+
 const ROWS: Schema<'AdminClubRow'>[] = [
   row(1, 'Club Demo Norte', 'Vicente López', 'active', 'loan', 0, 0),
   row(2, 'Club Demo Sur', 'Avellaneda', 'overdue', 'purchase', 18_500_000, 17),
@@ -84,6 +86,24 @@ export async function handleAdminRequest(
   const url = new URL(request.url);
   const usage = await handleUsageAndTariffs(request, url, json);
   if (usage) return usage;
+  if (request.method === 'POST' && /\/admin\/clubs$/.test(url.pathname)) {
+    const body = (await request.json()) as Schema<'AdminClubOnboarding'>;
+    if (CREATED.some((c) => c.legal.tax_id === body.legal.tax_id)) {
+      return json(409, { code: 'CLUB_TAX_ID_TAKEN', message: 'Ese CUIT ya tiene un club.' });
+    }
+    const n = ROWS.length + 1;
+    const created = row(n, body.name, body.legal.city, 'active', body.plan, 0, 0);
+    ROWS.push(created);
+    const club: Schema<'AdminClubDetail'> = {
+      ...detail(created),
+      legal: body.legal,
+      modules: body.modules,
+      // Relative on purpose: the wizard resolves it against the console origin.
+      whitelabel_url: '/reservar',
+    };
+    CREATED.push(club);
+    return json(201, club);
+  }
   if (request.method !== 'GET') return null;
   if (/\/admin\/clubs$/.test(url.pathname)) {
     const status = url.searchParams.get('status');
