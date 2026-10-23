@@ -12,6 +12,10 @@ import {
   BookingsRepository,
   InMemoryBookingsRepository,
 } from '../src/bookings/bookings.repository';
+import {
+  ClubModulesRepository,
+  InMemoryClubModulesRepository,
+} from '../src/club-modules/club-modules.repository';
 import { ClubsRepository, InMemoryClubsRepository } from '../src/clubs/clubs.repository';
 import { CLOCK, FakeClock } from '../src/common/clock';
 import { WHATSAPP_PROVIDER, FakeWhatsAppProvider } from '../src/notifications/whatsapp-provider';
@@ -62,6 +66,7 @@ export async function createTestApp(
   });
   const { logger, lines } = memoryLogger(env);
   // Nothing in tests talks to Redis, WhatsApp or the wall clock.
+  const modules = new InMemoryClubModulesRepository();
   const whatsapp = new FakeWhatsAppProvider();
   const clock = new FakeClock();
   const builder = Test.createTestingModule({
@@ -87,11 +92,13 @@ export async function createTestApp(
           .useValue(new InMemoryClubsRepository())
           .overrideProvider(BookingsRepository)
           .useValue(new InMemoryBookingsRepository())
+          .overrideProvider(ClubModulesRepository)
+          .useValue(modules)
   ).compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     logger: new PinoLoggerService(logger),
   });
   configureApp(app, logger);
   await app.init();
-  return { app, logs: lines, whatsapp, clock };
+  return { app, logs: lines, whatsapp, clock, modules };
 }

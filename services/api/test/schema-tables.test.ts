@@ -11,6 +11,7 @@ const EXPECTED_TABLES = [
   'auth_identities',
   'memberships',
   'clubs',
+  'club_modules',
   'courts',
   'contracts',
   'devices',
