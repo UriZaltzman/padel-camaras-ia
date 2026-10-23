@@ -4,6 +4,7 @@ import { t } from '@/i18n';
 
 import { demoClub } from './mock-data';
 import { handleAdminRequest } from './mock-admin';
+import { handleClubCashRequest, newClubCashMockState } from './mock-club-cash';
 import { handleClubBookingsRequest, newClubBookingsMockState } from './mock-club-bookings';
 import { handlePlayerRequest, newPlayerMockState, type PlayerMockState } from './mock-player';
 
@@ -20,6 +21,7 @@ export function createMockFetch(
   // In-memory copy, so a PATCH is seen by the next GET in the same session.
   let club: Schema<'Club'> = structuredClone(seed);
   const clubBookings = newClubBookingsMockState(club);
+  const clubCash = newClubCashMockState(club.id);
 
   return async (input, init) => {
     const request = input instanceof Request ? input : new Request(input, init);
@@ -28,6 +30,8 @@ export function createMockFetch(
     if (adminAnswer) return adminAnswer;
     const clubAnswer = await handleClubBookingsRequest(request, clubBookings, json);
     if (clubAnswer) return clubAnswer;
+    const cashAnswer = await handleClubCashRequest(request, clubCash, json);
+    if (cashAnswer) return cashAnswer;
     const answer = await handlePlayerRequest(request, player, () => club, json);
     if (answer) return answer;
     const match = /\/clubs\/([^/]+)(\/settings)?$/.exec(pathname);

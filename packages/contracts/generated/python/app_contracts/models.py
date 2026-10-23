@@ -2012,6 +2012,84 @@ class ClubBooking(Booking):
     """
 
 
+class CashPaymentMethod(StrEnum):
+    cash = "cash"
+    transfer = "transfer"
+    card = "card"
+    mercado_pago = "mercado_pago"
+
+
+class Kind1(StrEnum):
+    income = "income"
+    expense = "expense"
+
+
+class CashMovement(BaseModel):
+    id: Uuid
+    kind: Kind1
+    method: CashPaymentMethod
+    amount_cents: AmountCents
+    description: Annotated[str, Field(max_length=200)]
+    booking_id: Uuid | None = None
+    """
+    Booking the income belongs to, if any.
+    """
+    occurred_at: Timestamp
+
+
+class CashMethodTotal(BaseModel):
+    method: CashPaymentMethod
+    income_cents: AmountCents
+
+
+class Status4(StrEnum):
+    open = "open"
+    closed = "closed"
+
+
+class CashRegister(BaseModel):
+    club_id: Uuid
+    date: date_aliased
+    status: Status4
+    movements: list[CashMovement]
+    totals_by_method: list[CashMethodTotal]
+    expenses_cents: AmountCents
+    expected_cash_cents: int
+    """
+    Cash income minus expenses.
+    """
+    counted_cash_cents: AmountCents | None = None
+    """
+    Set once closed.
+    """
+    difference_cents: int | None = None
+    """
+    Counted minus expected. Set once closed.
+    """
+    closed_at: Timestamp | None = None
+    pdf_url: AnyUrl | None = None
+    """
+    Signed link to the closing PDF (1 hour). Set once closed.
+    """
+
+
+class CashExpenseCreate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    date: date_aliased
+    amount_cents: Annotated[int, Field(ge=1)]
+    description: Annotated[str, Field(max_length=200, min_length=1)]
+
+
+class CashRegisterClose(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    date: date_aliased
+    counted_cash_cents: AmountCents
+
+
 class Deposit1(StrEnum):
     """
     `none` or `paid_at_club` (cash or transfer at the desk). Defaults to `none`.
@@ -2272,7 +2350,7 @@ class AdminClubStatusChange(BaseModel):
     """
 
 
-class Kind1(StrEnum):
+class Kind2(StrEnum):
     percent = "percent"
     fixed = "fixed"
 
@@ -2286,7 +2364,7 @@ class DepositModule(BaseModel):
         extra="forbid",
     )
     enabled: bool
-    kind: Kind1
+    kind: Kind2
     percent: Annotated[int | None, Field(ge=1, le=100)]
     """
     Required when `kind` is `percent`.
@@ -2398,7 +2476,7 @@ class AdminOnboardingPayment(BaseModel):
     """
 
 
-class Kind2(StrEnum):
+class Kind3(StrEnum):
     standard = "standard"
     panoramic = "panoramic"
 
@@ -2408,7 +2486,7 @@ class AdminOnboardingCourt(BaseModel):
         extra="forbid",
     )
     name: Annotated[str, Field(max_length=60)]
-    kind: Kind2
+    kind: Kind3
     covered: bool
     price_cents_per_hour: AmountCents
 
@@ -2600,7 +2678,7 @@ class AdminDunningPauseUpdate(BaseModel):
     reason: Annotated[str, Field(max_length=500, min_length=3)]
 
 
-class Kind3(StrEnum):
+class Kind4(StrEnum):
     invoice_issued = "invoice_issued"
     reminder_sent = "reminder_sent"
     payment_recorded = "payment_recorded"
@@ -2612,7 +2690,7 @@ class Kind3(StrEnum):
 
 class TimelineItem(BaseModel):
     at: Timestamp
-    kind: Kind3
+    kind: Kind4
 
 
 class AdminClubBilling(BaseModel):

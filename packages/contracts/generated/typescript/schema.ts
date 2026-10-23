@@ -1037,6 +1037,73 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/club-admin/cash-register': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Daily cash register of the club (staff and owner)
+     * @description Movements of one club day (`America/Argentina/Buenos_Aires`), totals by payment method,
+     *     manual expenses and, once closed, the counted cash, the difference and the PDF. A day with
+     *     no movement returns `status: open` and empty lists.
+     */
+    get: operations['getClubCashRegister'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/club-admin/cash-register/expenses': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Record a manual expense in the day's cash register
+     * @description Errors: `INVALID_STATE_TRANSITION` (409, the day is already closed), `FORBIDDEN`,
+     *     `VALIDATION_FAILED` (400).
+     */
+    post: operations['createClubCashExpense'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/club-admin/cash-register/close': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Close the day's cash register with the counted cash
+     * @description Stores the counted cash, the difference against the expected cash (cash income minus
+     *     expenses) and the PDF of the closing. A closed day cannot be changed.
+     *
+     *     Errors: `INVALID_STATE_TRANSITION` (409, already closed), `FORBIDDEN`,
+     *     `VALIDATION_FAILED` (400).
+     */
+    post: operations['closeClubCashRegister'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/club-admin/settlements': {
     parameters: {
       query?: never;
@@ -2828,6 +2895,53 @@ export interface components {
     ClubBookingPage: components['schemas']['Page'] & {
       items: components['schemas']['ClubBooking'][];
     };
+    /** @enum {string} */
+    CashPaymentMethod: 'cash' | 'transfer' | 'card' | 'mercado_pago';
+    CashMovement: {
+      id: components['schemas']['Uuid'];
+      /** @enum {string} */
+      kind: 'income' | 'expense';
+      method: components['schemas']['CashPaymentMethod'];
+      amount_cents: components['schemas']['AmountCents'];
+      description: string;
+      /** @description Booking the income belongs to, if any. */
+      booking_id?: components['schemas']['Uuid'] | null;
+      occurred_at: components['schemas']['Timestamp'];
+    };
+    CashMethodTotal: {
+      method: components['schemas']['CashPaymentMethod'];
+      income_cents: components['schemas']['AmountCents'];
+    };
+    CashRegister: {
+      club_id: components['schemas']['Uuid'];
+      /** Format: date */
+      date: string;
+      /** @enum {string} */
+      status: 'open' | 'closed';
+      movements: components['schemas']['CashMovement'][];
+      totals_by_method: components['schemas']['CashMethodTotal'][];
+      expenses_cents: components['schemas']['AmountCents'];
+      /** @description Cash income minus expenses. */
+      expected_cash_cents: number;
+      /** @description Set once closed. */
+      counted_cash_cents?: components['schemas']['AmountCents'] | null;
+      /** @description Counted minus expected. Set once closed. */
+      difference_cents?: number | null;
+      closed_at?: components['schemas']['Timestamp'] | null;
+      /** @description Signed link to the closing PDF (1 hour). Set once closed. */
+      pdf_url?: string | null;
+    };
+    CashExpenseCreate: {
+      /** Format: date */
+      date: string;
+      amount_cents: number;
+      description: string;
+    };
+    CashRegisterClose: {
+      /** Format: date */
+      date: string;
+      counted_cash_cents: components['schemas']['AmountCents'];
+    };
     ClubBookingCreate: {
       court_id: components['schemas']['Uuid'];
       starts_at: components['schemas']['Timestamp'];
@@ -3623,6 +3737,12 @@ export type SchemaClubDashboard = components['schemas']['ClubDashboard'];
 export type SchemaClubBookingContact = components['schemas']['ClubBookingContact'];
 export type SchemaClubBooking = components['schemas']['ClubBooking'];
 export type SchemaClubBookingPage = components['schemas']['ClubBookingPage'];
+export type SchemaCashPaymentMethod = components['schemas']['CashPaymentMethod'];
+export type SchemaCashMovement = components['schemas']['CashMovement'];
+export type SchemaCashMethodTotal = components['schemas']['CashMethodTotal'];
+export type SchemaCashRegister = components['schemas']['CashRegister'];
+export type SchemaCashExpenseCreate = components['schemas']['CashExpenseCreate'];
+export type SchemaCashRegisterClose = components['schemas']['CashRegisterClose'];
 export type SchemaClubBookingCreate = components['schemas']['ClubBookingCreate'];
 export type SchemaRecordingStop = components['schemas']['RecordingStop'];
 export type SchemaSettlementSubscription = components['schemas']['SettlementSubscription'];
@@ -5430,6 +5550,105 @@ export interface operations {
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  getClubCashRegister: {
+    parameters: {
+      query: {
+        /** @description Club the panel acts on. The caller must be staff or owner of it. */
+        club_id: components['parameters']['ClubIdQuery'];
+        /** @description Club-local day, `YYYY-MM-DD`. */
+        date: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The cash register of the day. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CashRegister'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  createClubCashExpense: {
+    parameters: {
+      query: {
+        /** @description Club the panel acts on. The caller must be staff or owner of it. */
+        club_id: components['parameters']['ClubIdQuery'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CashExpenseCreate'];
+      };
+    };
+    responses: {
+      /** @description The updated cash register. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CashRegister'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  closeClubCashRegister: {
+    parameters: {
+      query: {
+        /** @description Club the panel acts on. The caller must be staff or owner of it. */
+        club_id: components['parameters']['ClubIdQuery'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CashRegisterClose'];
+      };
+    };
+    responses: {
+      /** @description The closed cash register. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CashRegister'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
       409: components['responses']['Conflict'];
       429: components['responses']['TooManyRequests'];
       500: components['responses']['InternalError'];
