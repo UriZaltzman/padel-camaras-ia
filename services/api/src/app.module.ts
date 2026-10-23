@@ -6,6 +6,7 @@ import { BookingsModule } from './bookings/bookings.module';
 import { ClubsModule } from './clubs/clubs.module';
 import { DbModule } from './db/db.module';
 import { HealthModule } from './health/health.module';
+import { PaymentsModule } from './payments/payments.module';
 import { RedisModule } from './redis/redis.module';
 
 @Module({})
@@ -20,6 +21,7 @@ export class AppModule {
         AuthModule,
         ClubsModule,
         BookingsModule,
+        PaymentsModule,
         HealthModule,
       ],
     };
