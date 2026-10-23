@@ -7,6 +7,7 @@ import { ClubModulesModule } from './club-modules/club-modules.module';
 import { ClubsModule } from './clubs/clubs.module';
 import { DbModule } from './db/db.module';
 import { HealthModule } from './health/health.module';
+import { MatchesModule } from './matches/matches.module';
 import { PaymentsModule } from './payments/payments.module';
 import { RedisModule } from './redis/redis.module';
 
@@ -23,6 +24,7 @@ export class AppModule {
         ClubsModule,
         ClubModulesModule,
         BookingsModule,
+        MatchesModule,
         PaymentsModule,
         HealthModule,
       ],
