@@ -57,11 +57,32 @@ const availabilityCalls = (server: MockAuthServer) =>
 
 describe('FindSlotScreen', () => {
   beforeEach(async () => {
+    // The availability mock drops slots in the past with the real clock: freeze only `Date`.
+    jest.useFakeTimers({
+      now: NOW,
+      doNotFake: [
+        'nextTick',
+        'setImmediate',
+        'clearImmediate',
+        'setInterval',
+        'clearInterval',
+        'setTimeout',
+        'clearTimeout',
+        'queueMicrotask',
+        'requestAnimationFrame',
+        'cancelAnimationFrame',
+        'requestIdleCallback',
+        'cancelIdleCallback',
+        'performance',
+        'hrtime',
+      ],
+    });
     await secureTokenStore.clear();
   });
 
   afterEach(async () => {
     await cleanup();
+    jest.useRealTimers();
   });
 
   it('lists clubs and filters them by name or city', async () => {
