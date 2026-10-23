@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import { createMockAuthServer, type MockAuthServer } from '../auth/mock-api';
 import { SessionProvider } from '../auth/session';
@@ -93,7 +93,7 @@ describe('FindSlotScreen', () => {
     await fireEvent.changeText(screen.getByTestId('club-search'), 'quilmes');
     await screen.findByText('Club Demo Quilmes');
     expect(await screen.findByTestId('club-list')).toBeTruthy();
-    expect(screen.queryByText('Club Demo Palermo')).toBeNull();
+    await waitFor(() => expect(screen.queryByText('Club Demo Palermo')).toBeNull());
 
     await fireEvent.changeText(screen.getByTestId('club-search'), 'rosario');
     expect(await screen.findByTestId('club-empty')).toBeTruthy();
