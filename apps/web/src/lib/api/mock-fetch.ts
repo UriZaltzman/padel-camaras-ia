@@ -4,6 +4,7 @@ import { t } from '@/i18n';
 
 import { demoClub } from './mock-data';
 import { handleAdminRequest } from './mock-admin';
+import { handleClubCrmRequest, newClubCrmMockState } from './mock-club-crm';
 import { handleClubCashRequest, newClubCashMockState } from './mock-club-cash';
 import { handleClubBookingsRequest, newClubBookingsMockState } from './mock-club-bookings';
 import { handlePlayerRequest, newPlayerMockState, type PlayerMockState } from './mock-player';
@@ -22,6 +23,7 @@ export function createMockFetch(
   let club: Schema<'Club'> = structuredClone(seed);
   const clubBookings = newClubBookingsMockState(club);
   const clubCash = newClubCashMockState(club.id);
+  const clubCrm = newClubCrmMockState(club.id);
 
   return async (input, init) => {
     const request = input instanceof Request ? input : new Request(input, init);
@@ -32,6 +34,8 @@ export function createMockFetch(
     if (clubAnswer) return clubAnswer;
     const cashAnswer = await handleClubCashRequest(request, clubCash, json);
     if (cashAnswer) return cashAnswer;
+    const crmAnswer = await handleClubCrmRequest(request, clubCrm, json);
+    if (crmAnswer) return crmAnswer;
     const answer = await handlePlayerRequest(request, player, () => club, json);
     if (answer) return answer;
     const match = /\/clubs\/([^/]+)(\/settings)?$/.exec(pathname);
