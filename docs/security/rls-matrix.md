@@ -77,6 +77,7 @@ Cell = operations the role can do on the rows of its own club: **S**elect, **I**
 | memberships | `S···` | `····` | `S···` | `SIUD` | `S···` | `····` | `SIUD` |
 | notifications | `S·U·` | `····` | `····` | `····` | `····` | `····` | `·I··` |
 | payments | `S···` | `····` | `····` | `S···` | `····` | `····` | `SIUD` |
+| player_favorite_clubs | `SIUD` | `····` | `····` | `····` | `····` | `····` | `····` |
 | points | `S···` | `S···` | `SIUD` | `SIUD` | `SIUD` | `SIUD` | `SIUD` |
 | processing_jobs | `····` | `····` | `S···` | `S···` | `SIUD` | `S···` | `SIUD` |
 | ratings | `S···` | `····` | `····` | `····` | `····` | `····` | `SIUD` |

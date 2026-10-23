@@ -116,6 +116,7 @@ model User {
   lessonStudents         LessonStudent[]    @relation("LessonStudentUser")
   coachGrantsGiven       CoachAccessGrant[] @relation("CoachGrantStudent")
   coachGrantsHeld        CoachAccessGrant[] @relation("CoachGrantCoach")
+  favoriteClubs          PlayerFavoriteClub[]
   lessonRequestsMade     LessonRequest[]    @relation("LessonRequestStudent")
   lessonRequestsReceived LessonRequest[]    @relation("LessonRequestCoach")
   notifications          Notification[]
@@ -228,6 +229,7 @@ model Club {
   lessonNotes           LessonNote[]
   coachAccessGrants     CoachAccessGrant[]
   lessonRequests        LessonRequest[]
+  favoritedBy           PlayerFavoriteClub[]
   notifications         Notification[]
   auditLogs             AuditLog[]
   processingJobs        ProcessingJob[]
@@ -623,6 +625,23 @@ model ClubPlayerNote {
   @@unique([clubId, userId])
   @@index([userId])
   @@map("club_player_notes")
+}
+
+/// A club a player starred (#325). Only the player reads it; the club sees a count.
+model PlayerFavoriteClub {
+  id        String   @id @db.Uuid
+  clubId    String   @map("club_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  /// 0-based order the player chose.
+  position  Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clubId])
+  @@index([clubId])
+  @@map("player_favorite_clubs")
 }
 
 // ---------------------------------------------------------------- Matches (§2, §5, §6, §7)

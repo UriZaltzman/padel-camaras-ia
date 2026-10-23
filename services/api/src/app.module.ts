@@ -7,6 +7,7 @@ import { BookingsModule } from './bookings/bookings.module';
 import { ClubModulesModule } from './club-modules/club-modules.module';
 import { ClubsModule } from './clubs/clubs.module';
 import { CrmModule } from './crm/crm.module';
+import { FavoritesModule } from './favorites/favorites.module';
 import { DbModule } from './db/db.module';
 import { HealthModule } from './health/health.module';
 import { LessonsModule } from './lessons/lessons.module';
@@ -34,6 +35,7 @@ export class AppModule {
         MatchesModule,
         RankingModule,
         CrmModule,
+        FavoritesModule,
         PaymentsModule,
         TournamentsModule,
         HealthModule,

@@ -1222,6 +1222,103 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/me/favorite-clubs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * My favorite clubs, in my order (JG-01)
+     * @description The clubs the signed-in player starred, in the order they chose. Only the player sees
+     *     this list; a club never gets who starred it, only a count (`getFavoriteClubCount`).
+     */
+    get: operations['listFavoriteClubs'];
+    /**
+     * Set the order of my favorite clubs
+     * @description `club_ids` must be exactly the player's current favorites, in the new order. Anything else
+     *     is `VALIDATION_FAILED`.
+     */
+    put: operations['reorderFavoriteClubs'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/me/favorite-clubs/{club_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Star a club
+     * @description Adds the club at the end of the list. Starring a club that is already a favorite changes
+     *     nothing. At most 10 favorites; the 11th is `VALIDATION_FAILED`. An unknown club is
+     *     `NOT_FOUND`.
+     */
+    put: operations['addFavoriteClub'];
+    post?: never;
+    /**
+     * Remove a club from my favorites
+     * @description Removing a club that is not a favorite is not an error.
+     */
+    delete: operations['removeFavoriteClub'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/me/home': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Home with my favorite clubs (JG-01)
+     * @description For each favorite club, in order: the player's next bookings there (confirmed, or held
+     *     and not expired; at most 3, soonest first) and the free starts left today for 90 minutes
+     *     (at most 3, one per start time). Empty `favorites` when the player has none.
+     */
+    get: operations['getHome'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/club-admin/favorite-count': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * How many players starred the club (staff and owner)
+     * @description An anonymous number. The club never learns who: RLS keeps the favorites of every player
+     *     away from every club role.
+     *
+     *     Errors: `FORBIDDEN`, `NOT_FOUND`.
+     */
+    get: operations['getFavoriteClubCount'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/club-admin/players': {
     parameters: {
       query?: never;
@@ -3652,6 +3749,44 @@ export interface components {
       /** @description Latest 20 bookings at this club, newest first. */
       recent_bookings: components['schemas']['ClubPlayerVisit'][];
     };
+    FavoriteClub: {
+      club_id: components['schemas']['Uuid'];
+      name: string;
+      address: string | null;
+      logo_url: string | null;
+      /** @description 0-based place in the player's list. */
+      position: number;
+    };
+    FavoriteClubList: {
+      items: components['schemas']['FavoriteClub'][];
+    };
+    FavoriteClubOrder: {
+      club_ids: components['schemas']['Uuid'][];
+    };
+    FavoriteClubCount: {
+      favorite_count: number;
+    };
+    Home: {
+      favorites: components['schemas']['HomeFavorite'][];
+    };
+    HomeFavorite: {
+      club: components['schemas']['FavoriteClub'];
+      next_bookings: {
+        id: components['schemas']['Uuid'];
+        court_id: components['schemas']['Uuid'];
+        court_name: string;
+        starts_at: components['schemas']['Timestamp'];
+        ends_at: components['schemas']['Timestamp'];
+        /** @enum {string} */
+        status: 'held' | 'confirmed';
+      }[];
+      free_slots_today: {
+        court_id: components['schemas']['Uuid'];
+        starts_at: components['schemas']['Timestamp'];
+        ends_at: components['schemas']['Timestamp'];
+        amount_cents: components['schemas']['AmountCents'];
+      }[];
+    };
     ClubPlayerNotesUpdate: {
       tags: string[];
       notes: string | null;
@@ -4330,6 +4465,8 @@ export interface components {
     DeviceMatchId: components['schemas']['Uuid'];
     /** @description Upload id from `POST /device/uploads`. */
     DeviceUploadId: components['schemas']['Uuid'];
+    /** @description Club to star or unstar. */
+    FavoriteClubId: components['schemas']['Uuid'];
     /** @description Booking id. */
     BookingId: components['schemas']['Uuid'];
     /** @description Match id. */
@@ -4550,6 +4687,12 @@ export type SchemaClubPlayer = components['schemas']['ClubPlayer'];
 export type SchemaClubPlayerPage = components['schemas']['ClubPlayerPage'];
 export type SchemaClubPlayerVisit = components['schemas']['ClubPlayerVisit'];
 export type SchemaClubPlayerDetail = components['schemas']['ClubPlayerDetail'];
+export type SchemaFavoriteClub = components['schemas']['FavoriteClub'];
+export type SchemaFavoriteClubList = components['schemas']['FavoriteClubList'];
+export type SchemaFavoriteClubOrder = components['schemas']['FavoriteClubOrder'];
+export type SchemaFavoriteClubCount = components['schemas']['FavoriteClubCount'];
+export type SchemaHome = components['schemas']['Home'];
+export type SchemaHomeFavorite = components['schemas']['HomeFavorite'];
 export type SchemaClubPlayerNotesUpdate = components['schemas']['ClubPlayerNotesUpdate'];
 export type SchemaCashPaymentMethod = components['schemas']['CashPaymentMethod'];
 export type SchemaCashMovement = components['schemas']['CashMovement'];
@@ -4633,6 +4776,7 @@ export type ParameterLessonRequestId = components['parameters']['LessonRequestId
 export type ParameterCourtId = components['parameters']['CourtId'];
 export type ParameterDeviceMatchId = components['parameters']['DeviceMatchId'];
 export type ParameterDeviceUploadId = components['parameters']['DeviceUploadId'];
+export type ParameterFavoriteClubId = components['parameters']['FavoriteClubId'];
 export type ParameterBookingId = components['parameters']['BookingId'];
 export type ParameterMatchId = components['parameters']['MatchId'];
 export type ParameterMediaId = components['parameters']['MediaId'];
@@ -6663,6 +6807,170 @@ export interface operations {
       404: components['responses']['NotFound'];
       409: components['responses']['Conflict'];
       422: components['responses']['UnprocessableEntity'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listFavoriteClubs: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The favorites. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FavoriteClubList'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  reorderFavoriteClubs: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['FavoriteClubOrder'];
+      };
+    };
+    responses: {
+      /** @description The favorites in the new order. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FavoriteClubList'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  addFavoriteClub: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club to star or unstar. */
+        club_id: components['parameters']['FavoriteClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The favorites including the club. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FavoriteClubList'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  removeFavoriteClub: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club to star or unstar. */
+        club_id: components['parameters']['FavoriteClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Removed. */
+      204: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  getHome: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The home. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Home'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  getFavoriteClubCount: {
+    parameters: {
+      query: {
+        /** @description Club the panel acts on. The caller must be staff or owner of it. */
+        club_id: components['parameters']['ClubIdQuery'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The count. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FavoriteClubCount'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
       429: components['responses']['TooManyRequests'];
       500: components['responses']['InternalError'];
     };
