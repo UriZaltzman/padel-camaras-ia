@@ -4,6 +4,14 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Logger } from 'pino';
 import { OTP_STORE, InMemoryOtpStore } from '../src/auth/otp/otp-store';
 import { SESSION_STORE, InMemorySessionStore } from '../src/auth/session/session-store';
+import {
+  BOOKING_IDEMPOTENCY,
+  InMemoryBookingIdempotency,
+} from '../src/bookings/booking-idempotency';
+import {
+  BookingsRepository,
+  InMemoryBookingsRepository,
+} from '../src/bookings/bookings.repository';
 import { ClubsRepository, InMemoryClubsRepository } from '../src/clubs/clubs.repository';
 import { CLOCK, FakeClock } from '../src/common/clock';
 import { WHATSAPP_PROVIDER, FakeWhatsAppProvider } from '../src/notifications/whatsapp-provider';
@@ -72,7 +80,11 @@ export async function createTestApp(
   const moduleRef = await (
     options.databaseUrl
       ? builder
-      : builder.overrideProvider(ClubsRepository).useValue(new InMemoryClubsRepository())
+      : builder
+          .overrideProvider(ClubsRepository)
+          .useValue(new InMemoryClubsRepository())
+          .overrideProvider(BookingsRepository)
+          .useValue(new InMemoryBookingsRepository())
   ).compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     logger: new PinoLoggerService(logger),
