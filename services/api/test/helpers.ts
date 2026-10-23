@@ -20,6 +20,7 @@ import {
 import { ClubsRepository, InMemoryClubsRepository } from '../src/clubs/clubs.repository';
 import { CLOCK, FakeClock } from '../src/common/clock';
 import { WHATSAPP_PROVIDER, FakeWhatsAppProvider } from '../src/notifications/whatsapp-provider';
+import { CHECKOUT_STORE, InMemoryCheckoutStore } from '../src/payments/checkout-store';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
 import { loadEnv, type Env } from '../src/config/env';
@@ -82,6 +83,8 @@ export async function createTestApp(
     .useValue(new InMemoryOtpStore())
     .overrideProvider(WHATSAPP_PROVIDER)
     .useValue(whatsapp)
+    .overrideProvider(CHECKOUT_STORE)
+    .useValue(new InMemoryCheckoutStore())
     .overrideProvider(BOOKING_IDEMPOTENCY)
     .useValue(new InMemoryBookingIdempotency())
     .overrideProvider(CLOCK)
