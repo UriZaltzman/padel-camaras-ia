@@ -1,3 +1,4 @@
+import type { ClubModules } from '../club-modules/club-modules';
 /** The contract's club shapes, as plain data (`Club`, `ClubSummary`, `ChargeSettings`, ...). */
 export const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 export type Weekday = (typeof WEEKDAYS)[number];
@@ -38,7 +39,8 @@ export interface ChargeSettings {
   coach_plan: { type: 'included' | 'coach_monthly'; monthly_fee_cents?: number };
   lesson_payments_enabled: boolean;
 }
-export interface ClubDto {
+/** A club as the repository knows it: the service adds `modules` (kept in their own table). */
+export interface ClubRecord {
   id: string;
   name: string;
   address: string;
@@ -49,6 +51,9 @@ export interface ClubDto {
   plan: 'loan' | 'purchase';
   courts: CourtDto[];
   charges: ChargeSettings;
+}
+export interface ClubDto extends ClubRecord {
+  modules: ClubModules;
 }
 export interface ClubSummaryDto {
   id: string;

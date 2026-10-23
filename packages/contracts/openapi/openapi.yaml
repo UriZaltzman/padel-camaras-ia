@@ -5695,6 +5695,7 @@ components:
         - plan
         - courts
         - charges
+        - modules
       properties:
         id:
           $ref: '#/components/schemas/Uuid'
@@ -5731,6 +5732,9 @@ components:
             $ref: '#/components/schemas/Court'
         charges:
           $ref: '#/components/schemas/ChargeSettings'
+        modules:
+          $ref: '#/components/schemas/AdminModules'
+          description: Modules active for the club (SA-05). Apps and panels hide what is off; its endpoints answer `CLUB_FEATURE_DISABLED`. Only internal staff change them (`PUT /admin/clubs/{id}/modules`).
 
     CourtStatus:
       type: string
@@ -7182,10 +7186,15 @@ components:
         modules:
           $ref: '#/components/schemas/AdminModules'
         estimated_monthly_cents:
-          $ref: '#/components/schemas/AmountCents'
-          description: Subscription tier plus the price of every enabled module.
+          description: Subscription tier plus the price of every enabled module. `null` while the club has no subscription to price against.
+          oneOf:
+            - $ref: '#/components/schemas/AmountCents'
+            - type: 'null'
         tariff_version_id:
-          $ref: '#/components/schemas/Uuid'
+          description: Tariff version the estimate uses. `null` together with `estimated_monthly_cents`.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
 
     AdminClubModulesUpdate:
       type: object
@@ -7994,6 +8003,12 @@ components:
             type: coach_monthly
             monthly_fee_cents: 2500000
           lesson_payments_enabled: true
+        modules:
+          deposit: { enabled: true, kind: percent, percent: 30, amount_cents: null }
+          branding: { mode: generic, logo_url: null, primary_color: null, secondary_color: null }
+          lesson_mode: app
+          ai_video: off
+          tournaments: false
 
     CourtAvailabilityExample:
       summary: Free 90-minute slots on a Friday evening
