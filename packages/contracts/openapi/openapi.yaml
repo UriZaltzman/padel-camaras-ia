@@ -2390,6 +2390,169 @@ paths:
         '502':
           $ref: '#/components/responses/BadGateway'
 
+  /clubs/{id}/court-blocks:
+    get:
+      operationId: listCourtBlocks
+      tags: [ClubAdmin]
+      summary: List the court blocks between two instants (staff and owner)
+      description: |
+        Blocks (maintenance, holidays, closures) that overlap `[from, to)`, ordered by start.
+        The calendar asks for one year at a time (CL-04).
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+        - name: from
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Timestamp'
+        - name: to
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Timestamp'
+      responses:
+        '200':
+          description: The blocks.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CourtBlock'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createCourtBlock
+      tags: [ClubAdmin]
+      summary: Block one or more courts for a range, optionally repeating (CL-04)
+      description: |
+        `recurrence` repeats the block daily or weekly until a local date (at most 53
+        occurrences). `existing_bookings_policy` decides what happens with bookings already on
+        the blocked time: `cancel_and_refund` (the player is refunded and warned), `move` (to a
+        free court at the same time) or `abort` (default: nothing is blocked and the call fails).
+
+        Errors: `BOOKING_SLOT_TAKEN` (409, `details.conflicting_booking_ids`), `FORBIDDEN`,
+        `NOT_FOUND` (club or court), `VALIDATION_FAILED` (400).
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourtBlockCreate'
+      responses:
+        '201':
+          description: The blocks created and what happened to the bookings under them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourtBlockResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /clubs/{id}/court-blocks/holidays:
+    post:
+      operationId: importCourtBlockHolidays
+      tags: [ClubAdmin]
+      summary: Import the national holidays of a year as full-day blocks (CL-04)
+      description: |
+        One full-day `holiday` block per date and court. `dates` limits the import to those
+        local dates; without it, every national holiday of `year` is imported.
+
+        Errors: same as `POST /clubs/{id}/court-blocks`.
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourtBlockHolidayImport'
+      responses:
+        '201':
+          description: The blocks created and what happened to the bookings under them.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourtBlockResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /clubs/{id}/court-blocks/{block_id}:
+    delete:
+      operationId: deleteCourtBlock
+      tags: [ClubAdmin]
+      summary: Remove a court block
+      description: |
+        Frees the court again. Bookings already cancelled or moved by the block are not restored.
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+        - name: block_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '204':
+          description: Removed.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /club-admin/dashboard:
     get:
       operationId: getClubDashboard
@@ -6337,6 +6500,120 @@ components:
           $ref: '#/components/schemas/CourtStatus'
         booking:
           $ref: '#/components/schemas/CourtBookingSettings'
+
+    CourtBlockKind:
+      type: string
+      enum: [maintenance, holiday, closure]
+
+    BlockBookingsPolicy:
+      type: string
+      enum: [cancel_and_refund, move, abort]
+
+    CourtBlock:
+      type: object
+      required: [id, court_id, starts_at, ends_at, kind, reason, series_id]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        court_id:
+          $ref: '#/components/schemas/Uuid'
+        starts_at:
+          $ref: '#/components/schemas/Timestamp'
+        ends_at:
+          $ref: '#/components/schemas/Timestamp'
+        kind:
+          $ref: '#/components/schemas/CourtBlockKind'
+        reason:
+          type: [string, 'null']
+        series_id:
+          type: [string, 'null']
+          format: uuid
+          description: Shared by the occurrences of a recurring block.
+
+    CourtBlockCreate:
+      type: object
+      additionalProperties: false
+      required: [court_ids, starts_at, ends_at, kind]
+      properties:
+        court_ids:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/Uuid'
+        starts_at:
+          $ref: '#/components/schemas/Timestamp'
+        ends_at:
+          $ref: '#/components/schemas/Timestamp'
+        kind:
+          $ref: '#/components/schemas/CourtBlockKind'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 200
+        recurrence:
+          type: object
+          additionalProperties: false
+          required: [frequency, until]
+          properties:
+            frequency:
+              type: string
+              enum: [daily, weekly]
+            until:
+              type: string
+              format: date
+        existing_bookings_policy:
+          $ref: '#/components/schemas/BlockBookingsPolicy'
+
+    CourtBlockHolidayImport:
+      type: object
+      additionalProperties: false
+      required: [year, court_ids]
+      properties:
+        year:
+          type: integer
+          minimum: 2026
+          maximum: 2100
+        court_ids:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/Uuid'
+        dates:
+          type: array
+          minItems: 1
+          maxItems: 53
+          items:
+            type: string
+            format: date
+        existing_bookings_policy:
+          $ref: '#/components/schemas/BlockBookingsPolicy'
+
+    CourtBlockResult:
+      type: object
+      required: [blocks, cancelled_booking_ids, refunded_cents, moved]
+      properties:
+        blocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/CourtBlock'
+        cancelled_booking_ids:
+          type: array
+          items:
+            $ref: '#/components/schemas/Uuid'
+        refunded_cents:
+          $ref: '#/components/schemas/AmountCents'
+        moved:
+          type: array
+          items:
+            type: object
+            required: [booking_id, court_id]
+            properties:
+              booking_id:
+                $ref: '#/components/schemas/Uuid'
+              court_id:
+                $ref: '#/components/schemas/Uuid'
 
     Weekday:
       type: string
