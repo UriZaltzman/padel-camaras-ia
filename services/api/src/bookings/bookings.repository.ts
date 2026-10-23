@@ -10,6 +10,10 @@ export interface CourtRules {
   rules: BookingRule[];
   deposit: Deposit;
   cancellationRefundHours: number;
+  /** Club setting, 1..14. */
+  playerHorizonDays: number;
+  /** Local minutes after midnight the farthest day opens for players; null = all day. */
+  windowOpensAtMinutes: number | null;
 }
 
 export interface NewHold {
