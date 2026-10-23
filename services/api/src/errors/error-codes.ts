@@ -57,6 +57,11 @@ const HTTP_STATUS = {
   CLUB_TAX_ID_TAKEN: 409,
   PAYMENT_ALREADY_RECORDED: 409,
   SUPPORT_ACCESS_NOT_GRANTED: 403,
+  // Tournaments
+  TOURNAMENT_REGISTRATION_CLOSED: 409,
+  TOURNAMENT_PLAYER_TAKEN: 409,
+  TOURNAMENT_PAIR_COUNT_INVALID: 422,
+  TOURNAMENT_NOT_ENOUGH_SLOTS: 422,
 } as const satisfies Record<ErrorCode, number>;
 
 // `satisfies` above rejects missing codes; this rejects codes the contract does not have.

@@ -1579,6 +1579,212 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/clubs/{id}/tournaments': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Tournaments of the club (CL-08)
+     * @description Tournaments of the club, newest first. Open to anyone with an active role in the club or who
+     *     played a confirmed match there (others get `NOT_FOUND`). Errors: `CLUB_FEATURE_DISABLED` (the
+     *     club has the `tournaments` module off).
+     */
+    get: operations['listTournaments'];
+    put?: never;
+    /**
+     * Create a tournament (CL-08, staff and owner)
+     * @description Opens registration for a tournament of one category (1st to 6th). `points` defaults to
+     *     champion 100, finalist 60, semifinal 36, quarterfinals 18 and 5 per group win; the club may
+     *     change them. `entry_fee_cents` 0 means free. Errors: `FORBIDDEN`, `CLUB_FEATURE_DISABLED`,
+     *     `VALIDATION_FAILED`.
+     */
+    post: operations['createTournament'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/clubs/{id}/tournaments/{tournament_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Tournament with pairs, groups and fixture (CL-08)
+     * @description Pairs, groups with their tables, and every match of the fixture. Same access as the list.
+     *     Errors: `CLUB_FEATURE_DISABLED`, `NOT_FOUND`.
+     */
+    get: operations['getTournament'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/clubs/{id}/tournaments/{tournament_id}/registrations': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Register a pair (CL-08)
+     * @description The caller registers themselves with `partner_user_id`. Closed once the draw is made. A player
+     *     can be in one active pair per tournament. If the tournament has an entry fee the pair stays
+     *     unpaid until the club marks it paid. Errors: `TOURNAMENT_REGISTRATION_CLOSED`,
+     *     `TOURNAMENT_PLAYER_TAKEN`, `CLUB_FEATURE_DISABLED`, `VALIDATION_FAILED`.
+     */
+    post: operations['registerTournamentPair'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/clubs/{id}/tournaments/{tournament_id}/registrations/{registration_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Withdraw a pair (CL-08)
+     * @description One of the two players, or the club's staff, withdraws the pair while registration is open.
+     *     Errors: `TOURNAMENT_REGISTRATION_CLOSED`, `FORBIDDEN`, `NOT_FOUND`.
+     */
+    delete: operations['withdrawTournamentPair'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/clubs/{id}/tournaments/{tournament_id}/registrations/{registration_id}/payment': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Mark the entry fee as collected (CL-08, staff and owner)
+     * @description For fees collected at the club. Idempotent. Errors: `FORBIDDEN`, `NOT_FOUND`.
+     */
+    put: operations['markTournamentPairPaid'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/clubs/{id}/tournaments/{tournament_id}/draw': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Make the draw and the fixture (CL-08, staff and owner)
+     * @description Closes registration, splits the pairs into groups of 3 or 4 seeded by the rating of the pair
+     *     (snake order), generates the round robin of every group and the knockout bracket for the
+     *     top two of each group, and books every match on the given courts inside the window as a
+     *     `tournament` booking (the same no-overlap guarantee as any booking). If the courts and the
+     *     window do not fit all the matches nothing is stored. Errors: `FORBIDDEN`,
+     *     `TOURNAMENT_REGISTRATION_CLOSED` (already drawn), `TOURNAMENT_PAIR_COUNT_INVALID`,
+     *     `TOURNAMENT_NOT_ENOUGH_SLOTS`, `VALIDATION_FAILED`.
+     */
+    post: operations['drawTournament'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/clubs/{id}/tournaments/{tournament_id}/matches/{match_id}/result': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Enter the result of a match (CL-08)
+     * @description A player of either pair enters the score (`team_1` is pair A); the match waits for the rival
+     *     pair to confirm. Entering again replaces a result nobody confirmed yet. Staff and owner enter
+     *     it already confirmed. Errors: `FORBIDDEN`, `NOT_FOUND`, `INVALID_STATE_TRANSITION` (already
+     *     confirmed, or the pairs are not known yet), `VALIDATION_FAILED` (impossible score).
+     */
+    put: operations['reportTournamentResult'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/clubs/{id}/tournaments/{tournament_id}/matches/{match_id}/result/confirmation': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Confirm the result as the rival (CL-08)
+     * @description A player of the pair that did not enter the result confirms it. The winner moves to the next
+     *     round; when the final is confirmed the tournament finishes and the ranking points are awarded.
+     *     Errors: `FORBIDDEN` (not the rival), `NOT_FOUND`, `INVALID_STATE_TRANSITION`.
+     */
+    put: operations['confirmTournamentResult'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/clubs/{id}/tournament-ranking': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Tournament ranking of a category, last 12 months (CL-08)
+     * @description Sum of the points a player earned in the club's tournaments of the category over the last 12
+     *     months, best first. Same access as the list. Errors: `CLUB_FEATURE_DISABLED`.
+     */
+    get: operations['getTournamentRanking'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2043,6 +2249,126 @@ export interface components {
       wins: number;
       /** @description True for the caller's own row. */
       is_me: boolean;
+    };
+    /** @description 1st (top) to 6th. */
+    TournamentCategory: number;
+    /** @enum {string} */
+    TournamentStatus: 'registration' | 'in_progress' | 'finished' | 'cancelled';
+    /** @enum {string} */
+    TournamentStage: 'group' | 'round_of_16' | 'quarter' | 'semi' | 'final';
+    /** @enum {string} */
+    TournamentMatchStatus: 'scheduled' | 'awaiting_confirmation' | 'confirmed';
+    /** @description Ranking points by result. Defaults 100, 60, 36, 18 and 5. */
+    TournamentPoints: {
+      champion: number;
+      finalist: number;
+      semifinal: number;
+      quarterfinal: number;
+      group_win: number;
+    };
+    Tournament: {
+      id: components['schemas']['Uuid'];
+      club_id: components['schemas']['Uuid'];
+      name: string;
+      category: components['schemas']['TournamentCategory'];
+      status: components['schemas']['TournamentStatus'];
+      entry_fee_cents: number;
+      match_minutes: number;
+      points: components['schemas']['TournamentPoints'];
+      /** @description Active pairs. */
+      pair_count: number;
+    };
+    TournamentList: {
+      items: components['schemas']['Tournament'][];
+    };
+    TournamentCreate: {
+      name: string;
+      category: components['schemas']['TournamentCategory'];
+      /** @default 0 */
+      entry_fee_cents: number;
+      /** @default 90 */
+      match_minutes: number;
+      points?: components['schemas']['TournamentPoints'];
+    };
+    TournamentRegister: {
+      partner_user_id: components['schemas']['Uuid'];
+    };
+    TournamentDraw: {
+      court_ids: components['schemas']['Uuid'][];
+      window_starts_at: components['schemas']['Timestamp'];
+      window_ends_at: components['schemas']['Timestamp'];
+    };
+    TournamentPlayer: {
+      user_id: components['schemas']['Uuid'];
+      name: string;
+    };
+    TournamentPair: {
+      id: components['schemas']['Uuid'];
+      players: components['schemas']['TournamentPlayer'][];
+      /** @description Position by strength at the draw, 1 the strongest; null before it. */
+      seed: number | null;
+      group_id: components['schemas']['Uuid'] | null;
+      paid: boolean;
+    };
+    TournamentSetScore: {
+      team_1: number;
+      team_2: number;
+    };
+    TournamentResult: {
+      sets: components['schemas']['TournamentSetScore'][];
+    };
+    TournamentStanding: {
+      pair_id: components['schemas']['Uuid'];
+      played: number;
+      wins: number;
+      sets_for: number;
+      sets_against: number;
+      games_for: number;
+      games_against: number;
+    };
+    TournamentGroup: {
+      id: components['schemas']['Uuid'];
+      /** @description 0-based; shown as Group A, B, C. */
+      position: number;
+      pair_ids: components['schemas']['Uuid'][];
+      /** @description Table ordered best first. */
+      standings: components['schemas']['TournamentStanding'][];
+    };
+    TournamentMatch: {
+      id: components['schemas']['Uuid'];
+      stage: components['schemas']['TournamentStage'];
+      group_id: components['schemas']['Uuid'] | null;
+      round: number;
+      pair_a_id: components['schemas']['Uuid'] | null;
+      pair_b_id: components['schemas']['Uuid'] | null;
+      court_id: components['schemas']['Uuid'];
+      starts_at: components['schemas']['Timestamp'];
+      ends_at: components['schemas']['Timestamp'];
+      status: components['schemas']['TournamentMatchStatus'];
+      sets: components['schemas']['TournamentSetScore'][] | null;
+      winner_pair_id: components['schemas']['Uuid'] | null;
+      reported_by_user_id: components['schemas']['Uuid'] | null;
+    };
+    TournamentDetail: components['schemas']['Tournament'] & {
+      pairs: components['schemas']['TournamentPair'][];
+      groups: components['schemas']['TournamentGroup'][];
+      /** @description Group matches by round, then the knockout from the first round to the final. */
+      matches: components['schemas']['TournamentMatch'][];
+    };
+    TournamentRankingEntry: {
+      position: number;
+      user_id: components['schemas']['Uuid'];
+      name: string;
+      points: number;
+      /** @description Tournaments that gave points inside the window. */
+      tournaments: number;
+      is_me: boolean;
+    };
+    TournamentRanking: {
+      club_id: components['schemas']['Uuid'];
+      category: components['schemas']['TournamentCategory'];
+      window_months: number;
+      entries: components['schemas']['TournamentRankingEntry'][];
     };
     /** @enum {string} */
     DominantHand: 'right' | 'left';
@@ -3238,7 +3564,11 @@ export interface components {
       | 'TARIFF_TIERS_INVALID'
       | 'CLUB_TAX_ID_TAKEN'
       | 'PAYMENT_ALREADY_RECORDED'
-      | 'SUPPORT_ACCESS_NOT_GRANTED';
+      | 'SUPPORT_ACCESS_NOT_GRANTED'
+      | 'TOURNAMENT_REGISTRATION_CLOSED'
+      | 'TOURNAMENT_PLAYER_TAKEN'
+      | 'TOURNAMENT_PAIR_COUNT_INVALID'
+      | 'TOURNAMENT_NOT_ENOUGH_SLOTS';
     /**
      * @description Commercial status of a club. `trial` and `active` are healthy, `overdue` keeps service
      *     while the subscription is unpaid (reminder at day 15), `suspended` cuts service (day 30 or
@@ -3709,6 +4039,11 @@ export interface components {
     Cursor: string;
     /** @description Maximum number of items in the page. */
     Limit: number;
+    TournamentId: components['schemas']['Uuid'];
+    TournamentMatchId: components['schemas']['Uuid'];
+    TournamentRegistrationId: components['schemas']['Uuid'];
+    /** @description Tournament category, 1 (top) to 6. */
+    TournamentCategoryQuery: components['schemas']['TournamentCategory'];
     ClubPlayerUserId: components['schemas']['Uuid'];
     /** @description Club the panel acts on. The caller must be staff or owner of it. */
     ClubIdQuery: components['schemas']['Uuid'];
@@ -3797,6 +4132,26 @@ export type SchemaAuthSession = components['schemas']['AuthSession'];
 export type SchemaDeclaredCategory = components['schemas']['DeclaredCategory'];
 export type SchemaClubRanking = components['schemas']['ClubRanking'];
 export type SchemaClubRankingEntry = components['schemas']['ClubRankingEntry'];
+export type SchemaTournamentCategory = components['schemas']['TournamentCategory'];
+export type SchemaTournamentStatus = components['schemas']['TournamentStatus'];
+export type SchemaTournamentStage = components['schemas']['TournamentStage'];
+export type SchemaTournamentMatchStatus = components['schemas']['TournamentMatchStatus'];
+export type SchemaTournamentPoints = components['schemas']['TournamentPoints'];
+export type SchemaTournament = components['schemas']['Tournament'];
+export type SchemaTournamentList = components['schemas']['TournamentList'];
+export type SchemaTournamentCreate = components['schemas']['TournamentCreate'];
+export type SchemaTournamentRegister = components['schemas']['TournamentRegister'];
+export type SchemaTournamentDraw = components['schemas']['TournamentDraw'];
+export type SchemaTournamentPlayer = components['schemas']['TournamentPlayer'];
+export type SchemaTournamentPair = components['schemas']['TournamentPair'];
+export type SchemaTournamentSetScore = components['schemas']['TournamentSetScore'];
+export type SchemaTournamentResult = components['schemas']['TournamentResult'];
+export type SchemaTournamentStanding = components['schemas']['TournamentStanding'];
+export type SchemaTournamentGroup = components['schemas']['TournamentGroup'];
+export type SchemaTournamentMatch = components['schemas']['TournamentMatch'];
+export type SchemaTournamentDetail = components['schemas']['TournamentDetail'];
+export type SchemaTournamentRankingEntry = components['schemas']['TournamentRankingEntry'];
+export type SchemaTournamentRanking = components['schemas']['TournamentRanking'];
 export type SchemaDominantHand = components['schemas']['DominantHand'];
 export type SchemaPlayingSide = components['schemas']['PlayingSide'];
 export type SchemaUser = components['schemas']['User'];
@@ -3980,6 +4335,11 @@ export type ResponseBadGateway = components['responses']['BadGateway'];
 export type ResponseServiceUnavailable = components['responses']['ServiceUnavailable'];
 export type ParameterCursor = components['parameters']['Cursor'];
 export type ParameterLimit = components['parameters']['Limit'];
+export type ParameterTournamentId = components['parameters']['TournamentId'];
+export type ParameterTournamentMatchId = components['parameters']['TournamentMatchId'];
+export type ParameterTournamentRegistrationId =
+  components['parameters']['TournamentRegistrationId'];
+export type ParameterTournamentCategoryQuery = components['parameters']['TournamentCategoryQuery'];
 export type ParameterClubPlayerUserId = components['parameters']['ClubPlayerUserId'];
 export type ParameterClubIdQuery = components['parameters']['ClubIdQuery'];
 export type ParameterClubId = components['parameters']['ClubId'];
@@ -6665,6 +7025,340 @@ export interface operations {
       400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listTournaments: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Done. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TournamentList'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  createTournament: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TournamentCreate'];
+      };
+    };
+    responses: {
+      /** @description Done. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Tournament'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  getTournament: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+        tournament_id: components['parameters']['TournamentId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Done. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TournamentDetail'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  registerTournamentPair: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+        tournament_id: components['parameters']['TournamentId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TournamentRegister'];
+      };
+    };
+    responses: {
+      /** @description Done. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TournamentPair'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  withdrawTournamentPair: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+        tournament_id: components['parameters']['TournamentId'];
+        registration_id: components['parameters']['TournamentRegistrationId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Done. */
+      204: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  markTournamentPairPaid: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+        tournament_id: components['parameters']['TournamentId'];
+        registration_id: components['parameters']['TournamentRegistrationId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Done. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TournamentPair'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  drawTournament: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+        tournament_id: components['parameters']['TournamentId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TournamentDraw'];
+      };
+    };
+    responses: {
+      /** @description Done. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TournamentDetail'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  reportTournamentResult: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+        tournament_id: components['parameters']['TournamentId'];
+        match_id: components['parameters']['TournamentMatchId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TournamentResult'];
+      };
+    };
+    responses: {
+      /** @description Done. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TournamentDetail'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  confirmTournamentResult: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+        tournament_id: components['parameters']['TournamentId'];
+        match_id: components['parameters']['TournamentMatchId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Done. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TournamentDetail'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  getTournamentRanking: {
+    parameters: {
+      query: {
+        /** @description Tournament category, 1 (top) to 6. */
+        category: components['parameters']['TournamentCategoryQuery'];
+      };
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Done. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TournamentRanking'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
       429: components['responses']['TooManyRequests'];
       500: components['responses']['InternalError'];
     };

@@ -36,5 +36,9 @@
   "TARIFF_TIERS_INVALID": "Los tramos de la tarifa tienen huecos o se pisan. Revisalos.",
   "CLUB_TAX_ID_TAKEN": "Ya hay un club cargado con ese CUIT.",
   "PAYMENT_ALREADY_RECORDED": "Ese pago ya estaba registrado.",
-  "SUPPORT_ACCESS_NOT_GRANTED": "Primero tenés que registrar el permiso para ver este video."
+  "SUPPORT_ACCESS_NOT_GRANTED": "Primero tenés que registrar el permiso para ver este video.",
+  "TOURNAMENT_REGISTRATION_CLOSED": "La inscripción de este torneo ya está cerrada.",
+  "TOURNAMENT_PLAYER_TAKEN": "Alguno de los dos jugadores ya está anotado en otra pareja de este torneo.",
+  "TOURNAMENT_PAIR_COUNT_INVALID": "Con esta cantidad de parejas no se pueden armar grupos de 3 o 4.",
+  "TOURNAMENT_NOT_ENOUGH_SLOTS": "Las canchas y el horario elegidos no alcanzan para todos los partidos."
 }

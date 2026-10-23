@@ -69,6 +69,8 @@ security:
   - bearerAuth: []
 
 tags:
+  - name: Tournaments
+    description: Club tournaments - registration, draw, fixture, results and ranking points.
   - name: System
     description: Liveness and operational endpoints.
   - name: Device
@@ -3498,6 +3500,390 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /clubs/{id}/tournaments:
+    get:
+      operationId: listTournaments
+      tags: [Tournaments]
+      summary: Tournaments of the club (CL-08)
+      description: |
+        Tournaments of the club, newest first. Open to anyone with an active role in the club or who
+        played a confirmed match there (others get `NOT_FOUND`). Errors: `CLUB_FEATURE_DISABLED` (the
+        club has the `tournaments` module off).
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+      responses:
+        '200':
+          description: Done.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createTournament
+      tags: [Tournaments]
+      summary: Create a tournament (CL-08, staff and owner)
+      description: |
+        Opens registration for a tournament of one category (1st to 6th). `points` defaults to
+        champion 100, finalist 60, semifinal 36, quarterfinals 18 and 5 per group win; the club may
+        change them. `entry_fee_cents` 0 means free. Errors: `FORBIDDEN`, `CLUB_FEATURE_DISABLED`,
+        `VALIDATION_FAILED`.
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TournamentCreate'
+      responses:
+        '201':
+          description: Done.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tournament'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /clubs/{id}/tournaments/{tournament_id}:
+    get:
+      operationId: getTournament
+      tags: [Tournaments]
+      summary: Tournament with pairs, groups and fixture (CL-08)
+      description: |
+        Pairs, groups with their tables, and every match of the fixture. Same access as the list.
+        Errors: `CLUB_FEATURE_DISABLED`, `NOT_FOUND`.
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+        - $ref: '#/components/parameters/TournamentId'
+      responses:
+        '200':
+          description: Done.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /clubs/{id}/tournaments/{tournament_id}/registrations:
+    post:
+      operationId: registerTournamentPair
+      tags: [Tournaments]
+      summary: Register a pair (CL-08)
+      description: |
+        The caller registers themselves with `partner_user_id`. Closed once the draw is made. A player
+        can be in one active pair per tournament. If the tournament has an entry fee the pair stays
+        unpaid until the club marks it paid. Errors: `TOURNAMENT_REGISTRATION_CLOSED`,
+        `TOURNAMENT_PLAYER_TAKEN`, `CLUB_FEATURE_DISABLED`, `VALIDATION_FAILED`.
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+        - $ref: '#/components/parameters/TournamentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TournamentRegister'
+      responses:
+        '201':
+          description: Done.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentPair'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /clubs/{id}/tournaments/{tournament_id}/registrations/{registration_id}:
+    delete:
+      operationId: withdrawTournamentPair
+      tags: [Tournaments]
+      summary: Withdraw a pair (CL-08)
+      description: |
+        One of the two players, or the club's staff, withdraws the pair while registration is open.
+        Errors: `TOURNAMENT_REGISTRATION_CLOSED`, `FORBIDDEN`, `NOT_FOUND`.
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+        - $ref: '#/components/parameters/TournamentId'
+        - $ref: '#/components/parameters/TournamentRegistrationId'
+      responses:
+        '204':
+          description: Done.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /clubs/{id}/tournaments/{tournament_id}/registrations/{registration_id}/payment:
+    put:
+      operationId: markTournamentPairPaid
+      tags: [Tournaments]
+      summary: Mark the entry fee as collected (CL-08, staff and owner)
+      description: |
+        For fees collected at the club. Idempotent. Errors: `FORBIDDEN`, `NOT_FOUND`.
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+        - $ref: '#/components/parameters/TournamentId'
+        - $ref: '#/components/parameters/TournamentRegistrationId'
+      responses:
+        '200':
+          description: Done.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentPair'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /clubs/{id}/tournaments/{tournament_id}/draw:
+    post:
+      operationId: drawTournament
+      tags: [Tournaments]
+      summary: Make the draw and the fixture (CL-08, staff and owner)
+      description: |
+        Closes registration, splits the pairs into groups of 3 or 4 seeded by the rating of the pair
+        (snake order), generates the round robin of every group and the knockout bracket for the
+        top two of each group, and books every match on the given courts inside the window as a
+        `tournament` booking (the same no-overlap guarantee as any booking). If the courts and the
+        window do not fit all the matches nothing is stored. Errors: `FORBIDDEN`,
+        `TOURNAMENT_REGISTRATION_CLOSED` (already drawn), `TOURNAMENT_PAIR_COUNT_INVALID`,
+        `TOURNAMENT_NOT_ENOUGH_SLOTS`, `VALIDATION_FAILED`.
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+        - $ref: '#/components/parameters/TournamentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TournamentDraw'
+      responses:
+        '200':
+          description: Done.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /clubs/{id}/tournaments/{tournament_id}/matches/{match_id}/result:
+    put:
+      operationId: reportTournamentResult
+      tags: [Tournaments]
+      summary: Enter the result of a match (CL-08)
+      description: |
+        A player of either pair enters the score (`team_1` is pair A); the match waits for the rival
+        pair to confirm. Entering again replaces a result nobody confirmed yet. Staff and owner enter
+        it already confirmed. Errors: `FORBIDDEN`, `NOT_FOUND`, `INVALID_STATE_TRANSITION` (already
+        confirmed, or the pairs are not known yet), `VALIDATION_FAILED` (impossible score).
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+        - $ref: '#/components/parameters/TournamentId'
+        - $ref: '#/components/parameters/TournamentMatchId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TournamentResult'
+      responses:
+        '200':
+          description: Done.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /clubs/{id}/tournaments/{tournament_id}/matches/{match_id}/result/confirmation:
+    put:
+      operationId: confirmTournamentResult
+      tags: [Tournaments]
+      summary: Confirm the result as the rival (CL-08)
+      description: |
+        A player of the pair that did not enter the result confirms it. The winner moves to the next
+        round; when the final is confirmed the tournament finishes and the ranking points are awarded.
+        Errors: `FORBIDDEN` (not the rival), `NOT_FOUND`, `INVALID_STATE_TRANSITION`.
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+        - $ref: '#/components/parameters/TournamentId'
+        - $ref: '#/components/parameters/TournamentMatchId'
+      responses:
+        '200':
+          description: Done.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /clubs/{id}/tournament-ranking:
+    get:
+      operationId: getTournamentRanking
+      tags: [Tournaments]
+      summary: Tournament ranking of a category, last 12 months (CL-08)
+      description: |
+        Sum of the points a player earned in the club's tournaments of the category over the last 12
+        months, best first. Same access as the list. Errors: `CLUB_FEATURE_DISABLED`.
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+        - $ref: '#/components/parameters/TournamentCategoryQuery'
+      responses:
+        '200':
+          description: Done.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentRanking'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
 components:
   securitySchemes:
     deviceMtls:
@@ -3535,6 +3921,31 @@ components:
         maximum: 50
         default: 20
 
+    TournamentId:
+      name: tournament_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    TournamentMatchId:
+      name: match_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    TournamentRegistrationId:
+      name: registration_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    TournamentCategoryQuery:
+      name: category
+      in: query
+      required: true
+      description: Tournament category, 1 (top) to 6.
+      schema:
+        $ref: '#/components/schemas/TournamentCategory'
     ClubPlayerUserId:
       name: user_id
       in: path
@@ -4672,6 +5083,336 @@ components:
         is_me:
           type: boolean
           description: True for the caller's own row.
+
+    # Tournaments (CL-08, 21/10/2026 specification).
+    TournamentCategory:
+      type: integer
+      minimum: 1
+      maximum: 6
+      description: 1st (top) to 6th.
+
+    TournamentStatus:
+      type: string
+      enum: [registration, in_progress, finished, cancelled]
+
+    TournamentStage:
+      type: string
+      enum: [group, round_of_16, quarter, semi, final]
+
+    TournamentMatchStatus:
+      type: string
+      enum: [scheduled, awaiting_confirmation, confirmed]
+
+    TournamentPoints:
+      type: object
+      description: Ranking points by result. Defaults 100, 60, 36, 18 and 5.
+      required: [champion, finalist, semifinal, quarterfinal, group_win]
+      properties:
+        champion:
+          type: integer
+          minimum: 0
+        finalist:
+          type: integer
+          minimum: 0
+        semifinal:
+          type: integer
+          minimum: 0
+        quarterfinal:
+          type: integer
+          minimum: 0
+        group_win:
+          type: integer
+          minimum: 0
+
+    Tournament:
+      type: object
+      required:
+        [id, club_id, name, category, status, entry_fee_cents, match_minutes, points, pair_count]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        club_id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        category:
+          $ref: '#/components/schemas/TournamentCategory'
+        status:
+          $ref: '#/components/schemas/TournamentStatus'
+        entry_fee_cents:
+          type: integer
+          minimum: 0
+        match_minutes:
+          type: integer
+          minimum: 30
+          maximum: 180
+        points:
+          $ref: '#/components/schemas/TournamentPoints'
+        pair_count:
+          type: integer
+          description: Active pairs.
+
+    TournamentList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tournament'
+
+    TournamentCreate:
+      type: object
+      required: [name, category]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        category:
+          $ref: '#/components/schemas/TournamentCategory'
+        entry_fee_cents:
+          type: integer
+          minimum: 0
+          default: 0
+        match_minutes:
+          type: integer
+          minimum: 30
+          maximum: 180
+          default: 90
+        points:
+          $ref: '#/components/schemas/TournamentPoints'
+
+    TournamentRegister:
+      type: object
+      required: [partner_user_id]
+      properties:
+        partner_user_id:
+          $ref: '#/components/schemas/Uuid'
+
+    TournamentDraw:
+      type: object
+      required: [court_ids, window_starts_at, window_ends_at]
+      properties:
+        court_ids:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/Uuid'
+        window_starts_at:
+          $ref: '#/components/schemas/Timestamp'
+        window_ends_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    TournamentPlayer:
+      type: object
+      required: [user_id, name]
+      properties:
+        user_id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+
+    TournamentPair:
+      type: object
+      required: [id, players, seed, group_id, paid]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        players:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/TournamentPlayer'
+        seed:
+          type:
+            - integer
+            - 'null'
+          description: Position by strength at the draw, 1 the strongest; null before it.
+        group_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        paid:
+          type: boolean
+
+    TournamentSetScore:
+      type: object
+      required: [team_1, team_2]
+      properties:
+        team_1:
+          type: integer
+          minimum: 0
+          maximum: 7
+        team_2:
+          type: integer
+          minimum: 0
+          maximum: 7
+
+    TournamentResult:
+      type: object
+      required: [sets]
+      properties:
+        sets:
+          type: array
+          minItems: 2
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/TournamentSetScore'
+
+    TournamentStanding:
+      type: object
+      required: [pair_id, played, wins, sets_for, sets_against, games_for, games_against]
+      properties:
+        pair_id:
+          $ref: '#/components/schemas/Uuid'
+        played:
+          type: integer
+        wins:
+          type: integer
+        sets_for:
+          type: integer
+        sets_against:
+          type: integer
+        games_for:
+          type: integer
+        games_against:
+          type: integer
+
+    TournamentGroup:
+      type: object
+      required: [id, position, pair_ids, standings]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        position:
+          type: integer
+          description: 0-based; shown as Group A, B, C.
+        pair_ids:
+          type: array
+          items:
+            $ref: '#/components/schemas/Uuid'
+        standings:
+          type: array
+          description: Table ordered best first.
+          items:
+            $ref: '#/components/schemas/TournamentStanding'
+
+    TournamentMatch:
+      type: object
+      required:
+        [
+          id,
+          stage,
+          group_id,
+          round,
+          pair_a_id,
+          pair_b_id,
+          court_id,
+          starts_at,
+          ends_at,
+          status,
+          sets,
+          winner_pair_id,
+          reported_by_user_id,
+        ]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        stage:
+          $ref: '#/components/schemas/TournamentStage'
+        group_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        round:
+          type: integer
+        pair_a_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        pair_b_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        court_id:
+          $ref: '#/components/schemas/Uuid'
+        starts_at:
+          $ref: '#/components/schemas/Timestamp'
+        ends_at:
+          $ref: '#/components/schemas/Timestamp'
+        status:
+          $ref: '#/components/schemas/TournamentMatchStatus'
+        sets:
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/TournamentSetScore'
+        winner_pair_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        reported_by_user_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+
+    TournamentDetail:
+      allOf:
+        - $ref: '#/components/schemas/Tournament'
+        - type: object
+          required: [pairs, groups, matches]
+          properties:
+            pairs:
+              type: array
+              items:
+                $ref: '#/components/schemas/TournamentPair'
+            groups:
+              type: array
+              items:
+                $ref: '#/components/schemas/TournamentGroup'
+            matches:
+              type: array
+              description: Group matches by round, then the knockout from the first round to the final.
+              items:
+                $ref: '#/components/schemas/TournamentMatch'
+
+    TournamentRankingEntry:
+      type: object
+      required: [position, user_id, name, points, tournaments, is_me]
+      properties:
+        position:
+          type: integer
+          minimum: 1
+        user_id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        points:
+          type: integer
+        tournaments:
+          type: integer
+          description: Tournaments that gave points inside the window.
+        is_me:
+          type: boolean
+
+    TournamentRanking:
+      type: object
+      required: [club_id, category, window_months, entries]
+      properties:
+        club_id:
+          $ref: '#/components/schemas/Uuid'
+        category:
+          $ref: '#/components/schemas/TournamentCategory'
+        window_months:
+          type: integer
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/TournamentRankingEntry'
 
     DominantHand:
       type: string
@@ -7221,6 +7962,11 @@ components:
         - CLUB_TAX_ID_TAKEN
         - PAYMENT_ALREADY_RECORDED
         - SUPPORT_ACCESS_NOT_GRANTED
+        # Tournaments
+        - TOURNAMENT_REGISTRATION_CLOSED
+        - TOURNAMENT_PLAYER_TAKEN
+        - TOURNAMENT_PAIR_COUNT_INVALID
+        - TOURNAMENT_NOT_ENOUGH_SLOTS
       x-error-catalog:
         - code: VALIDATION_FAILED
           http_status: 400
@@ -7342,6 +8088,18 @@ components:
         - code: SUPPORT_ACCESS_NOT_GRANTED
           http_status: 403
           description: No unexpired support permission is registered in `audit_log` for this match.
+        - code: TOURNAMENT_REGISTRATION_CLOSED
+          http_status: 409
+          description: The draw was already made (or the tournament ended), so pairs can no longer join or leave.
+        - code: TOURNAMENT_PLAYER_TAKEN
+          http_status: 409
+          description: One of the two players is already in an active pair of this tournament.
+        - code: TOURNAMENT_PAIR_COUNT_INVALID
+          http_status: 422
+          description: The pairs cannot be split into groups of 3 or 4 (fewer than 3, or exactly 5).
+        - code: TOURNAMENT_NOT_ENOUGH_SLOTS
+          http_status: 422
+          description: The courts and the window do not fit every match of the fixture.
 
     # Internal console (SA-03 to SA-08, 21/10/2026 specification). Roles are internal staff
     # (admin, sales, support, finance), never club or player roles.

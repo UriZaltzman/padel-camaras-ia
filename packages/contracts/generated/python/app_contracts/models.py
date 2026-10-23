@@ -685,6 +685,175 @@ class ClubRankingEntry(BaseModel):
     """
 
 
+class TournamentCategory(RootModel[int]):
+    root: Annotated[int, Field(ge=1, le=6)]
+    """
+    1st (top) to 6th.
+    """
+
+
+class TournamentStatus(StrEnum):
+    registration = "registration"
+    in_progress = "in_progress"
+    finished = "finished"
+    cancelled = "cancelled"
+
+
+class TournamentStage(StrEnum):
+    group = "group"
+    round_of_16 = "round_of_16"
+    quarter = "quarter"
+    semi = "semi"
+    final = "final"
+
+
+class TournamentMatchStatus(StrEnum):
+    scheduled = "scheduled"
+    awaiting_confirmation = "awaiting_confirmation"
+    confirmed = "confirmed"
+
+
+class TournamentPoints(BaseModel):
+    """
+    Ranking points by result. Defaults 100, 60, 36, 18 and 5.
+    """
+
+    champion: Annotated[int, Field(ge=0)]
+    finalist: Annotated[int, Field(ge=0)]
+    semifinal: Annotated[int, Field(ge=0)]
+    quarterfinal: Annotated[int, Field(ge=0)]
+    group_win: Annotated[int, Field(ge=0)]
+
+
+class Tournament(BaseModel):
+    id: Uuid
+    club_id: Uuid
+    name: str
+    category: TournamentCategory
+    status: TournamentStatus
+    entry_fee_cents: Annotated[int, Field(ge=0)]
+    match_minutes: Annotated[int, Field(ge=30, le=180)]
+    points: TournamentPoints
+    pair_count: int
+    """
+    Active pairs.
+    """
+
+
+class TournamentList(BaseModel):
+    items: list[Tournament]
+
+
+class TournamentCreate(BaseModel):
+    name: Annotated[str, Field(max_length=80, min_length=1)]
+    category: TournamentCategory
+    entry_fee_cents: Annotated[int | None, Field(ge=0)] = 0
+    match_minutes: Annotated[int | None, Field(ge=30, le=180)] = 90
+    points: TournamentPoints | None = None
+
+
+class TournamentRegister(BaseModel):
+    partner_user_id: Uuid
+
+
+class TournamentDraw(BaseModel):
+    court_ids: Annotated[list[Uuid], Field(max_length=20, min_length=1)]
+    window_starts_at: Timestamp
+    window_ends_at: Timestamp
+
+
+class TournamentPlayer(BaseModel):
+    user_id: Uuid
+    name: str
+
+
+class TournamentPair(BaseModel):
+    id: Uuid
+    players: Annotated[list[TournamentPlayer], Field(max_length=2, min_length=2)]
+    seed: int | None
+    """
+    Position by strength at the draw, 1 the strongest; null before it.
+    """
+    group_id: Uuid | None
+    paid: bool
+
+
+class TournamentSetScore(BaseModel):
+    team_1: Annotated[int, Field(ge=0, le=7)]
+    team_2: Annotated[int, Field(ge=0, le=7)]
+
+
+class TournamentResult(BaseModel):
+    sets: Annotated[list[TournamentSetScore], Field(max_length=3, min_length=2)]
+
+
+class TournamentStanding(BaseModel):
+    pair_id: Uuid
+    played: int
+    wins: int
+    sets_for: int
+    sets_against: int
+    games_for: int
+    games_against: int
+
+
+class TournamentGroup(BaseModel):
+    id: Uuid
+    position: int
+    """
+    0-based; shown as Group A, B, C.
+    """
+    pair_ids: list[Uuid]
+    standings: list[TournamentStanding]
+    """
+    Table ordered best first.
+    """
+
+
+class TournamentMatch(BaseModel):
+    id: Uuid
+    stage: TournamentStage
+    group_id: Uuid | None
+    round: int
+    pair_a_id: Uuid | None
+    pair_b_id: Uuid | None
+    court_id: Uuid
+    starts_at: Timestamp
+    ends_at: Timestamp
+    status: TournamentMatchStatus
+    sets: list[TournamentSetScore] | None
+    winner_pair_id: Uuid | None
+    reported_by_user_id: Uuid | None
+
+
+class TournamentDetail(Tournament):
+    pairs: list[TournamentPair]
+    groups: list[TournamentGroup]
+    matches: list[TournamentMatch]
+    """
+    Group matches by round, then the knockout from the first round to the final.
+    """
+
+
+class TournamentRankingEntry(BaseModel):
+    position: Annotated[int, Field(ge=1)]
+    user_id: Uuid
+    name: str
+    points: int
+    tournaments: int
+    """
+    Tournaments that gave points inside the window.
+    """
+    is_me: bool
+
+
+class TournamentRanking(BaseModel):
+    club_id: Uuid
+    category: TournamentCategory
+    window_months: int
+    entries: list[TournamentRankingEntry]
+
+
 class DominantHand(StrEnum):
     right = "right"
     left = "left"
@@ -2329,6 +2498,10 @@ class ErrorCode(StrEnum):
     CLUB_TAX_ID_TAKEN = "CLUB_TAX_ID_TAKEN"
     PAYMENT_ALREADY_RECORDED = "PAYMENT_ALREADY_RECORDED"
     SUPPORT_ACCESS_NOT_GRANTED = "SUPPORT_ACCESS_NOT_GRANTED"
+    TOURNAMENT_REGISTRATION_CLOSED = "TOURNAMENT_REGISTRATION_CLOSED"
+    TOURNAMENT_PLAYER_TAKEN = "TOURNAMENT_PLAYER_TAKEN"
+    TOURNAMENT_PAIR_COUNT_INVALID = "TOURNAMENT_PAIR_COUNT_INVALID"
+    TOURNAMENT_NOT_ENOUGH_SLOTS = "TOURNAMENT_NOT_ENOUGH_SLOTS"
 
 
 class AdminClubStatus(StrEnum):
