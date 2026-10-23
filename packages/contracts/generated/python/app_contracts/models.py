@@ -2012,6 +2012,78 @@ class ClubBooking(Booking):
     """
 
 
+class ClubPlayerSegment(StrEnum):
+    """
+    Saved segments of the club. `frequent`: played in at least 4 of the last 8 weeks.
+    `dormant`: last visit more than 30 days ago (or never came). `no_show`: 2 or more
+    no-shows.
+
+    """
+
+    frequent = "frequent"
+    dormant = "dormant"
+    no_show = "no_show"
+
+
+class WeeksWindow(IntEnum):
+    integer_8 = 8
+
+
+class ClubPlayer(BaseModel):
+    user_id: Uuid
+    name: str
+    phone: PhoneNumber | None
+    email: str | None
+    bookings_per_month: float
+    """
+    Frequency. Bookings played in the last 8 weeks, scaled to 30 days, one decimal.
+    """
+    active_weeks: Annotated[int, Field(ge=0, le=8)]
+    """
+    Recurrence. Weeks (out of `weeks_window`) with at least one booking played.
+    """
+    weeks_window: WeeksWindow
+    no_shows: Annotated[int, Field(ge=0)]
+    """
+    Bookings the person made and did not show up for, all time.
+    """
+    last_visit_at: Timestamp | None
+    total_spend_cents: int | None
+    """
+    Approved payments minus refunds at this club. `null` for staff.
+    """
+    segments: list[ClubPlayerSegment]
+    tags: list[str]
+    notes: str | None
+
+
+class ClubPlayerVisit(BaseModel):
+    booking_id: Uuid
+    starts_at: Timestamp
+    court_name: str
+    status: BookingStatus
+    price_cents: int
+
+
+class ClubPlayerDetail(ClubPlayer):
+    recent_bookings: list[ClubPlayerVisit]
+    """
+    Latest 20 bookings at this club, newest first.
+    """
+
+
+class Tag(RootModel[str]):
+    root: Annotated[str, Field(max_length=30, min_length=1)]
+
+
+class ClubPlayerNotesUpdate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    tags: Annotated[list[Tag], Field(max_length=10)]
+    notes: Annotated[str | None, Field(max_length=1000)]
+
+
 class CashPaymentMethod(StrEnum):
     cash = "cash"
     transfer = "transfer"
@@ -3057,6 +3129,10 @@ class Court(BaseModel):
 
 class ClubBookingPage(Page):
     items: list[ClubBooking]
+
+
+class ClubPlayerPage(Page):
+    items: list[ClubPlayer]
 
 
 class SettlementPage(Page):

@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { ClubModulesModule } from './club-modules/club-modules.module';
 import { ClubsModule } from './clubs/clubs.module';
+import { CrmModule } from './crm/crm.module';
 import { DbModule } from './db/db.module';
 import { HealthModule } from './health/health.module';
 import { PaymentsModule } from './payments/payments.module';
@@ -23,6 +24,7 @@ export class AppModule {
         ClubsModule,
         ClubModulesModule,
         BookingsModule,
+        CrmModule,
         PaymentsModule,
         HealthModule,
       ],

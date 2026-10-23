@@ -2275,6 +2275,146 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /club-admin/players:
+    get:
+      operationId: listClubPlayers
+      tags: [ClubAdmin]
+      summary: Players of the club with CRM metrics (CL-06, staff and owner)
+      description: |
+        People who played or booked at the club, with the metrics of the last 8 weeks and the
+        saved segments they fall in. Ordered by last visit, most recent first. Only people with
+        a booking at this club appear, and only this club's data is counted (section 12).
+
+        `total_spend_cents` is the owner's figure: it is `null` for staff.
+
+        Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`.
+      parameters:
+        - $ref: '#/components/parameters/ClubIdQuery'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: q
+          in: query
+          required: false
+          description: Part of the name, or of the phone number.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: segment
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ClubPlayerSegment'
+        - name: tag
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 30
+      responses:
+        '200':
+          description: One page of players.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClubPlayerPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /club-admin/players/{user_id}:
+    get:
+      operationId: getClubPlayer
+      tags: [ClubAdmin]
+      summary: Player card of the club (CL-06a, staff and owner)
+      description: |
+        The same metrics as the list plus the latest bookings of the person at this club.
+
+        Errors: `FORBIDDEN`, `NOT_FOUND` (the person has no booking at this club).
+      parameters:
+        - $ref: '#/components/parameters/ClubIdQuery'
+        - $ref: '#/components/parameters/ClubPlayerUserId'
+      responses:
+        '200':
+          description: The player card.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClubPlayerDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /club-admin/players/{user_id}/notes:
+    put:
+      operationId: updateClubPlayerNotes
+      tags: [ClubAdmin]
+      summary: Set the tags and the note of a player (CL-06, staff and owner)
+      description: |
+        Replaces the tags and the note the club keeps about the person. Visible only to this
+        club's staff and owner; the person never sees it.
+
+        Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`.
+      parameters:
+        - $ref: '#/components/parameters/ClubIdQuery'
+        - $ref: '#/components/parameters/ClubPlayerUserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClubPlayerNotesUpdate'
+            example:
+              tags: [zurdo, torneo]
+              notes: Prefiere turnos de la noche.
+      responses:
+        '200':
+          description: The updated player card.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClubPlayerDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /club-admin/recording/{court}/stop:
     post:
       operationId: stopCourtRecording
@@ -3344,6 +3484,12 @@ components:
         maximum: 50
         default: 20
 
+    ClubPlayerUserId:
+      name: user_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
     ClubIdQuery:
       name: club_id
       in: query
@@ -6513,6 +6659,137 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/ClubBooking'
+
+    ClubPlayerSegment:
+      type: string
+      enum: [frequent, dormant, no_show]
+      description: |
+        Saved segments of the club. `frequent`: played in at least 4 of the last 8 weeks.
+        `dormant`: last visit more than 30 days ago (or never came). `no_show`: 2 or more
+        no-shows.
+
+    ClubPlayer:
+      type: object
+      required:
+        - user_id
+        - name
+        - phone
+        - email
+        - bookings_per_month
+        - active_weeks
+        - weeks_window
+        - no_shows
+        - last_visit_at
+        - total_spend_cents
+        - segments
+        - tags
+        - notes
+      properties:
+        user_id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        phone:
+          oneOf:
+            - $ref: '#/components/schemas/PhoneNumber'
+            - type: 'null'
+        email:
+          type:
+            - string
+            - 'null'
+        bookings_per_month:
+          type: number
+          description: Frequency. Bookings played in the last 8 weeks, scaled to 30 days, one decimal.
+        active_weeks:
+          type: integer
+          minimum: 0
+          maximum: 8
+          description: Recurrence. Weeks (out of `weeks_window`) with at least one booking played.
+        weeks_window:
+          type: integer
+          enum: [8]
+        no_shows:
+          type: integer
+          minimum: 0
+          description: Bookings the person made and did not show up for, all time.
+        last_visit_at:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        total_spend_cents:
+          type:
+            - integer
+            - 'null'
+          description: Approved payments minus refunds at this club. `null` for staff.
+        segments:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClubPlayerSegment'
+        tags:
+          type: array
+          items:
+            type: string
+        notes:
+          type:
+            - string
+            - 'null'
+
+    ClubPlayerPage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ClubPlayer'
+
+    ClubPlayerVisit:
+      type: object
+      required: [booking_id, starts_at, court_name, status, price_cents]
+      properties:
+        booking_id:
+          $ref: '#/components/schemas/Uuid'
+        starts_at:
+          $ref: '#/components/schemas/Timestamp'
+        court_name:
+          type: string
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        price_cents:
+          type: integer
+
+    ClubPlayerDetail:
+      allOf:
+        - $ref: '#/components/schemas/ClubPlayer'
+        - type: object
+          required: [recent_bookings]
+          properties:
+            recent_bookings:
+              type: array
+              description: Latest 20 bookings at this club, newest first.
+              items:
+                $ref: '#/components/schemas/ClubPlayerVisit'
+
+    ClubPlayerNotesUpdate:
+      type: object
+      required: [tags, notes]
+      additionalProperties: false
+      properties:
+        tags:
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 30
+        notes:
+          type:
+            - string
+            - 'null'
+          maxLength: 1000
 
     CashPaymentMethod:
       type: string
