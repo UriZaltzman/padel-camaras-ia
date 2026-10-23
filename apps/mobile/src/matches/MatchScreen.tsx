@@ -13,7 +13,9 @@ import { useApi } from '../api/client';
 import { useSession } from '../auth/session';
 import { formatSets, formatSlot } from '../home/home-data';
 import { fonts } from '../theme/fonts';
+import { ClaimPlayer } from './ClaimPlayer';
 import {
+  canClaim,
   filterPoints,
   formatDuration,
   statsAreApproximate,
@@ -119,6 +121,8 @@ export function MatchScreen({ matchId, Video = MatchVideo }: Props) {
             onPress={() => setSource((s) => ({ mediaId: null, startMs: 0, key: s.key + 1 }))}
           />
         ) : null}
+
+        {canClaim(m, user?.id ?? null) ? <ClaimPlayer match={m} signedIn={user !== null} /> : null}
 
         <Card>
           <View style={styles.cardBody} testID="match-score">

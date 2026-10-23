@@ -225,6 +225,22 @@
       "action": "Descargar video",
       "preparing": "Estamos preparando tu video. Te avisamos por WhatsApp cuando esté listo.",
       "error": "No pudimos pedir la descarga."
+    },
+    "claim": {
+      "title": "¿Cuál sos vos?",
+      "hint": "Tocá tu foto para ver tu video y tus estadísticas. No usamos reconocimiento facial.",
+      "suggested": "Sugerido por el QR",
+      "position": "Lugar {{n}}",
+      "action": "Este soy yo",
+      "guest": "Iniciá sesión con el link de tu partido para reclamar tu lugar.",
+      "done": "Listo, ya sos parte del partido.",
+      "error": {
+        "MATCH_PLAYER_SLOT_TAKEN": "Alguien ya eligió ese lugar. Elegí otro.",
+        "MATCH_ALREADY_JOINED": "Ya tenés un lugar en este partido.",
+        "TERMS_NOT_ACCEPTED": "Primero aceptá los términos.",
+        "MATCH_NOT_PUBLISHED": "El partido todavía se está analizando.",
+        "generic": "No pudimos reclamar el lugar. Probá de nuevo."
+      }
     }
   }
 }

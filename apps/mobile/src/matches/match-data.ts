@@ -1,7 +1,7 @@
 // Data for the match screen: the match (GET /matches/{id}), its clips and the signed links of its
 // media (GET /media/{id}/url). Signed links live only in the query cache, are refetched before
 // they expire and are never persisted (spec §12: links of 1 hour, no permanent URLs).
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { Schema } from '@app/contracts';
 
@@ -94,4 +94,36 @@ export function formatDuration(ms: number | null): string {
   const m = Math.floor(total / 60);
   const s = String(total % 60).padStart(2, '0');
   return `${m}:${s}`;
+}
+
+/** Positions nobody has claimed yet; the options left for the players still to choose. */
+export function unclaimedPlayers(match: MatchDetail): MatchDetail['players'] {
+  return match.players.filter((p) => p.user === null);
+}
+
+/** The claim step shows while the match is published, the user holds no place and one is free. */
+export function canClaim(match: MatchDetail, userId: string | null): boolean {
+  return (
+    match.status === 'published' &&
+    !match.players.some((p) => p.user?.id === userId) &&
+    unclaimedPlayers(match).length > 0
+  );
+}
+
+export function useClaimPlayer(matchId: string) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (position: MatchDetail['players'][number]['position']) => {
+      const { data, error } = await api.POST('/matches/{id}/claim-player', {
+        params: { path: { id: matchId } },
+        body: { position },
+      });
+      if (error) throw new Error(error.code);
+      return data;
+    },
+    onSuccess: (data) => queryClient.setQueryData(['matches', matchId], data),
+    // A taken slot means our view is stale: reload so the options narrow.
+    onError: () => void queryClient.invalidateQueries({ queryKey: ['matches', matchId] }),
+  });
 }

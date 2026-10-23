@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient } from '@tanstack/react-query';
 import { Text } from 'react-native';
 
@@ -7,7 +7,7 @@ import { createApiClient } from '@app/contracts';
 import { ApiProvider } from '../api/client';
 import { i18n } from '../i18n';
 import esAR from '../i18n/locales/es-AR.json';
-import { filterPoints, statsAreApproximate } from '../matches/match-data';
+import { canClaim, filterPoints, statsAreApproximate } from '../matches/match-data';
 import { MatchScreen } from '../matches/MatchScreen';
 import type { MatchVideoComponent } from '../matches/MatchVideo';
 import { MOCK_MATCH_ID, mockMatch, withMatchMock } from '../matches/mock-match';
@@ -116,6 +116,44 @@ describe('MatchScreen', () => {
     await renderMatch(mockMatch({ full_video: null }));
     expect(await screen.findByText(m.video.unavailable)).toBeTruthy();
     expect(screen.queryByTestId('match-download')).toBeNull();
+  });
+});
+
+describe('claim player', () => {
+  const unclaimed = () => {
+    const match = mockMatch();
+    match.players = match.players.map((p) =>
+      p.position <= 2 ? p : { ...p, user: null, confirmed: false, suggested: p.position === 3 },
+    );
+    return match;
+  };
+  const uid = '0192af6e-7c1a-7d4e-9b3a-2f6c8e1d4b99';
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('lets the user claim a place and narrows the options', async () => {
+    const match = unclaimed();
+    match.players = match.players.map((p) =>
+      p.position === 1 ? { ...p, user: { id: uid, display_name: 'X', photo_url: null } } : p,
+    );
+    await renderMatch(match);
+    expect(await screen.findByTestId('match-claim-suggested-3')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('match-claim-3'));
+    // Once claimed, the user holds a place and the step goes away.
+    await waitFor(() => expect(screen.queryByTestId('match-claim')).toBeNull());
+    expect(calls).toContain('POST /v1/matches/' + MOCK_MATCH_ID + '/claim-player');
+  });
+
+  it('is offered only to a user without a place', () => {
+    const match = unclaimed();
+    expect(canClaim(match, 'someone')).toBe(true);
+    expect(canClaim(match, match.players.find((p) => p.position === 1)?.user?.id ?? null)).toBe(
+      false,
+    );
+    expect(canClaim(mockMatch(), 'someone')).toBe(false);
+    expect(canClaim({ ...match, status: 'processing' }, 'someone')).toBe(false);
   });
 });
 

@@ -99,7 +99,9 @@ const json = (body: unknown) =>
     headers: { 'Content-Type': 'application/json', 'X-Request-Id': 'mock' },
   });
 
-export function withMatchMock(next: Fetch, match = mockMatch()): Fetch {
+/** Mock of POST /matches/{id}/claim-player: the first claimant is player 1's user id. */
+export function withMatchMock(next: Fetch, initial = mockMatch()): Fetch {
+  let match = initial;
   return async (input) => {
     const path = new URL(input.url).pathname.replace(/^.*\/v1/, '');
     if (input.method === 'GET') {
@@ -116,6 +118,25 @@ export function withMatchMock(next: Fetch, match = mockMatch()): Fetch {
           content_type: 'video/mp4',
         });
       }
+    }
+    if (input.method === 'POST' && path === `/matches/${match.id}/claim-player`) {
+      const { position } = (await input.json()) as { position: number };
+      const slot = match.players.find((p) => p.position === position);
+      if (!slot || slot.user !== null) {
+        return new Response(
+          JSON.stringify({ code: 'MATCH_PLAYER_SLOT_TAKEN', message: 'taken', request_id: 'mock' }),
+          { status: 409, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+      match = {
+        ...match,
+        players: match.players.map((p) =>
+          p.position === position
+            ? { ...p, user: { id: uuid(1), display_name: 'Vos', photo_url: null }, confirmed: true }
+            : p,
+        ),
+      };
+      return json(match);
     }
     const downloadId = /^\/media\/([^/]+)\/download$/.exec(path)?.[1];
     if (input.method === 'POST' && downloadId) {
