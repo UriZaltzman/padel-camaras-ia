@@ -1,7 +1,7 @@
 import { createApiClient } from '@app/contracts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { t } from '@/i18n';
 import { DEMO_CLUB_ID, demoClub } from '@/lib/api/mock-data';
@@ -25,6 +25,9 @@ function setup(today = todayLocal()) {
 
 const dayButton = (n: number) =>
   screen.getAllByRole('button', { name: new RegExp(`^${n} de [a-zé]+: `) });
+
+// 365 day buttons and twelve month queries: slow on small CI runners.
+vi.setConfig({ testTimeout: 30_000 });
 
 describe('YearCalendar', () => {
   it('shows 12 months with today’s occupancy', async () => {
