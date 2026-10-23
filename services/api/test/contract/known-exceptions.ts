@@ -5,5 +5,4 @@ import type { KnownException } from './coverage';
  * points to the issue that adds it to the contract, and the contract test fails once that issue
  * lands, so the exception is deleted instead of rotting here.
  */
-export const KNOWN_EXCEPTIONS: readonly KnownException[] = [
-];
+export const KNOWN_EXCEPTIONS: readonly KnownException[] = [];
