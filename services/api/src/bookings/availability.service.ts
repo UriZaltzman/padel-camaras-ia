@@ -82,6 +82,7 @@ export class AvailabilityService {
       minNoticeMinutes: MIN_NOTICE_MINUTES,
       horizonDays: horizonFor(options.audience ?? 'player', court.playerHorizonDays),
       // Staff are not held back by the daily opening of the farthest day.
+      avoidOrphanGaps: court.avoidOrphanGaps ?? false,
       windowOpensAtMinutes: options.audience === 'staff' ? null : court.windowOpensAtMinutes,
     });
   }

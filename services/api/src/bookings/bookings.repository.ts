@@ -14,6 +14,8 @@ export interface CourtRules {
   playerHorizonDays: number;
   /** Local minutes after midnight the farthest day opens for players; null = all day. */
   windowOpensAtMinutes: number | null;
+  /** Per-club rule (off when absent): never offer a start that leaves a 30-minute orphan gap. */
+  avoidOrphanGaps?: boolean;
 }
 
 export interface NewHold {
