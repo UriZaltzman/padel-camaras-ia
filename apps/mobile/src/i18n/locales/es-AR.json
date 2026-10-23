@@ -242,5 +242,27 @@
         "generic": "No pudimos reclamar el lugar. Probá de nuevo."
       }
     }
+  },
+  "court": {
+    "loading": "Buscando tu turno…",
+    "error": "No pudimos leer el QR de la cancha. Probá de nuevo.",
+    "unavailable": "Esta cancha todavía no se puede abrir desde la app.",
+    "off": "Esta cancha no graba partidos.",
+    "none": "No hay un turno en esta cancha ahora.",
+    "label": "{club} · {court}",
+    "offer": "Sumarte al partido de las {time}",
+    "freeSession": "Empezar una sesión libre",
+    "spot": {
+      "drive": "Pareja {team} · Drive",
+      "reves": "Pareja {team} · Revés"
+    },
+    "taken": "Ocupado",
+    "guest": "Podés sumarte sin cuenta y reclamar tu lugar después.",
+    "gate": "El club pide ${price} por partido para ver tu video y tus estadísticas, o tener Pro.",
+    "pay": "Pagar el partido",
+    "payError": "No pudimos abrir el pago. Probá de nuevo.",
+    "join": "Sumarme",
+    "joinError": "No pudimos sumarte. Probá de nuevo.",
+    "error_MATCH_PLAYER_SLOT_TAKEN": "Alguien ya eligió ese lugar. Elegí otro."
   }
 }
