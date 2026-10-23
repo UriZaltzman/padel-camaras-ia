@@ -13,6 +13,7 @@ const EXPECTED_TABLES = [
   'clubs',
   'club_modules',
   'court_blocks',
+  'club_player_notes',
   'courts',
   'contracts',
   'devices',

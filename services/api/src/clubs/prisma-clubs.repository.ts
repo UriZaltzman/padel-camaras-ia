@@ -7,7 +7,7 @@ import { AppError } from '../errors/app-error';
 import {
   WEEKDAYS,
   type BookingRule,
-  type ClubDto,
+  type ClubRecord,
   type ClubSettingsUpdate,
   type ClubSummaryDto,
   type CourtBookingSettings,
@@ -88,7 +88,7 @@ function toCourt(court: CourtRow): CourtDto {
   return { id: court.id, name: court.name, covered: court.covered, status: court.status, booking };
 }
 
-function toClub(club: ClubRow): ClubDto {
+function toClub(club: ClubRow): ClubRecord {
   return {
     id: club.id,
     name: club.name,
@@ -139,7 +139,7 @@ export class PrismaClubsRepository extends ClubsRepository {
     }));
   }
 
-  async findById(id: string): Promise<ClubDto | null> {
+  async findById(id: string): Promise<ClubRecord | null> {
     const row = await this.db.run(PUBLIC, (tx) => this.load(tx, id));
     return row ? toClub(row) : null;
   }
@@ -149,7 +149,7 @@ export class PrismaClubsRepository extends ClubsRepository {
     clubId: string,
     update: ClubSettingsUpdate,
     audit: SettingsAudit,
-  ): Promise<ClubDto> {
+  ): Promise<ClubRecord> {
     return this.db.run(ctx, async (tx) => {
       const before = await this.load(tx, clubId);
       if (!before) throw new AppError('NOT_FOUND');
