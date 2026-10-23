@@ -2,6 +2,9 @@ import { Writable } from 'node:stream';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Logger } from 'pino';
+import { OTP_STORE, InMemoryOtpStore } from '../src/auth/otp/otp-store';
+import { CLOCK, FakeClock } from '../src/common/clock';
+import { WHATSAPP_PROVIDER, FakeWhatsAppProvider } from '../src/notifications/whatsapp-provider';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
 import { loadEnv, type Env } from '../src/config/env';
@@ -42,14 +45,24 @@ export function memoryLogger(env: Pick<Env, 'LOG_LEVEL'> = { LOG_LEVEL: 'info' }
 export async function createTestApp(controllers: (new (...args: never[]) => unknown)[] = []) {
   const env = loadEnv(VALID_ENV);
   const { logger, lines } = memoryLogger(env);
+  // Nothing in tests talks to Redis, WhatsApp or the wall clock.
+  const whatsapp = new FakeWhatsAppProvider();
+  const clock = new FakeClock();
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule.register(env)],
     controllers,
-  }).compile();
+  })
+    .overrideProvider(OTP_STORE)
+    .useValue(new InMemoryOtpStore())
+    .overrideProvider(WHATSAPP_PROVIDER)
+    .useValue(whatsapp)
+    .overrideProvider(CLOCK)
+    .useValue(clock)
+    .compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({
     logger: new PinoLoggerService(logger),
   });
   configureApp(app, logger);
   await app.init();
-  return { app, logs: lines };
+  return { app, logs: lines, whatsapp, clock };
 }

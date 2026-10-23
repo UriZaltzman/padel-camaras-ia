@@ -198,7 +198,10 @@ describe('contract harness (fixture contract)', () => {
   });
 
   it('flags app routes missing from the contract, and stale exceptions', () => {
-    const routes = listAppRoutes(ctx.app);
+    // Only the fixture's routes and /health: the real modules are checked by contract.test.ts.
+    const routes = listAppRoutes(ctx.app).filter(
+      (route) => route.path.startsWith('/v1/fixture') || route.path === '/v1/health',
+    );
     const report = checkCoverage(operations, routes, '/v1', [
       { route: 'GET /v1/health', issue: 212, reason: 'test' },
       { route: 'GET /v1/fixture/items', issue: 1, reason: 'test' },

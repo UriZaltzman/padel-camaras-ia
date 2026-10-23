@@ -1,5 +1,6 @@
 import { brand } from '@app/config/brand';
 import type { ErrorCode } from '../errors/error-codes';
+import authEsAr from './es-AR/auth.json';
 import errorsEsAr from './es-AR/errors.json';
 
 // Assigning the JSON to this type makes `typecheck` fail when a catalog code has no message.
@@ -16,4 +17,10 @@ export function interpolate(template: string, params: Record<string, string> = {
 
 export function errorMessage(code: ErrorCode): string {
   return interpolate(ERROR_MESSAGES[code]);
+}
+
+export type AuthMessageKey = keyof typeof authEsAr;
+
+export function authMessage(key: AuthMessageKey, params: Record<string, string> = {}): string {
+  return interpolate(authEsAr[key], params);
 }

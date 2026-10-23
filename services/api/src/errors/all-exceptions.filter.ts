@@ -22,6 +22,7 @@ interface Resolved {
   code: ErrorCode;
   status: number;
   details?: Record<string, unknown>;
+  retryAfterSeconds?: number;
 }
 
 // HTTP errors raised by NestJS or Express (unknown route, malformed JSON, ...) that do not
@@ -50,7 +51,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
-    const { code, status, details } = this.resolve(exception);
+    const { code, status, details, retryAfterSeconds } = this.resolve(exception);
 
     if (status >= 500) {
       this.logger.error({ code, status, err: exception }, 'request failed');
@@ -63,6 +64,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       body.details = details;
     }
     if (!response.headersSent) {
+      if (retryAfterSeconds !== undefined) {
+        response.setHeader('Retry-After', String(retryAfterSeconds));
+      }
       response.status(status).json(body);
     }
   }
@@ -73,6 +77,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         code: exception.code,
         status: httpStatusFor(exception.code),
         details: exception.details,
+        retryAfterSeconds: exception.retryAfterSeconds,
       };
     }
     if (exception instanceof ZodError) {
