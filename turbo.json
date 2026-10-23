@@ -3,14 +3,19 @@
   "ui": "stream",
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "prisma:generate"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
-    "lint": {},
-    "typecheck": {},
+    "lint": {
+      "dependsOn": ["prisma:generate"]
+    },
+    "typecheck": {
+      "dependsOn": ["prisma:generate"]
+    },
     "test": {
       "env": ["TEST_DATABASE_ADMIN_URL"],
-      "outputs": []
+      "outputs": [],
+      "dependsOn": ["prisma:generate"]
     },
     "format:check": {},
     "contracts:generate": {
@@ -26,6 +31,9 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "prisma:generate": {
+      "cache": false
     }
   }
 }
