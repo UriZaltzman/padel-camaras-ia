@@ -4,6 +4,7 @@ import { t } from '@/i18n';
 
 import { demoClub } from './mock-data';
 import { handleAdminRequest } from './mock-admin';
+import { handleClubCrmRequest, newClubCrmMockState } from './mock-club-crm';
 import { handleClubCashRequest, newClubCashMockState } from './mock-club-cash';
 import { handleClubBlocksRequest, newClubBlocksMockState } from './mock-club-blocks';
 import { handleClubBookingsRequest, newClubBookingsMockState } from './mock-club-bookings';
@@ -24,6 +25,7 @@ export function createMockFetch(
   const clubBookings = newClubBookingsMockState(club);
   const clubCash = newClubCashMockState(club.id);
   const clubBlocks = newClubBlocksMockState();
+  const clubCrm = newClubCrmMockState(club.id);
 
   return async (input, init) => {
     const request = input instanceof Request ? input : new Request(input, init);
@@ -43,6 +45,8 @@ export function createMockFetch(
     if (blocksAnswer) return blocksAnswer;
     const cashAnswer = await handleClubCashRequest(request, clubCash, json);
     if (cashAnswer) return cashAnswer;
+    const crmAnswer = await handleClubCrmRequest(request, clubCrm, json);
+    if (crmAnswer) return crmAnswer;
     const answer = await handlePlayerRequest(request, player, () => club, json);
     if (answer) return answer;
     const match = /\/clubs\/([^/]+)(\/settings)?$/.exec(pathname);

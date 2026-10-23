@@ -7,7 +7,10 @@ import { buildApiClient } from '@/lib/api/client';
 import { parseBom } from '@/lib/hardware/bom';
 
 import { ClubDetail } from './club-detail';
+import esAR from '@/i18n/es-AR.json';
+
 import { ClubsList } from './clubs-list';
+import { ModulesConfigurator } from './modules-configurator';
 import { QuoteTool } from './quote-tool';
 import { TariffsEditor } from './tariffs-editor';
 import { UsageTable } from './usage-table';
@@ -97,5 +100,35 @@ describe('TariffsEditor', () => {
     expect(
       (screen.getByRole('button', { name: 'Publicar versión' }) as HTMLButtonElement).disabled,
     ).toBe(true);
+  });
+});
+
+describe('ModulesConfigurator', () => {
+  const id = '01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a01';
+
+  it('saves a deposit change and shows the new estimate', async () => {
+    wrap(<ModulesConfigurator clubId={id} client={client()} />);
+    const toggle = await screen.findByLabelText(esAR['admin.modules.deposit.on']);
+    fireEvent.click(toggle);
+    fireEvent.change(screen.getByLabelText(esAR['admin.modules.deposit.percentValue']), {
+      target: { value: '30' },
+    });
+    await screen.findByTestId('price-draft');
+    fireEvent.click(screen.getByRole('button', { name: esAR['admin.modules.save'] }));
+    await screen.findByText(esAR['admin.modules.saved']);
+    expect(screen.getByLabelText(esAR['admin.modules.deposit.on'])).toBeChecked();
+  });
+
+  it('blocks saving a deposit without a percent', async () => {
+    wrap(<ModulesConfigurator clubId="01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a02" client={client()} />);
+    fireEvent.click(await screen.findByLabelText(esAR['admin.modules.deposit.on']));
+    expect(screen.getByRole('button', { name: esAR['admin.modules.save'] })).toBeDisabled();
+    expect(screen.getByText(esAR['admin.modules.problem.depositPercent'])).toBeInTheDocument();
+  });
+
+  it('restores the defaults', async () => {
+    wrap(<ModulesConfigurator clubId="01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a03" client={client()} />);
+    fireEvent.click(await screen.findByRole('button', { name: esAR['admin.modules.restore'] }));
+    expect(screen.getByLabelText(esAR['admin.modules.lessons.whatsapp'])).toBeChecked();
   });
 });
