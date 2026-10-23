@@ -1333,6 +1333,25 @@ class LessonKind(StrEnum):
     school = "school"
 
 
+class LessonRequestStatus(StrEnum):
+    pending = "pending"
+    accepted = "accepted"
+    rejected = "rejected"
+    cancelled = "cancelled"
+
+
+class LessonRequestDecision(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    reason: Annotated[str | None, Field(max_length=500)] = None
+
+
+class Mode(StrEnum):
+    app = "app"
+    whatsapp = "whatsapp"
+
+
 class LessonStudent(BaseModel):
     user: EntityRef
     accepted: bool
@@ -2636,7 +2655,7 @@ class DepositModule(BaseModel):
     """
 
 
-class Mode(StrEnum):
+class Mode1(StrEnum):
     own = "own"
     generic = "generic"
 
@@ -2649,7 +2668,7 @@ class BrandingModule(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    mode: Mode
+    mode: Mode1
     logo_url: AnyUrl | None
     primary_color: Annotated[str | None, Field(pattern="^#[0-9A-Fa-f]{6}$")]
     secondary_color: Annotated[str | None, Field(pattern="^#[0-9A-Fa-f]{6}$")]
@@ -3254,6 +3273,60 @@ class MatchDetail(BaseModel):
     The caller's vertical reel, or `null` until generated.
     """
     published_at: Timestamp | None
+
+
+class LessonRequestCreate(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    club_id: Uuid
+    coach_id: Uuid
+    court_id: Uuid | None = None
+    starts_at: Timestamp | None = None
+    duration_minutes: BookingDuration | None = None
+    message: Annotated[str | None, Field(max_length=500)] = None
+    """
+    What the student wants to work on.
+    """
+
+
+class LessonRequest(BaseModel):
+    id: Uuid
+    club: EntityRef
+    coach: EntityRef
+    student: EntityRef
+    court: EntityRef
+    starts_at: Timestamp
+    ends_at: Timestamp
+    duration_minutes: BookingDuration
+    message: str | None
+    status: LessonRequestStatus
+    reason: str | None
+    """
+    The coach's reason when rejecting.
+    """
+    lesson_id: Uuid | None
+    """
+    The lesson created when the request was accepted.
+    """
+    created_at: Timestamp
+    decided_at: Timestamp | None
+
+
+class LessonRequestResult(BaseModel):
+    mode: Mode
+    request: LessonRequest | None
+    """
+    The pending request (`mode: app`).
+    """
+    whatsapp_url: str | None
+    """
+    `wa.me` link to the coach (`mode: whatsapp`).
+    """
+
+
+class LessonRequestPage(Page):
+    items: list[LessonRequest]
 
 
 class LessonCreate(BaseModel):

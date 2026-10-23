@@ -1,5 +1,6 @@
 import type { Schema } from '@app/contracts';
 
+import { DEFAULT_MODULES, normalize, validateModules } from '@/lib/modules/model';
 import { simulateInvoice, validateTiers } from '@/lib/tariffs/model';
 
 /**
@@ -14,6 +15,8 @@ const tier = (name: string, min: number, max: number | null): Schema<'PricingTie
 });
 
 const CREATED: Schema<'AdminClubDetail'>[] = [];
+const MODULES = new Map<string, Schema<'AdminModules'>>();
+const AUDIT = new Map<string, Schema<'AdminAuditEvent'>[]>();
 
 const ROWS: Schema<'AdminClubRow'>[] = [
   row(1, 'Club Demo Norte', 'Vicente López', 'active', 'loan', 0, 0),
@@ -59,12 +62,10 @@ function detail(r: Schema<'AdminClubRow'>): Schema<'AdminClubDetail'> {
       address: 'Calle de prueba 123',
       city: r.city,
     },
-    modules: {
-      deposit: { enabled: false, kind: 'percent', percent: null, amount_cents: null },
-      branding: { mode: 'generic', logo_url: null, primary_color: null, secondary_color: null },
+    modules: MODULES.get(r.id) ?? {
+      ...DEFAULT_MODULES,
       lesson_mode: 'app',
       ai_video: 'club_pays',
-      tournaments: false,
     },
     tier_usage: { active_players_90d: 42, tier: r.tier, next_tier_at: 101 },
     billing: {
@@ -73,7 +74,7 @@ function detail(r: Schema<'AdminClubRow'>): Schema<'AdminClubDetail'> {
       last_payment_at: r.last_payment_at,
     },
     users: [{ id: '01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4b01', name: 'Dueño de prueba', role: 'owner' }],
-    recent_audit: [],
+    recent_audit: AUDIT.get(r.id) ?? [],
     whitelabel_url: 'https://club-demo.example.com',
     created_at: '2026-08-01T12:00:00.000Z',
   };
@@ -104,6 +105,8 @@ export async function handleAdminRequest(
     CREATED.push(club);
     return json(201, club);
   }
+  const modulesAnswer = await handleModules(request, url, json);
+  if (modulesAnswer) return modulesAnswer;
   if (request.method !== 'GET') return null;
   if (/\/admin\/clubs$/.test(url.pathname)) {
     const status = url.searchParams.get('status');
@@ -234,4 +237,52 @@ async function handleUsageAndTariffs(
       : json(422, { code: 'TARIFF_TIERS_INVALID', message: 'Los tramos no cubren esa cantidad.' });
   }
   return null;
+}
+
+function clubModules(id: string): Schema<'AdminClubModules'> | null {
+  const club = CREATED.find((c) => c.id === id) ?? ROWS.map(detail).find((c) => c.id === id);
+  if (!club) return null;
+  const modules = MODULES.get(id) ?? club.modules;
+  const version = TARIFFS[TARIFFS.length - 1];
+  const sim = version
+    ? simulateInvoice(version, club.tier_usage.active_players_90d, modules)
+    : null;
+  return {
+    club_id: id,
+    modules,
+    estimated_monthly_cents: sim?.total_cents ?? null,
+    tariff_version_id: sim && version ? version.id : null,
+  };
+}
+
+async function handleModules(
+  request: Request,
+  url: URL,
+  json: (status: number, body: unknown) => Response,
+): Promise<Response | null> {
+  const match = /\/admin\/clubs\/([^/]+)\/modules$/.exec(url.pathname);
+  if (!match?.[1]) return null;
+  const id = match[1];
+  const current = clubModules(id);
+  if (!current) return json(404, { code: 'NOT_FOUND', message: 'No encontrado' });
+  if (request.method === 'GET') return json(200, current);
+  if (request.method !== 'PUT') return null;
+  const body = (await request.json()) as Schema<'AdminClubModulesUpdate'>;
+  if (validateModules(body.modules).length > 0) {
+    return json(422, { code: 'VALIDATION_FAILED', message: 'Revisá los datos de los módulos.' });
+  }
+  MODULES.set(id, normalize(body.modules));
+  const entries = AUDIT.get(id) ?? [];
+  entries.unshift({
+    id: `01928f6e-7c1a-7d4e-9b3a-2f6c8e1d5${String(entries.length).padStart(3, '0')}`,
+    at: new Date().toISOString(),
+    actor_id: '01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4b01',
+    actor_role: 'admin',
+    action: 'club.modules.updated',
+    club_id: id,
+    target: `club:${id}`,
+    reason: null,
+  });
+  AUDIT.set(id, entries);
+  return json(200, clubModules(id));
 }

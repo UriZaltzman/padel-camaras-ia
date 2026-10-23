@@ -683,6 +683,114 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/lessons/requests': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List lesson requests (as coach or as student)
+     * @description A coach sees the requests addressed to them; a student sees the ones they made. Newest
+     *     first. Only clubs in `lesson_mode: app` have requests.
+     */
+    get: operations['listLessonRequests'];
+    put?: never;
+    /**
+     * Ask a coach for a lesson
+     * @description The behaviour follows the club's `lesson_mode` (`PUT /admin/clubs/{id}/modules`).
+     *
+     *     - **`app`.** Creates a `pending` request for the coach, who accepts or rejects it.
+     *       `court_id`, `starts_at` and `duration_minutes` are required and the slot must be
+     *       bookable now; nothing is booked until the coach accepts. Returns `mode: app` and the
+     *       `request`.
+     *     - **`whatsapp`.** Nothing is stored or booked. Returns `mode: whatsapp` and
+     *       `whatsapp_url`, a `wa.me` link to the coach's WhatsApp with a prefilled message.
+     *
+     *     The coach must have an active coach membership in the club. Errors: `NOT_FOUND`
+     *     (club or coach), `BOOKING_SLOT_INVALID` (422), `BOOKING_SLOT_TAKEN` (409),
+     *     `VALIDATION_FAILED` (400, including a coach with no phone in `whatsapp` mode),
+     *     `CLUB_SERVICE_SUSPENDED` (403).
+     */
+    post: operations['createLessonRequest'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/lessons/requests/{id}/accept': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Accept a lesson request (coach)
+     * @description The coach of a `pending` request accepts it. The court is booked as a lesson exactly as in
+     *     `POST /lessons` (same availability and exclusion constraint) with the student already
+     *     accepted, and the request keeps the `lesson_id`. If the slot was taken meanwhile the
+     *     request stays `pending` and the call fails with `BOOKING_SLOT_TAKEN` (409).
+     *
+     *     Errors: `FORBIDDEN` (not the request's coach), `INVALID_STATE_TRANSITION` (409, not
+     *     `pending`), `BOOKING_SLOT_TAKEN` (409), `BOOKING_SLOT_INVALID` (422),
+     *     `CLUB_FEATURE_DISABLED` (403).
+     */
+    post: operations['acceptLessonRequest'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/lessons/requests/{id}/reject': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Reject a lesson request (coach)
+     * @description The coach of a `pending` request rejects it, with an optional reason the student sees.
+     *
+     *     Errors: `FORBIDDEN`, `INVALID_STATE_TRANSITION` (409, not `pending`).
+     */
+    post: operations['rejectLessonRequest'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/lessons/requests/{id}/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Withdraw a lesson request (student)
+     * @description The student withdraws their own `pending` request.
+     *
+     *     Errors: `FORBIDDEN`, `INVALID_STATE_TRANSITION` (409, not `pending`).
+     */
+    post: operations['cancelLessonRequest'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/lessons/{id}/notes': {
     parameters: {
       query?: never;
@@ -2747,6 +2855,49 @@ export interface components {
      * @enum {string}
      */
     LessonKind: 'private' | 'group' | 'school';
+    /** @enum {string} */
+    LessonRequestStatus: 'pending' | 'accepted' | 'rejected' | 'cancelled';
+    LessonRequestCreate: {
+      club_id: components['schemas']['Uuid'];
+      coach_id: components['schemas']['Uuid'];
+      court_id?: components['schemas']['Uuid'];
+      starts_at?: components['schemas']['Timestamp'];
+      duration_minutes?: components['schemas']['BookingDuration'];
+      /** @description What the student wants to work on. */
+      message?: string;
+    };
+    LessonRequestDecision: {
+      reason?: string;
+    };
+    LessonRequest: {
+      id: components['schemas']['Uuid'];
+      club: components['schemas']['EntityRef'];
+      coach: components['schemas']['EntityRef'];
+      student: components['schemas']['EntityRef'];
+      court: components['schemas']['EntityRef'];
+      starts_at: components['schemas']['Timestamp'];
+      ends_at: components['schemas']['Timestamp'];
+      duration_minutes: components['schemas']['BookingDuration'];
+      message: string | null;
+      status: components['schemas']['LessonRequestStatus'];
+      /** @description The coach's reason when rejecting. */
+      reason: string | null;
+      /** @description The lesson created when the request was accepted. */
+      lesson_id: components['schemas']['Uuid'] | null;
+      created_at: components['schemas']['Timestamp'];
+      decided_at: components['schemas']['Timestamp'] | null;
+    };
+    LessonRequestResult: {
+      /** @enum {string} */
+      mode: 'app' | 'whatsapp';
+      /** @description The pending request (`mode: app`). */
+      request: components['schemas']['LessonRequest'] | null;
+      /** @description `wa.me` link to the coach (`mode: whatsapp`). */
+      whatsapp_url: string | null;
+    };
+    LessonRequestPage: components['schemas']['Page'] & {
+      items: components['schemas']['LessonRequest'][];
+    };
     LessonCreate: {
       court_id: components['schemas']['Uuid'];
       starts_at: components['schemas']['Timestamp'];
@@ -4051,6 +4202,8 @@ export interface components {
     ClubId: components['schemas']['Uuid'];
     /** @description Lesson id. */
     LessonId: components['schemas']['Uuid'];
+    /** @description Lesson request id. */
+    LessonRequestId: components['schemas']['Uuid'];
     /** @description Court id. */
     CourtId: components['schemas']['Uuid'];
     /** @description Match id (must belong to the device's club). */
@@ -4190,6 +4343,12 @@ export type SchemaSignedMediaUrl = components['schemas']['SignedMediaUrl'];
 export type SchemaMediaDownload = components['schemas']['MediaDownload'];
 export type SchemaUserStats = components['schemas']['UserStats'];
 export type SchemaLessonKind = components['schemas']['LessonKind'];
+export type SchemaLessonRequestStatus = components['schemas']['LessonRequestStatus'];
+export type SchemaLessonRequestCreate = components['schemas']['LessonRequestCreate'];
+export type SchemaLessonRequestDecision = components['schemas']['LessonRequestDecision'];
+export type SchemaLessonRequest = components['schemas']['LessonRequest'];
+export type SchemaLessonRequestResult = components['schemas']['LessonRequestResult'];
+export type SchemaLessonRequestPage = components['schemas']['LessonRequestPage'];
 export type SchemaLessonCreate = components['schemas']['LessonCreate'];
 export type SchemaLessonStudent = components['schemas']['LessonStudent'];
 export type SchemaLesson = components['schemas']['Lesson'];
@@ -4344,6 +4503,7 @@ export type ParameterClubPlayerUserId = components['parameters']['ClubPlayerUser
 export type ParameterClubIdQuery = components['parameters']['ClubIdQuery'];
 export type ParameterClubId = components['parameters']['ClubId'];
 export type ParameterLessonId = components['parameters']['LessonId'];
+export type ParameterLessonRequestId = components['parameters']['LessonRequestId'];
 export type ParameterCourtId = components['parameters']['CourtId'];
 export type ParameterDeviceMatchId = components['parameters']['DeviceMatchId'];
 export type ParameterDeviceUploadId = components['parameters']['DeviceUploadId'];
@@ -5534,6 +5694,172 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Lesson'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listLessonRequests: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor from a previous page's `next_cursor`. Omit it for the first page. */
+        cursor?: components['parameters']['Cursor'];
+        /** @description Maximum number of items in the page. */
+        limit?: components['parameters']['Limit'];
+        /** @description `coach` (default for users with a coach membership) or `student`. */
+        role?: 'coach' | 'student';
+        status?: components['schemas']['LessonRequestStatus'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of lesson requests. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LessonRequestPage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  createLessonRequest: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LessonRequestCreate'];
+      };
+    };
+    responses: {
+      /** @description The request, or the WhatsApp link. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LessonRequestResult'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  acceptLessonRequest: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Lesson request id. */
+        id: components['parameters']['LessonRequestId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The request after the change. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LessonRequest'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  rejectLessonRequest: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Lesson request id. */
+        id: components['parameters']['LessonRequestId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['LessonRequestDecision'];
+      };
+    };
+    responses: {
+      /** @description The request after the change. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LessonRequest'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['UnprocessableEntity'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  cancelLessonRequest: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Lesson request id. */
+        id: components['parameters']['LessonRequestId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The request after the change. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LessonRequest'];
         };
       };
       400: components['responses']['BadRequest'];

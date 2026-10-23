@@ -1568,6 +1568,223 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /lessons/requests:
+    get:
+      operationId: listLessonRequests
+      tags: [Lessons]
+      summary: List lesson requests (as coach or as student)
+      description: |
+        A coach sees the requests addressed to them; a student sees the ones they made. Newest
+        first. Only clubs in `lesson_mode: app` have requests.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: role
+          in: query
+          required: false
+          description: '`coach` (default for users with a coach membership) or `student`.'
+          schema:
+            type: string
+            enum: [coach, student]
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/LessonRequestStatus'
+      responses:
+        '200':
+          description: One page of lesson requests.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonRequestPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createLessonRequest
+      tags: [Lessons]
+      summary: Ask a coach for a lesson
+      description: |
+        The behaviour follows the club's `lesson_mode` (`PUT /admin/clubs/{id}/modules`).
+
+        - **`app`.** Creates a `pending` request for the coach, who accepts or rejects it.
+          `court_id`, `starts_at` and `duration_minutes` are required and the slot must be
+          bookable now; nothing is booked until the coach accepts. Returns `mode: app` and the
+          `request`.
+        - **`whatsapp`.** Nothing is stored or booked. Returns `mode: whatsapp` and
+          `whatsapp_url`, a `wa.me` link to the coach's WhatsApp with a prefilled message.
+
+        The coach must have an active coach membership in the club. Errors: `NOT_FOUND`
+        (club or coach), `BOOKING_SLOT_INVALID` (422), `BOOKING_SLOT_TAKEN` (409),
+        `VALIDATION_FAILED` (400, including a coach with no phone in `whatsapp` mode),
+        `CLUB_SERVICE_SUSPENDED` (403).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonRequestCreate'
+      responses:
+        '201':
+          description: The request, or the WhatsApp link.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonRequestResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /lessons/requests/{id}/accept:
+    post:
+      operationId: acceptLessonRequest
+      tags: [Lessons]
+      summary: Accept a lesson request (coach)
+      description: |
+        The coach of a `pending` request accepts it. The court is booked as a lesson exactly as in
+        `POST /lessons` (same availability and exclusion constraint) with the student already
+        accepted, and the request keeps the `lesson_id`. If the slot was taken meanwhile the
+        request stays `pending` and the call fails with `BOOKING_SLOT_TAKEN` (409).
+
+        Errors: `FORBIDDEN` (not the request's coach), `INVALID_STATE_TRANSITION` (409, not
+        `pending`), `BOOKING_SLOT_TAKEN` (409), `BOOKING_SLOT_INVALID` (422),
+        `CLUB_FEATURE_DISABLED` (403).
+      parameters:
+        - $ref: '#/components/parameters/LessonRequestId'
+      responses:
+        '200':
+          description: The request after the change.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /lessons/requests/{id}/reject:
+    post:
+      operationId: rejectLessonRequest
+      tags: [Lessons]
+      summary: Reject a lesson request (coach)
+      description: |
+        The coach of a `pending` request rejects it, with an optional reason the student sees.
+
+        Errors: `FORBIDDEN`, `INVALID_STATE_TRANSITION` (409, not `pending`).
+      parameters:
+        - $ref: '#/components/parameters/LessonRequestId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonRequestDecision'
+      responses:
+        '200':
+          description: The request after the change.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /lessons/requests/{id}/cancel:
+    post:
+      operationId: cancelLessonRequest
+      tags: [Lessons]
+      summary: Withdraw a lesson request (student)
+      description: |
+        The student withdraws their own `pending` request.
+
+        Errors: `FORBIDDEN`, `INVALID_STATE_TRANSITION` (409, not `pending`).
+      parameters:
+        - $ref: '#/components/parameters/LessonRequestId'
+      responses:
+        '200':
+          description: The request after the change.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /lessons/{id}/notes:
     post:
       operationId: addLessonNote
@@ -3974,6 +4191,13 @@ components:
       description: Lesson id.
       schema:
         $ref: '#/components/schemas/Uuid'
+    LessonRequestId:
+      name: id
+      in: path
+      required: true
+      description: Lesson request id.
+      schema:
+        $ref: '#/components/schemas/Uuid'
     CourtId:
       name: id
       in: path
@@ -6215,6 +6439,124 @@ components:
         `private` or `group` lesson, or a `school` (escuelita), which is "do not record" by
         default (section 12).
       enum: [private, group, school]
+
+    LessonRequestStatus:
+      type: string
+      enum: [pending, accepted, rejected, cancelled]
+
+    LessonRequestCreate:
+      type: object
+      required: [club_id, coach_id]
+      additionalProperties: false
+      properties:
+        club_id:
+          $ref: '#/components/schemas/Uuid'
+        coach_id:
+          $ref: '#/components/schemas/Uuid'
+        court_id:
+          $ref: '#/components/schemas/Uuid'
+        starts_at:
+          $ref: '#/components/schemas/Timestamp'
+        duration_minutes:
+          $ref: '#/components/schemas/BookingDuration'
+        message:
+          type: string
+          maxLength: 500
+          description: What the student wants to work on.
+
+    LessonRequestDecision:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+
+    LessonRequest:
+      type: object
+      required:
+        - id
+        - club
+        - coach
+        - student
+        - court
+        - starts_at
+        - ends_at
+        - duration_minutes
+        - message
+        - status
+        - reason
+        - lesson_id
+        - created_at
+        - decided_at
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        club:
+          $ref: '#/components/schemas/EntityRef'
+        coach:
+          $ref: '#/components/schemas/EntityRef'
+        student:
+          $ref: '#/components/schemas/EntityRef'
+        court:
+          $ref: '#/components/schemas/EntityRef'
+        starts_at:
+          $ref: '#/components/schemas/Timestamp'
+        ends_at:
+          $ref: '#/components/schemas/Timestamp'
+        duration_minutes:
+          $ref: '#/components/schemas/BookingDuration'
+        message:
+          type:
+            - string
+            - 'null'
+        status:
+          $ref: '#/components/schemas/LessonRequestStatus'
+        reason:
+          type:
+            - string
+            - 'null'
+          description: The coach's reason when rejecting.
+        lesson_id:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+          description: The lesson created when the request was accepted.
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        decided_at:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+
+    LessonRequestResult:
+      type: object
+      required: [mode, request, whatsapp_url]
+      properties:
+        mode:
+          type: string
+          enum: [app, whatsapp]
+        request:
+          oneOf:
+            - $ref: '#/components/schemas/LessonRequest'
+            - type: 'null'
+          description: 'The pending request (`mode: app`).'
+        whatsapp_url:
+          type:
+            - string
+            - 'null'
+          description: '`wa.me` link to the coach (`mode: whatsapp`).'
+
+    LessonRequestPage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/LessonRequest'
 
     LessonCreate:
       type: object

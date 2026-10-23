@@ -42,6 +42,7 @@ const EXPECTED_TABLES = [
   'lessons',
   'lesson_students',
   'lesson_notes',
+  'lesson_requests',
   'coach_access_grants',
   'notifications',
   'audit_log',
