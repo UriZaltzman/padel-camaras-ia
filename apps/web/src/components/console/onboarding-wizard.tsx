@@ -617,7 +617,11 @@ function Delivery({ club, draft }: { club: Schema<'AdminClubDetail'>; draft: Onb
         <button type="button" className={primary} onClick={() => window.print()}>
           {t('admin.onb.receiptPrint')}
         </button>
-        <button type="button" className={secondary} onClick={() => window.location.assign(\'/admin/clubes/nuevo\')}>
+        <button
+          type="button"
+          className={secondary}
+          onClick={() => window.location.assign('/admin/clubes/nuevo')}
+        >
           {t('admin.onb.another')}
         </button>
       </div>
