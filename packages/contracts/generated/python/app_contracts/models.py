@@ -669,6 +669,22 @@ class DeclaredCategory(StrEnum):
     field_8 = "8"
 
 
+class ClubRankingEntry(BaseModel):
+    position: Annotated[int, Field(ge=1)]
+    user_id: Uuid
+    name: str
+    photo_url: str | None
+    matches: int
+    """
+    Finished matches played in this club in the window.
+    """
+    wins: int
+    is_me: bool
+    """
+    True for the caller's own row.
+    """
+
+
 class DominantHand(StrEnum):
     right = "right"
     left = "left"
@@ -2975,6 +2991,16 @@ class AuthSession(TokenPair):
     """
     True when this request created the account.
     """
+
+
+class ClubRanking(BaseModel):
+    club_id: Uuid
+    category: DeclaredCategory
+    window_months: int
+    """
+    Months of play the ranking looks at (12).
+    """
+    entries: list[ClubRankingEntry]
 
 
 class MatchSummaryPage(Page):

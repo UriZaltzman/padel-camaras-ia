@@ -11,6 +11,7 @@ import { DbModule } from './db/db.module';
 import { HealthModule } from './health/health.module';
 import { LessonsModule } from './lessons/lessons.module';
 import { MatchesModule } from './matches/matches.module';
+import { RankingModule } from './ranking/ranking.module';
 import { PaymentsModule } from './payments/payments.module';
 import { RedisModule } from './redis/redis.module';
 
@@ -30,6 +31,7 @@ export class AppModule {
         BookingsModule,
         LessonsModule,
         MatchesModule,
+        RankingModule,
         CrmModule,
         PaymentsModule,
         HealthModule,

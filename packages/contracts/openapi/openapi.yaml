@@ -1304,6 +1304,57 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /clubs/{id}/ranking:
+    get:
+      operationId: getClubRanking
+      tags: [Clubs]
+      summary: Ranking of the club's players in one category, last 12 months
+      description: |
+        Players who played a finished match in this club in the last 12 months, whose current
+        rating falls in `category`, ordered best first (ties: more wins, then more matches).
+        Open to anyone with an active role in the club or who played a confirmed match there;
+        anyone else gets `404 NOT_FOUND`, as if the club did not exist.
+
+        Privacy: players with fewer than 5 rated matches are left out, no rating number is
+        returned (only the order), and players who requested account deletion do not appear.
+        `matches` and `wins` count only matches played in this club inside the window.
+        Tournament points are not part of this ranking.
+      parameters:
+        - $ref: '#/components/parameters/ClubId'
+        - name: category
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/DeclaredCategory'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: The ranking.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClubRanking'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /clubs/{id}/settings:
     patch:
       operationId: updateClubSettings
@@ -4583,6 +4634,44 @@ components:
       type: string
       description: Self-declared Argentine padel category, from 8va (`8`) to 1ra (`1`).
       enum: ['1', '2', '3', '4', '5', '6', '7', '8']
+
+    ClubRanking:
+      type: object
+      required: [club_id, category, window_months, entries]
+      properties:
+        club_id:
+          $ref: '#/components/schemas/Uuid'
+        category:
+          $ref: '#/components/schemas/DeclaredCategory'
+        window_months:
+          type: integer
+          description: Months of play the ranking looks at (12).
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClubRankingEntry'
+
+    ClubRankingEntry:
+      type: object
+      required: [position, user_id, name, photo_url, matches, wins, is_me]
+      properties:
+        position:
+          type: integer
+          minimum: 1
+        user_id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        photo_url:
+          type: [string, 'null']
+        matches:
+          type: integer
+          description: Finished matches played in this club in the window.
+        wins:
+          type: integer
+        is_me:
+          type: boolean
+          description: True for the caller's own row.
 
     DominantHand:
       type: string
