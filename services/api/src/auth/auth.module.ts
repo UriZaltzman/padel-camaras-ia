@@ -10,15 +10,36 @@ import {
 } from '../notifications/dev-whatsapp-providers';
 import { WHATSAPP_PROVIDER } from '../notifications/whatsapp-provider';
 import { REDIS } from '../redis/redis.module';
+import { AccessTokenGuard } from './access-token.guard';
 import { AuthController } from './auth.controller';
 import { OTP_STORE } from './otp/otp-store';
 import { OtpService } from './otp/otp.service';
+import { AuthService } from './auth.service';
+import { JwtSigner } from './session/jwt';
+import { RedisSessionStore } from './session/redis-session-store';
+import { SESSION_STORE } from './session/session-store';
+import { JWT_SIGNER, SessionService } from './session/session.service';
+import { AuthUsersRepository } from './users/auth-users.repository';
 import { RedisOtpStore } from './otp/redis-otp-store';
 
 @Module({
   controllers: [AuthController],
   providers: [
     OtpService,
+    AuthService,
+    SessionService,
+    AuthUsersRepository,
+    AccessTokenGuard,
+    {
+      provide: SESSION_STORE,
+      inject: [REDIS],
+      useFactory: (redis: Redis) => new RedisSessionStore(redis),
+    },
+    {
+      provide: JWT_SIGNER,
+      inject: [ENV],
+      useFactory: (env: Env) => new JwtSigner(env.AUTH_JWT_PRIVATE_KEY),
+    },
     { provide: CLOCK, useValue: systemClock },
     { provide: OTP_STORE, inject: [REDIS], useFactory: (redis: Redis) => new RedisOtpStore(redis) },
     {
@@ -30,6 +51,6 @@ import { RedisOtpStore } from './otp/redis-otp-store';
           : new ConsoleWhatsAppProvider(createLogger(env).child({ context: 'WhatsApp' })),
     },
   ],
-  exports: [OtpService, CLOCK],
+  exports: [SessionService, AccessTokenGuard, CLOCK],
 })
 export class AuthModule {}

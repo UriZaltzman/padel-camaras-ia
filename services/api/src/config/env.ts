@@ -14,14 +14,15 @@ export const envSchema = z
     REDIS_URL: z.url(),
     /** Key for hashing one-time codes (HMAC). Required in production; development has a default. */
     AUTH_OTP_SECRET: z.string().min(32).optional(),
+    /** PKCS#8 PEM of the EC P-256 key that signs access tokens. Required in production. */
+    AUTH_JWT_PRIVATE_KEY: z.string().min(1).optional(),
   })
   .superRefine((env, ctx) => {
-    if (env.NODE_ENV === 'production' && env.AUTH_OTP_SECRET === undefined) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['AUTH_OTP_SECRET'],
-        message: 'required in production',
-      });
+    if (env.NODE_ENV !== 'production') return;
+    for (const name of ['AUTH_OTP_SECRET', 'AUTH_JWT_PRIVATE_KEY'] as const) {
+      if (env[name] === undefined) {
+        ctx.addIssue({ code: 'custom', path: [name], message: 'required in production' });
+      }
     }
   });
 

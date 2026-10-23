@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Logger } from 'pino';
 import { OTP_STORE, InMemoryOtpStore } from '../src/auth/otp/otp-store';
+import { SESSION_STORE, InMemorySessionStore } from '../src/auth/session/session-store';
 import { CLOCK, FakeClock } from '../src/common/clock';
 import { WHATSAPP_PROVIDER, FakeWhatsAppProvider } from '../src/notifications/whatsapp-provider';
 import { AppModule } from '../src/app.module';
@@ -42,8 +43,14 @@ export function memoryLogger(env: Pick<Env, 'LOG_LEVEL'> = { LOG_LEVEL: 'info' }
 }
 
 /** The real app wiring plus optional extra controllers, without opening a port. */
-export async function createTestApp(controllers: (new (...args: never[]) => unknown)[] = []) {
-  const env = loadEnv(VALID_ENV);
+export async function createTestApp(
+  controllers: (new (...args: never[]) => unknown)[] = [],
+  options: { databaseUrl?: string } = {},
+) {
+  const env = loadEnv({
+    ...VALID_ENV,
+    DATABASE_URL: options.databaseUrl ?? VALID_ENV.DATABASE_URL,
+  });
   const { logger, lines } = memoryLogger(env);
   // Nothing in tests talks to Redis, WhatsApp or the wall clock.
   const whatsapp = new FakeWhatsAppProvider();
@@ -54,6 +61,8 @@ export async function createTestApp(controllers: (new (...args: never[]) => unkn
   })
     .overrideProvider(OTP_STORE)
     .useValue(new InMemoryOtpStore())
+    .overrideProvider(SESSION_STORE)
+    .useValue(new InMemorySessionStore())
     .overrideProvider(WHATSAPP_PROVIDER)
     .useValue(whatsapp)
     .overrideProvider(CLOCK)
