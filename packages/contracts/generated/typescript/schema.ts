@@ -1012,6 +1012,77 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/club-admin/players': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Players of the club with CRM metrics (CL-06, staff and owner)
+     * @description People who played or booked at the club, with the metrics of the last 8 weeks and the
+     *     saved segments they fall in. Ordered by last visit, most recent first. Only people with
+     *     a booking at this club appear, and only this club's data is counted (section 12).
+     *
+     *     `total_spend_cents` is the owner's figure: it is `null` for staff.
+     *
+     *     Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`.
+     */
+    get: operations['listClubPlayers'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/club-admin/players/{user_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Player card of the club (CL-06a, staff and owner)
+     * @description The same metrics as the list plus the latest bookings of the person at this club.
+     *
+     *     Errors: `FORBIDDEN`, `NOT_FOUND` (the person has no booking at this club).
+     */
+    get: operations['getClubPlayer'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/club-admin/players/{user_id}/notes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Set the tags and the note of a player (CL-06, staff and owner)
+     * @description Replaces the tags and the note the club keeps about the person. Visible only to this
+     *     club's staff and owner; the person never sees it.
+     *
+     *     Errors: `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`.
+     */
+    put: operations['updateClubPlayerNotes'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/club-admin/recording/{court}/stop': {
     parameters: {
       query?: never;
@@ -2897,6 +2968,51 @@ export interface components {
     ClubBookingPage: components['schemas']['Page'] & {
       items: components['schemas']['ClubBooking'][];
     };
+    /**
+     * @description Saved segments of the club. `frequent`: played in at least 4 of the last 8 weeks.
+     *     `dormant`: last visit more than 30 days ago (or never came). `no_show`: 2 or more
+     *     no-shows.
+     * @enum {string}
+     */
+    ClubPlayerSegment: 'frequent' | 'dormant' | 'no_show';
+    ClubPlayer: {
+      user_id: components['schemas']['Uuid'];
+      name: string;
+      phone: components['schemas']['PhoneNumber'] | null;
+      email: string | null;
+      /** @description Frequency. Bookings played in the last 8 weeks, scaled to 30 days, one decimal. */
+      bookings_per_month: number;
+      /** @description Recurrence. Weeks (out of `weeks_window`) with at least one booking played. */
+      active_weeks: number;
+      /** @enum {integer} */
+      weeks_window: 8;
+      /** @description Bookings the person made and did not show up for, all time. */
+      no_shows: number;
+      last_visit_at: components['schemas']['Timestamp'] | null;
+      /** @description Approved payments minus refunds at this club. `null` for staff. */
+      total_spend_cents: number | null;
+      segments: components['schemas']['ClubPlayerSegment'][];
+      tags: string[];
+      notes: string | null;
+    };
+    ClubPlayerPage: components['schemas']['Page'] & {
+      items: components['schemas']['ClubPlayer'][];
+    };
+    ClubPlayerVisit: {
+      booking_id: components['schemas']['Uuid'];
+      starts_at: components['schemas']['Timestamp'];
+      court_name: string;
+      status: components['schemas']['BookingStatus'];
+      price_cents: number;
+    };
+    ClubPlayerDetail: components['schemas']['ClubPlayer'] & {
+      /** @description Latest 20 bookings at this club, newest first. */
+      recent_bookings: components['schemas']['ClubPlayerVisit'][];
+    };
+    ClubPlayerNotesUpdate: {
+      tags: string[];
+      notes: string | null;
+    };
     /** @enum {string} */
     CashPaymentMethod: 'cash' | 'transfer' | 'card' | 'mercado_pago';
     CashMovement: {
@@ -3547,6 +3663,7 @@ export interface components {
     Cursor: string;
     /** @description Maximum number of items in the page. */
     Limit: number;
+    ClubPlayerUserId: components['schemas']['Uuid'];
     /** @description Club the panel acts on. The caller must be staff or owner of it. */
     ClubIdQuery: components['schemas']['Uuid'];
     /** @description Club id. */
@@ -3740,6 +3857,12 @@ export type SchemaClubDashboard = components['schemas']['ClubDashboard'];
 export type SchemaClubBookingContact = components['schemas']['ClubBookingContact'];
 export type SchemaClubBooking = components['schemas']['ClubBooking'];
 export type SchemaClubBookingPage = components['schemas']['ClubBookingPage'];
+export type SchemaClubPlayerSegment = components['schemas']['ClubPlayerSegment'];
+export type SchemaClubPlayer = components['schemas']['ClubPlayer'];
+export type SchemaClubPlayerPage = components['schemas']['ClubPlayerPage'];
+export type SchemaClubPlayerVisit = components['schemas']['ClubPlayerVisit'];
+export type SchemaClubPlayerDetail = components['schemas']['ClubPlayerDetail'];
+export type SchemaClubPlayerNotesUpdate = components['schemas']['ClubPlayerNotesUpdate'];
 export type SchemaCashPaymentMethod = components['schemas']['CashPaymentMethod'];
 export type SchemaCashMovement = components['schemas']['CashMovement'];
 export type SchemaCashMethodTotal = components['schemas']['CashMethodTotal'];
@@ -3809,6 +3932,7 @@ export type ResponseBadGateway = components['responses']['BadGateway'];
 export type ResponseServiceUnavailable = components['responses']['ServiceUnavailable'];
 export type ParameterCursor = components['parameters']['Cursor'];
 export type ParameterLimit = components['parameters']['Limit'];
+export type ParameterClubPlayerUserId = components['parameters']['ClubPlayerUserId'];
 export type ParameterClubIdQuery = components['parameters']['ClubIdQuery'];
 export type ParameterClubId = components['parameters']['ClubId'];
 export type ParameterLessonId = components['parameters']['LessonId'];
@@ -5516,6 +5640,121 @@ export interface operations {
       404: components['responses']['NotFound'];
       409: components['responses']['Conflict'];
       422: components['responses']['UnprocessableEntity'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  listClubPlayers: {
+    parameters: {
+      query: {
+        /** @description Club the panel acts on. The caller must be staff or owner of it. */
+        club_id: components['parameters']['ClubIdQuery'];
+        /** @description Opaque cursor from a previous page's `next_cursor`. Omit it for the first page. */
+        cursor?: components['parameters']['Cursor'];
+        /** @description Maximum number of items in the page. */
+        limit?: components['parameters']['Limit'];
+        /** @description Part of the name, or of the phone number. */
+        q?: string;
+        segment?: components['schemas']['ClubPlayerSegment'];
+        tag?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description One page of players. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ClubPlayerPage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  getClubPlayer: {
+    parameters: {
+      query: {
+        /** @description Club the panel acts on. The caller must be staff or owner of it. */
+        club_id: components['parameters']['ClubIdQuery'];
+      };
+      header?: never;
+      path: {
+        user_id: components['parameters']['ClubPlayerUserId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The player card. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ClubPlayerDetail'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  updateClubPlayerNotes: {
+    parameters: {
+      query: {
+        /** @description Club the panel acts on. The caller must be staff or owner of it. */
+        club_id: components['parameters']['ClubIdQuery'];
+      };
+      header?: never;
+      path: {
+        user_id: components['parameters']['ClubPlayerUserId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "tags": [
+         *         "zurdo",
+         *         "torneo"
+         *       ],
+         *       "notes": "Prefiere turnos de la noche."
+         *     }
+         */
+        'application/json': components['schemas']['ClubPlayerNotesUpdate'];
+      };
+    };
+    responses: {
+      /** @description The updated player card. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ClubPlayerDetail'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
       429: components['responses']['TooManyRequests'];
       500: components['responses']['InternalError'];
     };
