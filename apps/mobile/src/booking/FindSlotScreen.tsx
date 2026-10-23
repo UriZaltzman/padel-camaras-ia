@@ -2,7 +2,13 @@
 // GET /clubs/{id}, pick a duration (60, 90 or 120) and a day within the player booking horizon,
 // and list the free starts of every active court with GET /courts/{id}/availability.
 // Picking a slot hands it to `onSelectSlot`; holding and paying it belongs to the booking issue.
-import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -14,6 +20,8 @@ import { color, theme } from '@app/ui/tokens';
 
 import { useApi } from '../api/client';
 import { defaultLocale } from '../i18n';
+import { FavoriteStar } from '../favorites/FavoriteStar';
+import { homeKey, justBookedKey, type JustBooked } from '../favorites/favorites-data';
 import { fonts } from '../theme/fonts';
 import { ClubExplorer } from './ClubExplorer';
 import type { ClubResultsView } from './ClubResults';
@@ -48,6 +56,10 @@ interface FindSlotScreenProps {
   /** Replaces the club explorer (map, filters and list), for example in tests. */
   Results?: ClubResultsView;
   onSelectSlot?: (selected: SelectedSlot) => void;
+  /** Opens this club straight away (for example "book again" from the home). */
+  initialClubId?: string;
+  /** Called once the booking exists, so the app can go back to the home. */
+  onBooked?: (booked: JustBooked) => void;
   /** Injected in tests to pin "today". */
   now?: () => Date;
 }
@@ -61,11 +73,18 @@ function ErrorText({ error }: { error: unknown }) {
   );
 }
 
-export function FindSlotScreen({ Results, onSelectSlot, now }: FindSlotScreenProps) {
+export function FindSlotScreen({
+  Results,
+  onSelectSlot,
+  initialClubId,
+  onBooked,
+  now,
+}: FindSlotScreenProps) {
   const { t } = useTranslation();
   const api = useApi();
   const [query, setQuery] = useState('');
-  const [clubId, setClubId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const [clubId, setClubId] = useState<string | null>(initialClubId ?? null);
   const [duration, setDuration] = useState<BookingDuration>(90);
   const [dates] = useState(() => bookableDates(now?.() ?? new Date()));
   const [date, setDate] = useState(dates[0] ?? '');
@@ -112,6 +131,40 @@ export function FindSlotScreen({ Results, onSelectSlot, now }: FindSlotScreenPro
       },
       retry,
     })),
+  });
+
+  const book = useMutation({
+    mutationFn: async (slot: SelectedSlot) => {
+      const { data, error } = await api.POST('/bookings', {
+        body: {
+          court_id: slot.court.id,
+          starts_at: slot.slot.starts_at,
+          duration_minutes: slot.durationMinutes,
+          no_record: false,
+        },
+      });
+      if (!data) throw new BookingApiError(error?.code ?? 'INTERNAL_ERROR');
+      return { booking: data, slot };
+    },
+    onSuccess: ({ booking, slot }) => {
+      const booked: JustBooked = {
+        booking_id: booking.id,
+        club: {
+          id: slot.club.id,
+          name: slot.club.name,
+          address: slot.club.address,
+          logo_url: slot.club.logo_url,
+        },
+        court_name: slot.court.name,
+        starts_at: booking.starts_at,
+        ends_at: booking.ends_at,
+        status: booking.status === 'held' ? 'held' : 'confirmed',
+      };
+      // The home shows it at once, under its club, and asks whether to star the club.
+      queryClient.setQueryData(justBookedKey, booked);
+      void queryClient.invalidateQueries({ queryKey: homeKey });
+      onBooked?.(booked);
+    },
   });
 
   function pick(next: SelectedSlot) {
@@ -182,7 +235,10 @@ export function FindSlotScreen({ Results, onSelectSlot, now }: FindSlotScreenPro
         {club.isError && <ErrorText error={club.error} />}
         {club.data && (
           <>
-            <Text style={styles.title}>{club.data.name}</Text>
+            <View style={styles.titleRow}>
+              <Text style={[styles.title, styles.grow]}>{club.data.name}</Text>
+              <FavoriteStar clubId={club.data.id} clubName={club.data.name} />
+            </View>
             <Text style={styles.body}>{club.data.address}</Text>
 
             <DataLabel label={t('findSlot.duration')} />
@@ -279,6 +335,13 @@ export function FindSlotScreen({ Results, onSelectSlot, now }: FindSlotScreenPro
                     deposit: formatPrice(selected.slot.deposit_cents, defaultLocale),
                   })}
                 </Text>
+                {book.isError && <ErrorText error={book.error} />}
+                <Button
+                  label={t(book.isPending ? 'findSlot.booking' : 'findSlot.book')}
+                  disabled={book.isPending}
+                  onPress={() => book.mutate(selected)}
+                  testID="book-slot"
+                />
               </View>
             )}
           </>
@@ -291,6 +354,8 @@ export function FindSlotScreen({ Results, onSelectSlot, now }: FindSlotScreenPro
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: 24, gap: 12 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  grow: { flex: 1, minWidth: 0 },
   title: {
     fontFamily: fonts.displayExtraBold,
     fontSize: 28,

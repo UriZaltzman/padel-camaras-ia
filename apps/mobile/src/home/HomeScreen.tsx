@@ -1,4 +1,5 @@
 // Home: the next booking and the last published match of the signed-in user (spec §16).
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,6 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, DataLabel } from '@app/ui/native';
 import { theme } from '@app/ui/tokens';
 
+import { EditFavorites } from '../favorites/EditFavorites';
+import { FavoritesSection } from '../favorites/FavoritesSection';
 import { fonts } from '../theme/fonts';
 import {
   formatSets,
@@ -24,15 +27,24 @@ interface HomeScreenProps {
   loadNextBooking?: NextBookingLoader;
   /** Opens the tournaments of the club of the last match. */
   onOpenTournaments?: (clubId: string) => void;
+  /** Opens the club search ("Buscar clubes", "Agregar otro club"). */
+  onFindClubs?: () => void;
+  /** Opens the booking flow in this club ("Reservar de nuevo", a free start). */
+  onBookAgain?: (clubId: string) => void;
 }
 
 export function HomeScreen({
   loadNextBooking = noNextBooking,
   onOpenTournaments,
+  onFindClubs,
+  onBookAgain,
 }: HomeScreenProps) {
   const { t } = useTranslation();
+  const [editing, setEditing] = useState(false);
   const booking = useNextBooking(loadNextBooking);
   const match = useLastMatch();
+
+  if (editing) return <EditFavorites onDone={() => setEditing(false)} onFindClubs={onFindClubs} />;
 
   return (
     <SafeAreaView style={styles.screen} testID="home-screen">
@@ -97,6 +109,11 @@ export function HomeScreen({
             )}
           </View>
         </Card>
+        <FavoritesSection
+          onEdit={() => setEditing(true)}
+          onFindClubs={onFindClubs}
+          onBookAgain={onBookAgain}
+        />
         {onOpenTournaments && match.data ? (
           <Button
             variant="secondary"
@@ -106,8 +123,7 @@ export function HomeScreen({
           />
         ) : null}
       </ScrollView>
-      {/* Navigation to the booking flow arrives with its own issue. */}
-      <Button label={t('home.primaryAction')} testID="home-primary-action" />
+      <Button label={t('home.primaryAction')} testID="home-primary-action" onPress={onFindClubs} />
     </SafeAreaView>
   );
 }

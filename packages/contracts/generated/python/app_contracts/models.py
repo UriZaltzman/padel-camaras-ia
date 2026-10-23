@@ -2349,6 +2349,77 @@ class ClubPlayerDetail(ClubPlayer):
     """
 
 
+class FavoriteClub(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    club_id: Uuid
+    name: str
+    address: str | None
+    logo_url: str | None
+    position: Annotated[int, Field(ge=0)]
+    """
+    0-based place in the player's list.
+    """
+
+
+class FavoriteClubList(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    items: Annotated[list[FavoriteClub], Field(max_length=10)]
+
+
+class FavoriteClubOrder(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    club_ids: Annotated[list[Uuid], Field(max_length=10)]
+
+
+class FavoriteClubCount(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    favorite_count: Annotated[int, Field(ge=0)]
+
+
+class Status4(StrEnum):
+    held = "held"
+    confirmed = "confirmed"
+
+
+class NextBooking(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    id: Uuid
+    court_id: Uuid
+    court_name: str
+    starts_at: Timestamp
+    ends_at: Timestamp
+    status: Status4
+
+
+class FreeSlotsTodayItem(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    court_id: Uuid
+    starts_at: Timestamp
+    ends_at: Timestamp
+    amount_cents: AmountCents
+
+
+class HomeFavorite(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    club: FavoriteClub
+    next_bookings: Annotated[list[NextBooking], Field(max_length=3)]
+    free_slots_today: Annotated[list[FreeSlotsTodayItem], Field(max_length=3)]
+
+
 class Tag(RootModel[str]):
     root: Annotated[str, Field(max_length=30, min_length=1)]
 
@@ -2391,7 +2462,7 @@ class CashMethodTotal(BaseModel):
     income_cents: AmountCents
 
 
-class Status4(StrEnum):
+class Status5(StrEnum):
     open = "open"
     closed = "closed"
 
@@ -2399,7 +2470,7 @@ class Status4(StrEnum):
 class CashRegister(BaseModel):
     club_id: Uuid
     date: date_aliased
-    status: Status4
+    status: Status5
     movements: list[CashMovement]
     totals_by_method: list[CashMethodTotal]
     expenses_cents: AmountCents
@@ -3481,6 +3552,13 @@ class ClubBookingPage(Page):
 
 class ClubPlayerPage(Page):
     items: list[ClubPlayer]
+
+
+class Home(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    favorites: list[HomeFavorite]
 
 
 class SettlementPage(Page):

@@ -15,6 +15,8 @@ export default function HomeRoute() {
     <HomeScreen
       loadNextBooking={loadNextBooking}
       onOpenTournaments={(clubId) => router.push(`/tournaments/${clubId}`)}
+      onFindClubs={() => router.push('/book')}
+      onBookAgain={(clubId) => router.push({ pathname: '/book', params: { clubId } })}
     />
   );
 }

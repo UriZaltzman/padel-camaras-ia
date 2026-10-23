@@ -2708,6 +2708,182 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /me/favorite-clubs:
+    get:
+      operationId: listFavoriteClubs
+      tags: [Users]
+      summary: My favorite clubs, in my order (JG-01)
+      description: |
+        The clubs the signed-in player starred, in the order they chose. Only the player sees
+        this list; a club never gets who starred it, only a count (`getFavoriteClubCount`).
+      responses:
+        '200':
+          description: The favorites.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteClubList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      operationId: reorderFavoriteClubs
+      tags: [Users]
+      summary: Set the order of my favorite clubs
+      description: |
+        `club_ids` must be exactly the player's current favorites, in the new order. Anything else
+        is `VALIDATION_FAILED`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FavoriteClubOrder'
+      responses:
+        '200':
+          description: The favorites in the new order.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteClubList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /me/favorite-clubs/{club_id}:
+    put:
+      operationId: addFavoriteClub
+      tags: [Users]
+      summary: Star a club
+      description: |
+        Adds the club at the end of the list. Starring a club that is already a favorite changes
+        nothing. At most 10 favorites; the 11th is `VALIDATION_FAILED`. An unknown club is
+        `NOT_FOUND`.
+      parameters:
+        - $ref: '#/components/parameters/FavoriteClubId'
+      responses:
+        '200':
+          description: The favorites including the club.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteClubList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      operationId: removeFavoriteClub
+      tags: [Users]
+      summary: Remove a club from my favorites
+      description: Removing a club that is not a favorite is not an error.
+      parameters:
+        - $ref: '#/components/parameters/FavoriteClubId'
+      responses:
+        '204':
+          description: Removed.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /me/home:
+    get:
+      operationId: getHome
+      tags: [Users]
+      summary: Home with my favorite clubs (JG-01)
+      description: |
+        For each favorite club, in order: the player's next bookings there (confirmed, or held
+        and not expired; at most 3, soonest first) and the free starts left today for 90 minutes
+        (at most 3, one per start time). Empty `favorites` when the player has none.
+      responses:
+        '200':
+          description: The home.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Home'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /club-admin/favorite-count:
+    get:
+      operationId: getFavoriteClubCount
+      tags: [ClubAdmin]
+      summary: How many players starred the club (staff and owner)
+      description: |
+        An anonymous number. The club never learns who: RLS keeps the favorites of every player
+        away from every club role.
+
+        Errors: `FORBIDDEN`, `NOT_FOUND`.
+      parameters:
+        - $ref: '#/components/parameters/ClubIdQuery'
+      responses:
+        '200':
+          description: The count.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteClubCount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /club-admin/players:
     get:
       operationId: listClubPlayers
@@ -4382,6 +4558,13 @@ components:
       in: path
       required: true
       description: Upload id from `POST /device/uploads`.
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    FavoriteClubId:
+      name: club_id
+      in: path
+      required: true
+      description: Club to star or unstar.
       schema:
         $ref: '#/components/schemas/Uuid'
     BookingId:
@@ -8224,6 +8407,111 @@ components:
               description: Latest 20 bookings at this club, newest first.
               items:
                 $ref: '#/components/schemas/ClubPlayerVisit'
+
+    FavoriteClub:
+      type: object
+      required: [club_id, name, address, logo_url, position]
+      additionalProperties: false
+      properties:
+        club_id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        address:
+          type: [string, 'null']
+        logo_url:
+          type: [string, 'null']
+        position:
+          type: integer
+          minimum: 0
+          description: 0-based place in the player's list.
+
+    FavoriteClubList:
+      type: object
+      required: [items]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/FavoriteClub'
+
+    FavoriteClubOrder:
+      type: object
+      required: [club_ids]
+      additionalProperties: false
+      properties:
+        club_ids:
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Uuid'
+
+    FavoriteClubCount:
+      type: object
+      required: [favorite_count]
+      additionalProperties: false
+      properties:
+        favorite_count:
+          type: integer
+          minimum: 0
+
+    Home:
+      type: object
+      required: [favorites]
+      additionalProperties: false
+      properties:
+        favorites:
+          type: array
+          items:
+            $ref: '#/components/schemas/HomeFavorite'
+
+    HomeFavorite:
+      type: object
+      required: [club, next_bookings, free_slots_today]
+      additionalProperties: false
+      properties:
+        club:
+          $ref: '#/components/schemas/FavoriteClub'
+        next_bookings:
+          type: array
+          maxItems: 3
+          items:
+            type: object
+            required: [id, court_id, court_name, starts_at, ends_at, status]
+            additionalProperties: false
+            properties:
+              id:
+                $ref: '#/components/schemas/Uuid'
+              court_id:
+                $ref: '#/components/schemas/Uuid'
+              court_name:
+                type: string
+              starts_at:
+                $ref: '#/components/schemas/Timestamp'
+              ends_at:
+                $ref: '#/components/schemas/Timestamp'
+              status:
+                type: string
+                enum: [held, confirmed]
+        free_slots_today:
+          type: array
+          maxItems: 3
+          items:
+            type: object
+            required: [court_id, starts_at, ends_at, amount_cents]
+            additionalProperties: false
+            properties:
+              court_id:
+                $ref: '#/components/schemas/Uuid'
+              starts_at:
+                $ref: '#/components/schemas/Timestamp'
+              ends_at:
+                $ref: '#/components/schemas/Timestamp'
+              amount_cents:
+                $ref: '#/components/schemas/AmountCents'
 
     ClubPlayerNotesUpdate:
       type: object

@@ -8,6 +8,7 @@ import type { Schema } from '@app/contracts';
 import { Button } from '@app/ui/native';
 import { theme } from '@app/ui/tokens';
 
+import { FavoriteStar } from '../favorites/FavoriteStar';
 import { fonts } from '../theme/fonts';
 import type { ClubResultsProps } from './ClubResults';
 import { clubPosition } from './localities';
@@ -50,16 +51,20 @@ export function ClubMap({ clubs, onSelect }: ClubResultsProps) {
           const [first] = c.members;
           if (c.members.length === 1 && first) {
             return (
-              <Pressable
-                key={c.key}
-                accessibilityRole="button"
-                accessibilityLabel={first.item.name}
-                onPress={() => onSelect(first.item)}
-                style={[styles.pin, style]}
-                testID={`pin-${first.item.id}`}
-              >
-                <ClubPin club={first.item} />
-              </Pressable>
+              <View key={c.key} style={[styles.pinWrap, style]}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={first.item.name}
+                  onPress={() => onSelect(first.item)}
+                  style={styles.pin}
+                  testID={`pin-${first.item.id}`}
+                >
+                  <ClubPin club={first.item} />
+                </Pressable>
+                <View style={styles.badge}>
+                  <FavoriteStar clubId={first.item.id} clubName={first.item.name} size={22} />
+                </View>
+              </View>
             );
           }
           return (
@@ -75,7 +80,7 @@ export function ClubMap({ clubs, onSelect }: ClubResultsProps) {
                   ),
                 )
               }
-              style={[styles.pin, styles.cluster, style]}
+              style={[styles.pin, styles.cluster, styles.clusterPin, style]}
               testID={`cluster-${c.key}`}
             >
               <Text style={styles.count}>{c.members.length}</Text>
@@ -110,8 +115,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
   },
+  pinWrap: { position: 'absolute', width: PIN, height: PIN },
+  badge: { position: 'absolute', right: -8, top: -8 },
   pin: {
-    position: 'absolute',
     width: PIN,
     height: PIN,
     borderRadius: PIN / 2,
@@ -123,6 +129,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cluster: { backgroundColor: colors.primary },
+  clusterPin: { position: 'absolute' },
   logo: { width: PIN - 4, height: PIN - 4, borderRadius: (PIN - 4) / 2 },
   initial: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.text },
   count: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.background },

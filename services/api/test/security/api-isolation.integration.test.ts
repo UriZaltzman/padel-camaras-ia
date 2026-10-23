@@ -81,6 +81,7 @@ describe.skipIf(!adminUrl)('API isolation between clubs', () => {
          VALUES ('${A.lesson}', '${A.club}', '${A.match}', '${A.coach}', 'private', '${SECRET}', now());
        INSERT INTO lesson_requests (id, club_id, coach_user_id, student_user_id, court_id, starts_at, duration_minutes, message, status, updated_at)
          VALUES ('${A.request}', '${A.club}', '${A.coach}', '${A.player}', '${A.court}', '2030-12-01 18:00+00', 60, '${SECRET}', 'pending', now());
+       INSERT INTO player_favorite_clubs (id, club_id, user_id, position) VALUES ('${newId()}', '${A.club}', '${A.player}', 0);
        INSERT INTO tournaments (id, club_id, name, category, points_config, updated_at)
          VALUES ('${A.tournament}', '${A.club}', '${SECRET}', 4, '{}', now());`,
     );
@@ -183,6 +184,12 @@ describe.skipIf(!adminUrl)('API isolation between clubs', () => {
       path: `/club-admin/players/${A.player}/notes?club_id=${A.club}`,
       body: { tags: [], notes: 'hax' },
       route: 'PUT /v1/club-admin/players/:userId/notes',
+    },
+    {
+      name: 'how many players starred A',
+      method: 'get',
+      path: `/club-admin/favorite-count?club_id=${A.club}`,
+      route: 'GET /v1/club-admin/favorite-count',
     },
     {
       name: 'match of A',
@@ -350,6 +357,11 @@ describe.skipIf(!adminUrl)('API isolation between clubs', () => {
     'GET /v1/coach/students': 'own students only, checked below',
     'GET /v1/lessons/requests': 'own requests only, checked below',
     'POST /v1/lessons/requests': 'checked below (a request names club and coach)',
+    'GET /v1/me/favorite-clubs': 'own favorites only, checked below',
+    'PUT /v1/me/favorite-clubs': 'own favorites only, checked below',
+    'PUT /v1/me/favorite-clubs/:clubId': 'own favorites only, checked below',
+    'DELETE /v1/me/favorite-clubs/:clubId': 'own favorites only, checked below',
+    'GET /v1/me/home': 'own favorites and bookings only, checked below',
     'POST /v1/payments/checkout': 'checked below',
     'POST /v1/webhooks/mercadopago': 'signed by the provider, not by a user',
     'POST /v1/auth/otp/whatsapp': 'sign-in',
@@ -432,6 +444,27 @@ describe.skipIf(!adminUrl)('API isolation between clubs', () => {
       }
       const list = await get('/clubs', B.owner);
       expect(JSON.stringify(list.body)).not.toContain('30111111118');
+    });
+
+    it('the favorites of a player are invisible to everyone else, clubs included', async () => {
+      for (const user of [B.player, B.owner, B.staff, B.coach]) {
+        for (const path of ['/me/favorite-clubs', '/me/home']) {
+          const res = await get(path, user);
+          expect(res.body, path).toMatchObject(
+            path === '/me/home' ? { favorites: [] } : { items: [] },
+          );
+        }
+      }
+      // The owner of A gets a number, not the player.
+      const count = await get(`/club-admin/favorite-count?club_id=${A.club}`, A.owner);
+      expect(count.body).toEqual({ favorite_count: 1 });
+      // Unstarring a club of B for a stranger never touches A's row.
+      await request(ctx.app.getHttpServer())
+        .delete(v(`/me/favorite-clubs/${A.club}`))
+        .set('Authorization', `Bearer ${tokens.get(B.player)}`);
+      expect(
+        psql(db.url, `SELECT count(*) FROM player_favorite_clubs WHERE user_id = '${A.player}'`),
+      ).toBe('1');
     });
 
     it('own lists never contain club A rows', async () => {
