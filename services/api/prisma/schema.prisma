@@ -215,8 +215,36 @@ model Club {
   notifications         Notification[]
   auditLogs             AuditLog[]
   processingJobs        ProcessingJob[]
+  modules               ClubModules?
 
   @@map("clubs")
+}
+
+/// Feature flags of a club (SA-05): one row per club, absent = every module at its default
+/// (see `src/club-modules/club-modules.ts`). Only internal staff write it; the club and its
+/// players read it to hide what is off. Enum-like columns are checked in the migration.
+model ClubModules {
+  clubId             String   @id @map("club_id") @db.Uuid
+  depositEnabled     Boolean  @default(false) @map("deposit_enabled")
+  /// percent | fixed
+  depositKind        String   @default("percent") @map("deposit_kind")
+  depositPercent     Int?     @map("deposit_percent")
+  depositAmountCents Int?     @map("deposit_amount_cents")
+  /// own | generic
+  brandingMode       String   @default("generic") @map("branding_mode")
+  brandingLogoUrl    String?  @map("branding_logo_url")
+  primaryColor       String?  @map("primary_color")
+  secondaryColor     String?  @map("secondary_color")
+  /// app | whatsapp
+  lessonMode         String   @default("app") @map("lesson_mode")
+  /// off | club_pays | player_pays
+  aiVideo            String   @default("off") @map("ai_video")
+  tournaments        Boolean  @default(false)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@map("club_modules")
 }
 
 model Court {
