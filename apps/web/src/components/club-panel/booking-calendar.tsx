@@ -3,6 +3,7 @@
 import type { ApiClient, Schema } from '@app/contracts';
 import { Button, Card, DataLabel } from '@app/ui/web';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useId, useState } from 'react';
 
 import { t } from '@/i18n';
@@ -90,6 +91,12 @@ export function BookingCalendar({ clubId, client = apiClient, today = todayLocal
         {club.data && <DataLabel label={club.data.name} />}
         <h1 className="font-display text-3xl font-bold">{t('calendar.title')}</h1>
         <p className="text-ink2">{t('calendar.lead')}</p>
+        <Link
+          href={`/panel/clubes/${clubId}/calendario/anual`}
+          className="min-h-11 self-start py-2 font-semibold text-court underline"
+        >
+          {t('yearCal.open')}
+        </Link>
       </header>
 
       <div className="flex flex-wrap items-end gap-3">

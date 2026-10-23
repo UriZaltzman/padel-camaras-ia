@@ -1090,6 +1090,80 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/clubs/{id}/court-blocks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List the court blocks between two instants (staff and owner)
+     * @description Blocks (maintenance, holidays, closures) that overlap `[from, to)`, ordered by start.
+     *     The calendar asks for one year at a time (CL-04).
+     */
+    get: operations['listCourtBlocks'];
+    put?: never;
+    /**
+     * Block one or more courts for a range, optionally repeating (CL-04)
+     * @description `recurrence` repeats the block daily or weekly until a local date (at most 53
+     *     occurrences). `existing_bookings_policy` decides what happens with bookings already on
+     *     the blocked time: `cancel_and_refund` (the player is refunded and warned), `move` (to a
+     *     free court at the same time) or `abort` (default: nothing is blocked and the call fails).
+     *
+     *     Errors: `BOOKING_SLOT_TAKEN` (409, `details.conflicting_booking_ids`), `FORBIDDEN`,
+     *     `NOT_FOUND` (club or court), `VALIDATION_FAILED` (400).
+     */
+    post: operations['createCourtBlock'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/clubs/{id}/court-blocks/holidays': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Import the national holidays of a year as full-day blocks (CL-04)
+     * @description One full-day `holiday` block per date and court. `dates` limits the import to those
+     *     local dates; without it, every national holiday of `year` is imported.
+     *
+     *     Errors: same as `POST /clubs/{id}/court-blocks`.
+     */
+    post: operations['importCourtBlockHolidays'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/clubs/{id}/court-blocks/{block_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Remove a court block
+     * @description Frees the court again. Bookings already cancelled or moved by the block are not restored.
+     */
+    delete: operations['deleteCourtBlock'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/club-admin/dashboard': {
     parameters: {
       query?: never;
@@ -3126,6 +3200,52 @@ export interface components {
       booking: components['schemas']['CourtBookingSettings'];
     };
     /** @enum {string} */
+    CourtBlockKind: 'maintenance' | 'holiday' | 'closure';
+    /** @enum {string} */
+    BlockBookingsPolicy: 'cancel_and_refund' | 'move' | 'abort';
+    CourtBlock: {
+      id: components['schemas']['Uuid'];
+      court_id: components['schemas']['Uuid'];
+      starts_at: components['schemas']['Timestamp'];
+      ends_at: components['schemas']['Timestamp'];
+      kind: components['schemas']['CourtBlockKind'];
+      reason: string | null;
+      /**
+       * Format: uuid
+       * @description Shared by the occurrences of a recurring block.
+       */
+      series_id: string | null;
+    };
+    CourtBlockCreate: {
+      court_ids: components['schemas']['Uuid'][];
+      starts_at: components['schemas']['Timestamp'];
+      ends_at: components['schemas']['Timestamp'];
+      kind: components['schemas']['CourtBlockKind'];
+      reason?: string;
+      recurrence?: {
+        /** @enum {string} */
+        frequency: 'daily' | 'weekly';
+        /** Format: date */
+        until: string;
+      };
+      existing_bookings_policy?: components['schemas']['BlockBookingsPolicy'];
+    };
+    CourtBlockHolidayImport: {
+      year: number;
+      court_ids: components['schemas']['Uuid'][];
+      dates?: string[];
+      existing_bookings_policy?: components['schemas']['BlockBookingsPolicy'];
+    };
+    CourtBlockResult: {
+      blocks: components['schemas']['CourtBlock'][];
+      cancelled_booking_ids: components['schemas']['Uuid'][];
+      refunded_cents: components['schemas']['AmountCents'];
+      moved: {
+        booking_id: components['schemas']['Uuid'];
+        court_id: components['schemas']['Uuid'];
+      }[];
+    };
+    /** @enum {string} */
     Weekday: 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
     /**
      * @description Local time `HH:MM` in the club's time zone. `24:00` is allowed as an end time and means
@@ -4373,6 +4493,12 @@ export type SchemaClubSummaryPage = components['schemas']['ClubSummaryPage'];
 export type SchemaClub = components['schemas']['Club'];
 export type SchemaCourtStatus = components['schemas']['CourtStatus'];
 export type SchemaCourt = components['schemas']['Court'];
+export type SchemaCourtBlockKind = components['schemas']['CourtBlockKind'];
+export type SchemaBlockBookingsPolicy = components['schemas']['BlockBookingsPolicy'];
+export type SchemaCourtBlock = components['schemas']['CourtBlock'];
+export type SchemaCourtBlockCreate = components['schemas']['CourtBlockCreate'];
+export type SchemaCourtBlockHolidayImport = components['schemas']['CourtBlockHolidayImport'];
+export type SchemaCourtBlockResult = components['schemas']['CourtBlockResult'];
 export type SchemaWeekday = components['schemas']['Weekday'];
 export type SchemaLocalTime = components['schemas']['LocalTime'];
 export type SchemaBookingDuration = components['schemas']['BookingDuration'];
@@ -6296,6 +6422,137 @@ export interface operations {
       429: components['responses']['TooManyRequests'];
       500: components['responses']['InternalError'];
       502: components['responses']['BadGateway'];
+    };
+  };
+  listCourtBlocks: {
+    parameters: {
+      query: {
+        from: components['schemas']['Timestamp'];
+        to: components['schemas']['Timestamp'];
+      };
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The blocks. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CourtBlock'][];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  createCourtBlock: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CourtBlockCreate'];
+      };
+    };
+    responses: {
+      /** @description The blocks created and what happened to the bookings under them. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CourtBlockResult'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  importCourtBlockHolidays: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CourtBlockHolidayImport'];
+      };
+    };
+    responses: {
+      /** @description The blocks created and what happened to the bookings under them. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CourtBlockResult'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  deleteCourtBlock: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+        block_id: components['schemas']['Uuid'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Removed. */
+      204: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
     };
   };
   getClubDashboard: {
