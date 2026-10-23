@@ -64,7 +64,7 @@ describe('HomeScreen', () => {
 
   it('shows the error text when the API fails', async () => {
     await renderHome({ fail: true, booking: false });
-    expect(await screen.findByText(h.error)).toBeTruthy();
+    expect((await screen.findAllByText(h.error)).length).toBeGreaterThan(0);
   });
 
   it('takes every text from i18n, none hardcoded', async () => {

@@ -7,6 +7,7 @@
 import type { Schema } from '@app/contracts';
 
 import { handleBookingMock } from '../booking/mock-api';
+import { createFavoritesMock } from '../favorites/mock-favorites';
 
 type ErrorCode = Schema<'ErrorCode'>;
 
@@ -89,6 +90,7 @@ export function createMockAuthServer(options: MockAuthOptions = {}): MockAuthSer
   const failures = new Map<string, { status: number; code: ErrorCode }>();
   let profile: Schema<'User'> | null = null;
   let deletion: string | null = null;
+  const favorites = createFavoritesMock();
 
   function session(phone: string | null, isNew: boolean): Response {
     counter += 1;
@@ -130,10 +132,9 @@ export function createMockAuthServer(options: MockAuthOptions = {}): MockAuthSer
 
   async function handle(input: Request): Promise<Response> {
     const path = new URL(input.url).pathname.replace(/^.*\/v1/, '');
-    const hasBody = input.method === 'POST' || input.method === 'PATCH';
-    const body: Record<string, unknown> = hasBody
-      ? ((await input.json()) as Record<string, unknown>)
-      : {};
+    const hasBody = ['POST', 'PATCH', 'PUT'].includes(input.method);
+    const text = hasBody ? await input.text() : '';
+    const body: Record<string, unknown> = text ? (JSON.parse(text) as Record<string, unknown>) : {};
     requests.push({ path, method: input.method, body });
 
     const failure = failures.get(path);
@@ -200,6 +201,8 @@ export function createMockAuthServer(options: MockAuthOptions = {}): MockAuthSer
         if (!auth) return error(401, 'UNAUTHENTICATED');
         if (!validAccess.has(auth)) return error(401, 'ACCESS_TOKEN_EXPIRED');
         if (path === '/me') return handleMe(input.method, body);
+        const answer = await favorites.handle(input.method, path, body);
+        if (answer) return answer;
         return error(404, 'NOT_FOUND');
       }
     }

@@ -82,7 +82,7 @@ export class BookingApiError extends Error {
   }
 }
 
-const KNOWN_CODES = ['NOT_FOUND', 'RATE_LIMITED'];
+const KNOWN_CODES = ['NOT_FOUND', 'RATE_LIMITED', 'BOOKING_SLOT_TAKEN', 'BOOKING_SLOT_INVALID'];
 
 /** i18n key for an API or network error. */
 export function errorKey(err: unknown): string {

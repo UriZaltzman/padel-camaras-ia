@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Schema } from '@app/contracts';
 import { theme } from '@app/ui/tokens';
 
+import { FavoriteStar } from '../favorites/FavoriteStar';
 import { fonts } from '../theme/fonts';
 
 const colors = theme.light;
@@ -22,22 +23,24 @@ export function ClubList({ clubs, onSelect }: ClubResultsProps) {
   return (
     <View style={styles.list} testID="club-list">
       {clubs.map((club) => (
-        <Pressable
-          key={club.id}
-          accessibilityRole="button"
-          onPress={() => onSelect(club)}
-          style={({ pressed }) => [styles.item, pressed && styles.pressed]}
-          testID={`club-${club.id}`}
-        >
-          <Text style={styles.name}>{club.name}</Text>
-          <Text style={styles.meta}>
-            {t('findSlot.clubMeta', {
-              address: club.address,
-              city: club.city,
-              count: club.courts_count,
-            })}
-          </Text>
-        </Pressable>
+        <View key={club.id} style={styles.item}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onSelect(club)}
+            style={({ pressed }) => [styles.info, pressed && styles.pressed]}
+            testID={`club-${club.id}`}
+          >
+            <Text style={styles.name}>{club.name}</Text>
+            <Text style={styles.meta}>
+              {t('findSlot.clubMeta', {
+                address: club.address,
+                city: club.city,
+                count: club.courts_count,
+              })}
+            </Text>
+          </Pressable>
+          <FavoriteStar clubId={club.id} clubName={club.name} />
+        </View>
       ))}
     </View>
   );
@@ -48,9 +51,13 @@ const styles = StyleSheet.create({
   item: {
     backgroundColor: colors.surface,
     borderRadius: 12,
-    padding: 16,
+    paddingLeft: 16,
+    paddingRight: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
   },
+  info: { flex: 1, paddingVertical: 16, gap: 4 },
   pressed: { opacity: 0.7 },
   name: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.text },
   meta: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary },
