@@ -10,6 +10,7 @@ import type { Schema } from '@app/contracts';
 import { ApiProvider, apiBaseUrl } from '../api/client';
 import { createAuthedFetch, type Fetch } from './authed-fetch';
 import { withHomeMock } from '../home/mock-home';
+import { withMatchMock } from '../matches/mock-match';
 import { createMockAuthServer } from './mock-api';
 import { createFakeProviders, type SocialAuthProviders } from './providers';
 import { secureTokenStore, type TokenStore } from './token-store';
@@ -51,7 +52,7 @@ export function defaultSocialProviders(isDev: boolean): SocialAuthProviders | nu
 
 function defaultFetch(): Fetch {
   if (shouldUseMockApi(process.env.EXPO_PUBLIC_API_MOCK, __DEV__)) {
-    return withHomeMock(createMockAuthServer().fetch);
+    return withMatchMock(withHomeMock(createMockAuthServer().fetch));
   }
   return (input) => globalThis.fetch(input);
 }

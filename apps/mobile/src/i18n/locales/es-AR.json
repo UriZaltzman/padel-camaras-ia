@@ -186,5 +186,45 @@
       "optOutOn": "Listo, no vamos a usar tus videos para entrenar.",
       "optOutOff": "Listo, tus videos pueden ayudar a mejorar la IA."
     }
+  },
+  "match": {
+    "loading": "Cargando…",
+    "error": "No pudimos abrir el partido. Probá de nuevo en un rato.",
+    "place": "{club} · {court} · {when}",
+    "video": {
+      "unavailable": "El video todavía no está disponible.",
+      "error": "No pudimos cargar el video.",
+      "backToFull": "Volver al partido completo"
+    },
+    "score": {
+      "label": "Marcador",
+      "won": "Ganaste",
+      "lost": "Perdiste",
+      "pending": "En análisis"
+    },
+    "timeline": {
+      "label": "Puntos",
+      "clips": "Clips",
+      "empty": "No hay puntos para mostrar.",
+      "point": "Punto {number} · set {set}, game {game}",
+      "clip": "Clip {n}",
+      "won": "Ganado",
+      "lost": "Perdido",
+      "filter": {
+        "all": "Todos",
+        "won": "Ganados",
+        "lost": "Perdidos"
+      }
+    },
+    "stats": {
+      "label": "Tus números",
+      "approx": "Estadísticas aproximadas: hay puntos que todavía no confirmaron.",
+      "summary": "{won} puntos ganados · {winners} winners · {errors} errores no forzados"
+    },
+    "download": {
+      "action": "Descargar video",
+      "preparing": "Estamos preparando tu video. Te avisamos por WhatsApp cuando esté listo.",
+      "error": "No pudimos pedir la descarga."
+    }
   }
 }
