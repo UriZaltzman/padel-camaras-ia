@@ -18,6 +18,6 @@ import { PrismaClubsRepository } from './prisma-clubs.repository';
     MembershipsService,
     { provide: ClubsRepository, useClass: PrismaClubsRepository },
   ],
-  exports: [ClubAccessService, MembershipsService, ClubsRepository],
+  exports: [ClubAccessService, MembershipsService, ClubsRepository, MembershipsRepository],
 })
 export class ClubsModule {}
