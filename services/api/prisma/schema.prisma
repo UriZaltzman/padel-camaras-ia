@@ -100,11 +100,12 @@ model User {
   updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   authIdentities     AuthIdentity[]
+  clubPlayerNotes    ClubPlayerNote[]
   memberships        Membership[]
-  bookingsCreated    Booking[]       @relation("BookingCreatedBy")
-  bookingsAsGuardian Booking[]       @relation("BookingGuardian")
-  bookingPlayers     BookingPlayer[] @relation("BookingPlayerUser")
-  bookingInvitesSent BookingPlayer[] @relation("BookingPlayerInvitedBy")
+  bookingsCreated    Booking[]        @relation("BookingCreatedBy")
+  bookingsAsGuardian Booking[]        @relation("BookingGuardian")
+  bookingPlayers     BookingPlayer[]  @relation("BookingPlayerUser")
+  bookingInvitesSent BookingPlayer[]  @relation("BookingPlayerInvitedBy")
   matchPlayers       MatchPlayer[]
   matchStats         MatchStat[]
   insights           Insight[]
@@ -222,6 +223,7 @@ model Club {
   auditLogs             AuditLog[]
   processingJobs        ProcessingJob[]
   modules               ClubModules?
+  playerNotes           ClubPlayerNote[]
 
   @@map("clubs")
 }
@@ -558,6 +560,25 @@ model BookingPlayer {
   @@index([userId])
   @@index([clubId])
   @@map("booking_players")
+}
+
+/// What a club keeps about a person in its CRM (CL-06): tags and a private note. Visible only to
+/// the club's staff and owner (RLS); the person never sees it.
+model ClubPlayerNote {
+  id        String   @id @db.Uuid
+  clubId    String   @map("club_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tags      String[]
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, userId])
+  @@index([userId])
+  @@map("club_player_notes")
 }
 
 // ---------------------------------------------------------------- Matches (§2, §5, §6, §7)

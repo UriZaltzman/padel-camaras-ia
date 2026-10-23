@@ -1,6 +1,6 @@
 import type { ApiClient } from '@app/contracts';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { buildApiClient } from '@/lib/api/client';
@@ -9,6 +9,8 @@ import { parseBom } from '@/lib/hardware/bom';
 import { ClubDetail } from './club-detail';
 import { ClubsList } from './clubs-list';
 import { QuoteTool } from './quote-tool';
+import { TariffsEditor } from './tariffs-editor';
+import { UsageTable } from './usage-table';
 
 const bom = parseBom(`
 fx_ars_per_usd: 1000
@@ -67,5 +69,33 @@ describe('ClubDetail', () => {
     expect(await screen.findByRole('heading', { name: 'Club Demo Sur' })).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: 'Contrato' }));
     expect(screen.getByText(/Compra: el club es dueño/)).toBeTruthy();
+  });
+});
+
+describe('UsageTable', () => {
+  it('lists usage and flags clubs near the next tier', async () => {
+    wrap(<UsageTable client={client()} />);
+    expect(await screen.findByText('Club Demo Sur')).toBeTruthy();
+    expect(screen.getAllByText(/Cerca del próximo tramo/).length).toBe(2);
+    fireEvent.click(screen.getByLabelText('Solo clubes cerca de cambiar de tramo'));
+    await waitFor(() => expect(screen.queryByText('Club Demo Norte')).toBeNull());
+  });
+});
+
+describe('TariffsEditor', () => {
+  it('simulates a club of 900 players and shows its band', async () => {
+    wrap(<TariffsEditor client={client()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Simular' }));
+    expect((await screen.findByTestId('sim-tier')).textContent).toBe('401 a 1000 jugadores');
+    expect(screen.getByTestId('sim-total').textContent).toContain('350.000');
+  });
+
+  it('blocks publishing bands with a gap', async () => {
+    wrap(<TariffsEditor client={client()} />);
+    fireEvent.change(await screen.findByLabelText('Tramo 2: desde'), { target: { value: '150' } });
+    expect(screen.getByRole('alert').textContent).toContain('hueco');
+    expect(
+      (screen.getByRole('button', { name: 'Publicar versión' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 });

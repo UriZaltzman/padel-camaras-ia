@@ -70,4 +70,11 @@ export const demoClub: Schema<'Club'> = {
     coach_plan: { type: 'coach_monthly', monthly_fee_cents: 2_500_000 },
     lesson_payments_enabled: true,
   },
+  modules: {
+    deposit: { enabled: false, kind: 'percent', percent: null, amount_cents: null },
+    branding: { mode: 'generic', logo_url: null, primary_color: null, secondary_color: null },
+    lesson_mode: 'app',
+    ai_video: 'off',
+    tournaments: false,
+  },
 };
