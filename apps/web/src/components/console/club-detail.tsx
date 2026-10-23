@@ -138,17 +138,25 @@ function TabBody({ tab, club }: { tab: Tab; club: Schema<'AdminClubDetail'> }) {
   if (tab === 'modules') {
     const m = club.modules;
     return (
-      <dl className="grid gap-3 sm:grid-cols-2">
-        <Field label={t('admin.detail.module.deposit')}>{onOff(m.deposit.enabled)}</Field>
-        <Field label={t('admin.detail.module.branding')}>{m.branding.mode}</Field>
-        <Field label={t('admin.detail.module.lessons')}>
-          {t(`admin.detail.lessons.${m.lesson_mode}`)}
-        </Field>
-        <Field label={t('admin.detail.module.aiVideo')}>
-          {t(`admin.detail.aiVideo.${m.ai_video}`)}
-        </Field>
-        <Field label={t('admin.detail.module.tournaments')}>{onOff(m.tournaments)}</Field>
-      </dl>
+      <div className="flex flex-col gap-3">
+        <dl className="grid gap-3 sm:grid-cols-2">
+          <Field label={t('admin.detail.module.deposit')}>{onOff(m.deposit.enabled)}</Field>
+          <Field label={t('admin.detail.module.branding')}>{m.branding.mode}</Field>
+          <Field label={t('admin.detail.module.lessons')}>
+            {t(`admin.detail.lessons.${m.lesson_mode}`)}
+          </Field>
+          <Field label={t('admin.detail.module.aiVideo')}>
+            {t(`admin.detail.aiVideo.${m.ai_video}`)}
+          </Field>
+          <Field label={t('admin.detail.module.tournaments')}>{onOff(m.tournaments)}</Field>
+        </dl>
+        <Link
+          href={`/admin/clubes/${club.id}/modulos`}
+          className="min-h-11 font-semibold underline"
+        >
+          {t('admin.modules.link')}
+        </Link>
+      </div>
     );
   }
   if (tab === 'users') {
