@@ -60,11 +60,9 @@ describe('coach plan', () => {
     await service.markPaid(club, coach, now);
     const other = '0190a000-0000-7000-8000-000000000003';
     expect((await service.statusOf(club, other, now)).active).toBe(false);
-    await expect(service.configure(club, { mode: 'paid', monthly_cents: 0 })).rejects.toMatchObject(
-      {
-        code: 'VALIDATION_FAILED',
-      },
-    );
+    await expect(
+      service.configure(club, { mode: 'paid', monthly_cents: 0 }),
+    ).rejects.toBeInstanceOf(ZodError);
     await expect(service.configure(club, { mode: 'free' })).rejects.toBeInstanceOf(ZodError);
   });
 });
