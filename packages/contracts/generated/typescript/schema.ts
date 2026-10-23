@@ -581,6 +581,34 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/clubs/{id}/ranking': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Ranking of the club's players in one category, last 12 months
+     * @description Players who played a finished match in this club in the last 12 months, whose current
+     *     rating falls in `category`, ordered best first (ties: more wins, then more matches).
+     *     Open to anyone with an active role in the club or who played a confirmed match there;
+     *     anyone else gets `404 NOT_FOUND`, as if the club did not exist.
+     *
+     *     Privacy: players with fewer than 5 rated matches are left out, no rating number is
+     *     returned (only the order), and players who requested account deletion do not appear.
+     *     `matches` and `wins` count only matches played in this club inside the window.
+     *     Tournament points are not part of this ranking.
+     */
+    get: operations['getClubRanking'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/clubs/{id}/settings': {
     parameters: {
       query?: never;
@@ -1998,6 +2026,24 @@ export interface components {
      * @enum {string}
      */
     DeclaredCategory: '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8';
+    ClubRanking: {
+      club_id: components['schemas']['Uuid'];
+      category: components['schemas']['DeclaredCategory'];
+      /** @description Months of play the ranking looks at (12). */
+      window_months: number;
+      entries: components['schemas']['ClubRankingEntry'][];
+    };
+    ClubRankingEntry: {
+      position: number;
+      user_id: components['schemas']['Uuid'];
+      name: string;
+      photo_url: string | null;
+      /** @description Finished matches played in this club in the window. */
+      matches: number;
+      wins: number;
+      /** @description True for the caller's own row. */
+      is_me: boolean;
+    };
     /** @enum {string} */
     DominantHand: 'right' | 'left';
     /**
@@ -3749,6 +3795,8 @@ export type SchemaRefreshRequest = components['schemas']['RefreshRequest'];
 export type SchemaTokenPair = components['schemas']['TokenPair'];
 export type SchemaAuthSession = components['schemas']['AuthSession'];
 export type SchemaDeclaredCategory = components['schemas']['DeclaredCategory'];
+export type SchemaClubRanking = components['schemas']['ClubRanking'];
+export type SchemaClubRankingEntry = components['schemas']['ClubRankingEntry'];
 export type SchemaDominantHand = components['schemas']['DominantHand'];
 export type SchemaPlayingSide = components['schemas']['PlayingSide'];
 export type SchemaUser = components['schemas']['User'];
@@ -4986,6 +5034,38 @@ export interface operations {
         };
       };
       400: components['responses']['BadRequest'];
+      404: components['responses']['NotFound'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  getClubRanking: {
+    parameters: {
+      query: {
+        category: components['schemas']['DeclaredCategory'];
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        /** @description Club id. */
+        id: components['parameters']['ClubId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The ranking. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ClubRanking'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
       404: components['responses']['NotFound'];
       429: components['responses']['TooManyRequests'];
       500: components['responses']['InternalError'];
