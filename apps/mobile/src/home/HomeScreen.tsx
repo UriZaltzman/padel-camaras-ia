@@ -22,9 +22,14 @@ const noNextBooking: NextBookingLoader = () => Promise.resolve(null);
 interface HomeScreenProps {
   /** Source of the next booking until the contract has a "my bookings" endpoint. */
   loadNextBooking?: NextBookingLoader;
+  /** Opens the tournaments of the club of the last match. */
+  onOpenTournaments?: (clubId: string) => void;
 }
 
-export function HomeScreen({ loadNextBooking = noNextBooking }: HomeScreenProps) {
+export function HomeScreen({
+  loadNextBooking = noNextBooking,
+  onOpenTournaments,
+}: HomeScreenProps) {
   const { t } = useTranslation();
   const booking = useNextBooking(loadNextBooking);
   const match = useLastMatch();
@@ -92,6 +97,14 @@ export function HomeScreen({ loadNextBooking = noNextBooking }: HomeScreenProps)
             )}
           </View>
         </Card>
+        {onOpenTournaments && match.data ? (
+          <Button
+            variant="secondary"
+            label={t('tournaments.open')}
+            testID="home-tournaments"
+            onPress={() => onOpenTournaments(match.data?.club.id ?? '')}
+          />
+        ) : null}
       </ScrollView>
       {/* Navigation to the booking flow arrives with its own issue. */}
       <Button label={t('home.primaryAction')} testID="home-primary-action" />
