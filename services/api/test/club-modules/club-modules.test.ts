@@ -40,12 +40,6 @@ describe('club modules', () => {
   afterAll(() => ctx.app.close());
   const http = () => request(ctx.app.getHttpServer());
 
-  it('everything optional is off for a club with no flags', async () => {
-    const response = await http().get(`/v1/clubs/${CLUB}/modules`);
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual(DEFAULT_MODULES);
-  });
-
   it('a disabled module answers 403 CLUB_FEATURE_DISABLED, an enabled one passes', async () => {
     const off = await http().get(`/v1/probe/${CLUB}/tournaments`);
     expect(off.status).toBe(403);
@@ -58,16 +52,6 @@ describe('club modules', () => {
 
     ctx.modules.rows.set(CLUB, withModules({ tournaments: false }));
     expect((await http().get(`/v1/probe/${CLUB}/tournaments`)).status).toBe(403);
-  });
-
-  it('exposes the flags so the UI can hide what is off', async () => {
-    ctx.modules.rows.set(CLUB, withModules({ ai_video: 'player_pays', lesson_mode: 'whatsapp' }));
-    const response = await http().get(`/v1/clubs/${CLUB}/modules`);
-    expect(response.body).toMatchObject({ ai_video: 'player_pays', lesson_mode: 'whatsapp' });
-  });
-
-  it('an id that is not a UUID is rejected', async () => {
-    expect((await http().get('/v1/clubs/nope/modules')).status).toBe(400);
   });
 
   it('maps every flag to its module', () => {

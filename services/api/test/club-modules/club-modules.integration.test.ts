@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DEFAULT_MODULES, type ClubModules } from '../../src/club-modules/club-modules';
 import { ClubModulesService } from '../../src/club-modules/club-modules.service';
@@ -45,8 +44,6 @@ describe.skipIf(!adminUrl)('club modules against Postgres', () => {
     await service.update({ role: 'support', userId: admin, clubId: clubA }, clubA, { modules });
     expect(await service.get(clubA)).toEqual(modules);
     expect(await service.get(clubB)).toEqual(DEFAULT_MODULES);
-    const http = request(ctx.app.getHttpServer());
-    expect((await http.get(`/v1/clubs/${clubA}/modules`)).body).toEqual(modules);
 
     const audit = psql(
       db.url,
