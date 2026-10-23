@@ -32,6 +32,12 @@ export interface SlotInput {
    * the window is one day shorter. Omitted = the farthest day is open all day.
    */
   windowOpensAtMinutes?: number | null;
+  /**
+   * Per-club rule (off by default): do not offer a start that leaves a free gap shorter than the
+   * shortest bookable duration (a 30-minute orphan) between it and the previous booking, the
+   * next booking, or the opening/closing time.
+   */
+  avoidOrphanGaps?: boolean;
 }
 
 /** Adds whole days to a `YYYY-MM-DD` date. */
@@ -58,17 +64,24 @@ export function lastBookableDate(
 
 const MINUTE = 60_000;
 
+const offsetFormatters = new Map<string, Intl.DateTimeFormat>();
+
 function offsetMinutes(instant: Date, timezone: string): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).formatToParts(instant);
+  let formatter = offsetFormatters.get(timezone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    offsetFormatters.set(timezone, formatter);
+  }
+  const parts = formatter.formatToParts(instant);
   const get = (type: string): number => Number(parts.find((p) => p.type === type)?.value);
   const asUtc = Date.UTC(
     get('year'),
@@ -131,6 +144,26 @@ export function depositFor(deposit: SlotInput['deposit'], amountCents: number): 
   return 0;
 }
 
+/** True when a booking [t, e) would leave a free gap of 0 < gap < minDuration on either side. */
+function leavesOrphan(
+  t: number,
+  e: number,
+  occupied: Interval[],
+  dayOpen: number,
+  dayClose: number,
+  minDuration: number,
+): boolean {
+  let before = dayOpen;
+  let after = dayClose;
+  for (const o of occupied) {
+    if (o.end.getTime() <= t) before = Math.max(before, o.end.getTime());
+    if (o.start.getTime() >= e) after = Math.min(after, o.start.getTime());
+  }
+  const left = (t - before) / MINUTE;
+  const right = (after - e) / MINUTE;
+  return (left > 0 && left < minDuration) || (right > 0 && right < minDuration);
+}
+
 /**
  * Every start of the local day `date` the court can offer for `durationMinutes`: opening hours
  * of the rules of that weekday, minus occupied intervals, clipped to the booking window.
@@ -154,6 +187,9 @@ export function generateSlots(input: SlotInput): Slot[] {
     const opens = toMinutes(rule.opens_at);
     let closes = toMinutes(rule.closes_at);
     if (closes <= opens) closes += 1440; // closes after midnight
+    const minDuration = Math.min(...rule.allowed_durations);
+    const dayOpen = localToUtc(input.date, opens, input.timezone).getTime();
+    const dayClose = localToUtc(input.date, closes, input.timezone).getTime();
     for (
       let start = opens;
       start + input.durationMinutes <= closes;
@@ -166,6 +202,11 @@ export function generateSlots(input: SlotInput): Slot[] {
       const t = startAt.getTime();
       if (t < earliest) continue;
       if (input.occupied.some((o) => t < o.end.getTime() && endAt.getTime() > o.start.getTime()))
+        continue;
+      if (
+        input.avoidOrphanGaps &&
+        leavesOrphan(t, endAt.getTime(), input.occupied, dayOpen, dayClose, minDuration)
+      )
         continue;
       if (!byStart.has(t)) {
         byStart.set(t, {
