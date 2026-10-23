@@ -99,27 +99,27 @@ model User {
   createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  authIdentities     AuthIdentity[]
-  clubPlayerNotes    ClubPlayerNote[]
-  memberships        Membership[]
-  bookingsCreated    Booking[]        @relation("BookingCreatedBy")
-  bookingsAsGuardian Booking[]        @relation("BookingGuardian")
-  bookingPlayers     BookingPlayer[]  @relation("BookingPlayerUser")
-  bookingInvitesSent BookingPlayer[]  @relation("BookingPlayerInvitedBy")
-  matchPlayers       MatchPlayer[]
-  matchStats         MatchStat[]
-  insights           Insight[]
-  clips              Clip[]
-  payments           Payment[]
-  rating             Rating?
-  lessonsAsCoach     Lesson[]
-  lessonStudents     LessonStudent[] @relation("LessonStudentUser")
-  coachGrantsGiven   CoachAccessGrant[] @relation("CoachGrantStudent")
-  coachGrantsHeld    CoachAccessGrant[] @relation("CoachGrantCoach")
-  lessonRequestsMade     LessonRequest[] @relation("LessonRequestStudent")
-  lessonRequestsReceived LessonRequest[] @relation("LessonRequestCoach")
-  notifications      Notification[]
-  auditActions       AuditLog[]
+  authIdentities         AuthIdentity[]
+  clubPlayerNotes        ClubPlayerNote[]
+  memberships            Membership[]
+  bookingsCreated        Booking[]          @relation("BookingCreatedBy")
+  bookingsAsGuardian     Booking[]          @relation("BookingGuardian")
+  bookingPlayers         BookingPlayer[]    @relation("BookingPlayerUser")
+  bookingInvitesSent     BookingPlayer[]    @relation("BookingPlayerInvitedBy")
+  matchPlayers           MatchPlayer[]
+  matchStats             MatchStat[]
+  insights               Insight[]
+  clips                  Clip[]
+  payments               Payment[]
+  rating                 Rating?
+  lessonsAsCoach         Lesson[]
+  lessonStudents         LessonStudent[]    @relation("LessonStudentUser")
+  coachGrantsGiven       CoachAccessGrant[] @relation("CoachGrantStudent")
+  coachGrantsHeld        CoachAccessGrant[] @relation("CoachGrantCoach")
+  lessonRequestsMade     LessonRequest[]    @relation("LessonRequestStudent")
+  lessonRequestsReceived LessonRequest[]    @relation("LessonRequestCoach")
+  notifications          Notification[]
+  auditActions           AuditLog[]
 
   @@map("users")
 }
@@ -176,30 +176,30 @@ enum CourtStatus {
 }
 
 model Club {
-  id                     String   @id @db.Uuid
+  id                     String    @id @db.Uuid
   name                   String
   address                String?
   /// 11 digits, no dashes.
-  cuit                   String?  @unique
+  cuit                   String?   @unique
   /// IANA zone, e.g. America/Argentina/Buenos_Aires.
-  timezone               String   @default("America/Argentina/Buenos_Aires")
-  logoUrl                String?  @map("logo_url")
-  sponsorName            String?  @map("sponsor_name")
-  sponsorLogoUrl         String?  @map("sponsor_logo_url")
+  timezone               String    @default("America/Argentina/Buenos_Aires")
+  logoUrl                String?   @map("logo_url")
+  sponsorName            String?   @map("sponsor_name")
+  sponsorLogoUrl         String?   @map("sponsor_logo_url")
   plan                   ClubPlan
   // Charge settings (§10).
   /// Price a player pays for the match extras; null = the club does not charge.
-  playerExtraPriceCents  Int?     @map("player_extra_price_cents")
+  playerExtraPriceCents  Int?      @map("player_extra_price_cents")
   /// Booking deposit; null = no deposit required.
-  depositCents           Int?     @map("deposit_cents")
+  depositCents           Int?      @map("deposit_cents")
   /// Mercado Pago account that receives the club's share (split payments).
-  mercadopagoCollectorId String?  @map("mercadopago_collector_id")
+  mercadopagoCollectorId String?   @map("mercadopago_collector_id")
   /// How many days ahead a player may book, 1..14 (§3.2); staff always up to 365.
-  playerHorizonDays      Int      @default(14) @map("player_horizon_days") @db.SmallInt
+  playerHorizonDays      Int       @default(14) @map("player_horizon_days") @db.SmallInt
   /// Local time the farthest day opens for players; null = it is open all day.
   bookingWindowOpensAt   DateTime? @map("booking_window_opens_at") @db.Time(0)
-  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   memberships           Membership[]
   courts                Court[]
@@ -208,6 +208,7 @@ model Club {
   bookingRulePriceBands BookingRulePriceBand[]
   bookings              Booking[]
   courtBlocks           CourtBlock[]
+  tournaments           Tournament[]
   bookingPlayers        BookingPlayer[]
   devices               Device[]
   cameras               Camera[]
@@ -435,6 +436,8 @@ enum BookingOrigin {
   panel
   /// Court block (maintenance, holiday, closure): occupies the court under the same constraint.
   block
+  /// Tournament match: occupies the court under the same constraint (#263).
+  tournament
 
   @@map("booking_origin")
 }
@@ -533,14 +536,15 @@ model Booking {
   createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  club      Club            @relation(fields: [clubId], references: [id], onDelete: Restrict)
-  court     Court           @relation(fields: [courtId], references: [id], onDelete: Restrict)
-  createdBy User?           @relation("BookingCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  guardian  User?           @relation("BookingGuardian", fields: [guardianUserId], references: [id], onDelete: SetNull)
-  players   BookingPlayer[]
-  matches   Match[]
-  payments  Payment[]
-  courtBlock CourtBlock?
+  club            Club             @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  court           Court            @relation(fields: [courtId], references: [id], onDelete: Restrict)
+  createdBy       User?            @relation("BookingCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  guardian        User?            @relation("BookingGuardian", fields: [guardianUserId], references: [id], onDelete: SetNull)
+  players         BookingPlayer[]
+  matches         Match[]
+  payments        Payment[]
+  courtBlock      CourtBlock?
+  tournamentMatch TournamentMatch?
 
   @@index([courtId, startsAt])
   @@index([clubId, startsAt])
@@ -559,14 +563,14 @@ enum CourtBlockKind {
 /// Metadata of a block. The block itself is a `bookings` row (origin `block`, status
 /// `confirmed`, price 0), so the exclusion constraint of #39 keeps it from overlapping anything.
 model CourtBlock {
-  id        String           @id @db.Uuid
-  clubId    String           @map("club_id") @db.Uuid
-  bookingId String           @unique @map("booking_id") @db.Uuid
+  id        String         @id @db.Uuid
+  clubId    String         @map("club_id") @db.Uuid
+  bookingId String         @unique @map("booking_id") @db.Uuid
   kind      CourtBlockKind
   reason    String?
   /// Shared by the occurrences of one recurring block.
-  seriesId  String?          @map("series_id") @db.Uuid
-  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  seriesId  String?        @map("series_id") @db.Uuid
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
 
   club    Club    @relation(fields: [clubId], references: [id], onDelete: Restrict)
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
@@ -1081,9 +1085,9 @@ model Lesson {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  club     Club      @relation(fields: [clubId], references: [id], onDelete: Restrict)
-  match    Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  coach    User?     @relation(fields: [coachUserId], references: [id], onDelete: SetNull)
+  club     Club            @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  match    Match           @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  coach    User?           @relation(fields: [coachUserId], references: [id], onDelete: SetNull)
   payments Payment[]
   students LessonStudent[]
   noteRows LessonNote[]
@@ -1265,6 +1269,162 @@ model ProcessingJob {
   @@index([status, createdAt])
   @@index([clubId])
   @@map("processing_jobs")
+}
+
+// ---------------------------------------------------------------- Tournaments (CL-08, #263)
+// User ids in these tables are plain uuid columns; their foreign keys live in the migration SQL.
+
+enum TournamentStatus {
+  registration
+  in_progress
+  finished
+  cancelled
+
+  @@map("tournament_status")
+}
+
+enum TournamentStage {
+  group
+  round_of_16
+  quarter
+  semi
+  final
+
+  @@map("tournament_stage")
+}
+
+enum TournamentMatchStatus {
+  scheduled
+  awaiting_confirmation
+  confirmed
+
+  @@map("tournament_match_status")
+}
+
+/// A club tournament of one category (1 to 6). Matches are `bookings` rows with origin
+/// `tournament`, so the exclusion constraint of #39 keeps courts from being double booked.
+model Tournament {
+  id              String           @id @db.Uuid
+  clubId          String           @map("club_id") @db.Uuid
+  name            String
+  /// 1 (top) to 6 (CHECK in the migration SQL).
+  category        Int              @db.SmallInt
+  status          TournamentStatus @default(registration)
+  entryFeeCents   Int              @default(0) @map("entry_fee_cents")
+  matchMinutes    Int              @default(90) @map("match_minutes") @db.SmallInt
+  /// {champion, finalist, semifinal, quarterfinal, group_win}.
+  pointsConfig    Json             @map("points_config")
+  createdByUserId String?          @map("created_by_user_id") @db.Uuid
+  finishedAt      DateTime?        @map("finished_at") @db.Timestamptz(3)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club          Club                     @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  registrations TournamentRegistration[]
+  groups        TournamentGroup[]
+  matches       TournamentMatch[]
+  points        TournamentPoint[]
+
+  @@index([clubId, status])
+  @@map("tournaments")
+}
+
+model TournamentGroup {
+  id           String   @id @db.Uuid
+  clubId       String   @map("club_id") @db.Uuid
+  tournamentId String   @map("tournament_id") @db.Uuid
+  /// 0-based; shown as "Grupo A", "Grupo B"...
+  position     Int      @db.SmallInt
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tournament    Tournament               @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  registrations TournamentRegistration[]
+  matches       TournamentMatch[]
+
+  @@unique([tournamentId, position])
+  @@index([clubId])
+  @@map("tournament_groups")
+}
+
+/// A pair. A player belongs to one active pair per tournament (partial unique indexes in SQL).
+model TournamentRegistration {
+  id              String    @id @db.Uuid
+  clubId          String    @map("club_id") @db.Uuid
+  tournamentId    String    @map("tournament_id") @db.Uuid
+  player1UserId   String    @map("player1_user_id") @db.Uuid
+  player2UserId   String    @map("player2_user_id") @db.Uuid
+  /// Average rating of the pair at the draw; null before it.
+  strength        Float?
+  seed            Int?      @db.SmallInt
+  groupId         String?   @map("group_id") @db.Uuid
+  /// Entry fee collected (cash at the club, or a payment of the existing flows).
+  paid            Boolean   @default(false)
+  paidAt          DateTime? @map("paid_at") @db.Timestamptz(3)
+  withdrawnAt     DateTime? @map("withdrawn_at") @db.Timestamptz(3)
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tournament Tournament       @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  group      TournamentGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  @@index([tournamentId])
+  @@index([clubId])
+  @@map("tournament_registrations")
+}
+
+model TournamentMatch {
+  id                String                @id @db.Uuid
+  clubId            String                @map("club_id") @db.Uuid
+  tournamentId      String                @map("tournament_id") @db.Uuid
+  stage             TournamentStage
+  groupId           String?               @map("group_id") @db.Uuid
+  /// Round inside the group, or position inside the knockout stage.
+  round             Int                   @db.SmallInt
+  /// Bracket node ("quarter:0"); null in groups.
+  bracketKey        String?               @map("bracket_key")
+  pairAId           String?               @map("pair_a_id") @db.Uuid
+  pairBId           String?               @map("pair_b_id") @db.Uuid
+  /// Where the winner goes (knockout only).
+  nextMatchId       String?               @map("next_match_id") @db.Uuid
+  nextSide          String?               @map("next_side")
+  bookingId         String?               @unique @map("booking_id") @db.Uuid
+  startsAt          DateTime              @map("starts_at") @db.Timestamptz(3)
+  endsAt            DateTime              @map("ends_at") @db.Timestamptz(3)
+  courtId           String                @map("court_id") @db.Uuid
+  status            TournamentMatchStatus @default(scheduled)
+  /// [{"team_1": 6, "team_2": 4}, ...]; team_1 is pair A.
+  sets              Json?
+  winnerPairId      String?               @map("winner_pair_id") @db.Uuid
+  reportedByUserId  String?               @map("reported_by_user_id") @db.Uuid
+  confirmedByUserId String?               @map("confirmed_by_user_id") @db.Uuid
+  confirmedAt       DateTime?             @map("confirmed_at") @db.Timestamptz(3)
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tournament Tournament       @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  group      TournamentGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  booking    Booking?         @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@index([tournamentId])
+  @@index([clubId])
+  @@map("tournament_matches")
+}
+
+/// Ranking points a player earned in a tournament (one row per player and tournament).
+model TournamentPoint {
+  id           String   @id @db.Uuid
+  clubId       String   @map("club_id") @db.Uuid
+  tournamentId String   @map("tournament_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  points       Int
+  awardedAt    DateTime @map("awarded_at") @db.Timestamptz(3)
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, userId])
+  @@index([clubId, awardedAt])
+  @@map("tournament_points")
 }
 
 /// A student asks a coach for a lesson (club in `lesson_mode: app`). Accepting books the court

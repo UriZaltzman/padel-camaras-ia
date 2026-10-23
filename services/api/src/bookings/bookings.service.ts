@@ -155,7 +155,7 @@ function toDto({ booking, playerName }: StoredBooking, court: CourtRules): Booki
     deposit_cents: depositFor(court.deposit, booking.priceCents),
     deposit_paid_cents: booking.depositPaidCents,
     cancellation_refund_hours: court.cancellationRefundHours,
-    source: booking.origin === 'block' ? 'panel' : booking.origin,
+    source: booking.origin === 'app' ? 'app' : 'panel',
     players: [
       {
         position: 1,

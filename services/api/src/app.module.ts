@@ -14,6 +14,7 @@ import { MatchesModule } from './matches/matches.module';
 import { RankingModule } from './ranking/ranking.module';
 import { PaymentsModule } from './payments/payments.module';
 import { RedisModule } from './redis/redis.module';
+import { TournamentsModule } from './tournaments/tournaments.module';
 
 @Module({})
 export class AppModule {
@@ -34,6 +35,7 @@ export class AppModule {
         RankingModule,
         CrmModule,
         PaymentsModule,
+        TournamentsModule,
         HealthModule,
       ],
     };
