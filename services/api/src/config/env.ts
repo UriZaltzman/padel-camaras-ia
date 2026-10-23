@@ -16,6 +16,10 @@ export const envSchema = z
     AUTH_OTP_SECRET: z.string().min(32).optional(),
     /** PKCS#8 PEM of the EC P-256 key that signs access tokens. Required in production. */
     AUTH_JWT_PRIVATE_KEY: z.string().min(1).optional(),
+    /** Secret that signs Mercado Pago webhooks (`x-signature`). Unset until the Mercado Pago account exists: the webhook then rejects everything. */
+    MERCADOPAGO_WEBHOOK_SECRET: z.string().min(16).optional(),
+    /** Access token of our Mercado Pago application. Unset until the account exists: checkouts then fail with PAYMENT_PROVIDER_ERROR. */
+    MERCADOPAGO_ACCESS_TOKEN: z.string().min(1).optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;
