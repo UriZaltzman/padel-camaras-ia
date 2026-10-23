@@ -39,6 +39,6 @@ import { PrismaBookingsRepository } from './prisma-bookings.repository';
       useFactory: (r: Redis) => new RedisBookingIdempotency(r),
     },
   ],
-  exports: [AvailabilityService, BookingsService, CancellationService],
+  exports: [AvailabilityService, BookingsRepository, BookingsService, CancellationService],
 })
 export class BookingsModule {}
