@@ -9,7 +9,7 @@ import { RankingService, type ClubRankingDto } from './ranking.service';
 const idSchema = z.uuid();
 const querySchema = z.object({
   category: z.enum(['1', '2', '3', '4', '5', '6', '7', '8']),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
+  limit: z.coerce.number().int().min(1).max(50).default(50),
 });
 
 @Controller('clubs')
