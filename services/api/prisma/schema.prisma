@@ -116,6 +116,8 @@ model User {
   lessonStudents     LessonStudent[] @relation("LessonStudentUser")
   coachGrantsGiven   CoachAccessGrant[] @relation("CoachGrantStudent")
   coachGrantsHeld    CoachAccessGrant[] @relation("CoachGrantCoach")
+  lessonRequestsMade     LessonRequest[] @relation("LessonRequestStudent")
+  lessonRequestsReceived LessonRequest[] @relation("LessonRequestCoach")
   notifications      Notification[]
   auditActions       AuditLog[]
 
@@ -224,6 +226,7 @@ model Club {
   lessonStudents        LessonStudent[]
   lessonNotes           LessonNote[]
   coachAccessGrants     CoachAccessGrant[]
+  lessonRequests        LessonRequest[]
   notifications         Notification[]
   auditLogs             AuditLog[]
   processingJobs        ProcessingJob[]
@@ -276,6 +279,7 @@ model Court {
   currentCalibration Calibration?       @relation("CourtCurrentCalibration", fields: [currentCalibrationId], references: [id], onDelete: SetNull)
   bookingSlotsRules  BookingSlotsRule[]
   bookings           Booking[]
+  lessonRequests     LessonRequest[]
   cameras            Camera[]
   matches            Match[]
 
@@ -1083,6 +1087,7 @@ model Lesson {
   payments Payment[]
   students LessonStudent[]
   noteRows LessonNote[]
+  request  LessonRequest?
 
   @@index([coachUserId])
   @@index([clubId])
@@ -1260,4 +1265,35 @@ model ProcessingJob {
   @@index([status, createdAt])
   @@index([clubId])
   @@map("processing_jobs")
+}
+
+/// A student asks a coach for a lesson (club in `lesson_mode: app`). Accepting books the court
+/// as a lesson and keeps its id in `lesson_id`.
+model LessonRequest {
+  id              String    @id @db.Uuid
+  clubId          String    @map("club_id") @db.Uuid
+  coachUserId     String    @map("coach_user_id") @db.Uuid
+  studentUserId   String    @map("student_user_id") @db.Uuid
+  courtId         String    @map("court_id") @db.Uuid
+  startsAt        DateTime  @map("starts_at") @db.Timestamptz(3)
+  durationMinutes Int       @map("duration_minutes")
+  message         String?
+  /// `pending`, `accepted`, `rejected` or `cancelled` (CHECK in the migration SQL).
+  status          String    @default("pending")
+  reason          String?
+  lessonId        String?   @unique @map("lesson_id") @db.Uuid
+  decidedAt       DateTime? @map("decided_at") @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club    Club    @relation(fields: [clubId], references: [id], onDelete: Restrict)
+  coach   User    @relation("LessonRequestCoach", fields: [coachUserId], references: [id], onDelete: Cascade)
+  student User    @relation("LessonRequestStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+  court   Court   @relation(fields: [courtId], references: [id], onDelete: Restrict)
+  lesson  Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+
+  @@index([clubId, status])
+  @@index([coachUserId, status])
+  @@index([studentUserId])
+  @@map("lesson_requests")
 }
