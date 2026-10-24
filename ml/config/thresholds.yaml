@@ -126,9 +126,26 @@ shot_type:
   pose_half_window_frames: 15
 
 # Section 6: point state machine and corrections.
+# inferred_event_factor: confidence multiplier when the machine had to assume an event it did
+# not see (a missing shot or bounce). anomaly_factor: same, for a duplicated hit by one pair.
+# ball_lost_factor: rule 7 points are low confidence by definition.
+# The alignment costs (layers 1 and 3) are in nats, -ln(1 - confidence) per flipped point.
 point:
   ball_lost_timeout_s: 4.0
   min_confidence: 0.7
+  serves_per_point: 2
+  reopen_window_s: 2.5
+  new_point_gap_s: 10.0
+  inferred_event_factor: 0.85
+  anomaly_factor: 0.85
+  ball_lost_factor: 0.5
+  inserted_point_confidence: 0.3
+  max_event_confidence: 0.99
+  insert_cost: 3.0
+  delete_penalty: 1.0
+  server_mismatch_cost: 2.5
+  max_inserts_per_gap: 2
+  beam_width: 250
 
 # Section 6: scoring rules.
 # points_per_game: 15, 30, 40, game. min_point_lead: advantage games and tie-breaks are won
@@ -141,6 +158,9 @@ scoring:
   min_game_lead: 2
   tiebreak_points: 7
   super_tiebreak_points: 10
+  side_change_every_games: 2
+  tiebreak_side_change_points: 6
+  tiebreak_serve_run_points: 2
 
 # Section 7: statistics (formula_version tracks changes to how these are used).
 stats:
