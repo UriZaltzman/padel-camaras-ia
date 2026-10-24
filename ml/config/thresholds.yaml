@@ -13,6 +13,11 @@ court:
   net_height_center_m: 0.88
   net_height_posts_m: 0.92
   service_line_from_net_m: 6.95
+  # Default glass-and-fence plan (spec 5.8); a court that differs loads its own SurfacePlan.
+  back_glass_height_m: 3.0
+  wall_height_m: 4.0
+  side_glass_from_back_m: 4.0
+  ball_radius_m: 0.0335
 
 # Section 5.1: calibration.
 calibration:
@@ -20,6 +25,12 @@ calibration:
   max_mean_error_cm: 5.0
   daily_check_local_hour: 7
   court_mask_margin_m: 1.5
+  # RANSAC inlier distance on the undistorted image, and its confidence and iteration cap.
+  ransac_reproj_threshold_px: 5.0
+  ransac_confidence: 0.995
+  ransac_max_iters: 2000
+  # Daily check: the stored calibration moved if the reference lines are this far off.
+  drift_max_mean_shift_cm: 10.0
 
 # Section 5.2: player detection.
 players:
@@ -38,6 +49,39 @@ ball:
   input_frames: 3
   min_heatmap_peak: 0.5
   kalman_max_gap_frames: 10
+  gravity_mps2: 9.81
+
+# Section 5.5: per-camera smoothing of the ball track (constant-acceleration Kalman + RTS).
+# Works on undistorted pixels. gate_sigma is the Mahalanobis distance above which a detection
+# is an impossible jump. After reset_after_rejections in a row the track restarts there.
+ball_track:
+  measurement_sigma_px: 1.5
+  process_accel_sigma_px_s2: 5000.0
+  min_segment_points: 3
+  # Fastest plausible ball in the image (about 40 m/s at 4 m from the lens). Detections that
+  # imply more are false, and a new track starts only on two detections that agree.
+  max_speed_px_s: 9000.0
+  # The two detections that start a track are at most this many frames apart.
+  start_max_gap_frames: 2
+  gate_sigma: 6.0
+  reset_after_rejections: 3
+  min_confidence: 0.3
+  initial_velocity_sigma_px_s: 3000.0
+  initial_acceleration_sigma_px_s2: 60000.0
+
+# Section 5 (geometry, 5.5): two-camera alignment and triangulation.
+triangulation:
+  min_confidence: 0.5
+  sync_search_ms: 100.0
+  sync_step_ms: 1.0
+  sync_min_pairs: 20
+  min_ray_angle_deg: 6.0
+  max_ray_gap_m: 0.6
+  min_height_m: -0.3
+  max_height_m: 12.0
+  max_time_gap_ms: 40.0
+  max_bridge_ms: 400.0
+  height_tolerance_m: 0.35
 
 # Section 5.6: pose, only around candidate shots.
 pose:
@@ -48,6 +92,33 @@ pose:
 shots:
   min_direction_change_deg: 35.0
   max_wrist_distance_m: 1.2
+  # Velocity is fitted on each side of a candidate over this window, leaving out guard_ms.
+  fit_window_ms: 250.0
+  fit_guard_ms: 40.0
+  min_fit_points: 3
+  min_speed_change_share: 0.35
+  min_speed_for_direction_mps: 2.0
+  min_separation_ms: 250.0
+  wrist_time_slack_ms: 60.0
+  # Kinks this close to a surface contact are the same event seen through noise, not shots.
+  contact_exclusion_ms: 100.0
+
+# Section 5.8: bounce detection and surface classification.
+bounces:
+  fit_window_ms: 250.0
+  fit_guard_ms: 40.0
+  min_fit_points: 3
+  min_normal_speed_change_mps: 4.4
+  surface_tolerance_m: 0.35
+  floor_tolerance_m: 0.3
+  min_separation_ms: 120.0
+  net_height_margin_m: 0.25
+  net_residual_speed_share: 0.4
+  # |dv . n| / |dv|: how much of the velocity change is along the surface normal.
+  min_normal_alignment: 0.6
+  # With at least this share of 3D frames the setup is dual-camera: kinks that only have a
+  # floor position (one camera blind for a while) are too unreliable to call bounces.
+  min_dual_camera_3d_share: 0.5
 
 # Section 5.9: shot-type classifier.
 shot_type:

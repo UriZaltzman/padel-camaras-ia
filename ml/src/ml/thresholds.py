@@ -35,6 +35,10 @@ class CourtGeometry(_Section):
     net_height_center_m: PositiveFloat
     net_height_posts_m: PositiveFloat
     service_line_from_net_m: PositiveFloat
+    back_glass_height_m: PositiveFloat
+    wall_height_m: PositiveFloat
+    side_glass_from_back_m: PositiveFloat
+    ball_radius_m: PositiveFloat
 
 
 class CalibrationThresholds(_Section):
@@ -42,6 +46,10 @@ class CalibrationThresholds(_Section):
     max_mean_error_cm: PositiveFloat
     daily_check_local_hour: Annotated[int, Field(ge=0)]
     court_mask_margin_m: PositiveFloat
+    ransac_reproj_threshold_px: PositiveFloat
+    ransac_confidence: Share
+    ransac_max_iters: PositiveInt
+    drift_max_mean_shift_cm: PositiveFloat
 
 
 class PlayerThresholds(_Section):
@@ -60,6 +68,34 @@ class BallThresholds(_Section):
     input_frames: PositiveInt
     min_heatmap_peak: Share
     kalman_max_gap_frames: PositiveInt
+    gravity_mps2: PositiveFloat
+
+
+class BallTrackThresholds(_Section):
+    measurement_sigma_px: PositiveFloat
+    process_accel_sigma_px_s2: PositiveFloat
+    min_segment_points: PositiveInt
+    max_speed_px_s: PositiveFloat
+    start_max_gap_frames: PositiveInt
+    gate_sigma: PositiveFloat
+    reset_after_rejections: PositiveInt
+    min_confidence: Share
+    initial_velocity_sigma_px_s: PositiveFloat
+    initial_acceleration_sigma_px_s2: PositiveFloat
+
+
+class TriangulationThresholds(_Section):
+    min_confidence: Share
+    sync_search_ms: PositiveFloat
+    sync_step_ms: PositiveFloat
+    sync_min_pairs: PositiveInt
+    min_ray_angle_deg: PositiveFloat
+    max_ray_gap_m: PositiveFloat
+    min_height_m: float
+    max_height_m: PositiveFloat
+    max_time_gap_ms: PositiveFloat
+    max_bridge_ms: PositiveFloat
+    height_tolerance_m: PositiveFloat
 
 
 class PoseThresholds(_Section):
@@ -70,6 +106,28 @@ class PoseThresholds(_Section):
 class ShotThresholds(_Section):
     min_direction_change_deg: PositiveFloat
     max_wrist_distance_m: PositiveFloat
+    fit_window_ms: PositiveFloat
+    fit_guard_ms: PositiveFloat
+    min_fit_points: PositiveInt
+    min_speed_change_share: Share
+    min_speed_for_direction_mps: PositiveFloat
+    min_separation_ms: PositiveFloat
+    wrist_time_slack_ms: PositiveFloat
+    contact_exclusion_ms: PositiveFloat
+
+
+class BounceThresholds(_Section):
+    fit_window_ms: PositiveFloat
+    fit_guard_ms: PositiveFloat
+    min_fit_points: PositiveInt
+    min_normal_speed_change_mps: PositiveFloat
+    surface_tolerance_m: PositiveFloat
+    floor_tolerance_m: PositiveFloat
+    min_separation_ms: PositiveFloat
+    net_height_margin_m: PositiveFloat
+    net_residual_speed_share: Share
+    min_normal_alignment: Share
+    min_dual_camera_3d_share: Share
 
 
 class ShotTypeThresholds(_Section):
@@ -198,8 +256,11 @@ class Thresholds(_Section):
     players: PlayerThresholds
     tracking: TrackingThresholds
     ball: BallThresholds
+    ball_track: BallTrackThresholds
+    triangulation: TriangulationThresholds
     pose: PoseThresholds
     shots: ShotThresholds
+    bounces: BounceThresholds
     shot_type: ShotTypeThresholds
     point: PointThresholds
     scoring: ScoringRules
