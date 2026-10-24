@@ -93,10 +93,16 @@ def advance(state: MatchState, team: Team, rules: ScoringRules, fmt: MatchFormat
             changes += 1
     elif was_tiebreak and sum(tracker.points) % rules.tiebreak_side_change_points == 0:
         changes += 1
+    points = tracker.points
+    if not tracker.tiebreak and min(points) >= rules.points_per_game:
+        # Advantage games repeat: 5-5 plays like 3-3. Collapsing them keeps the state space
+        # finite for the alignment (a tie-break never collapses: its server depends on the total).
+        back = min(points) - (rules.points_per_game - 1)
+        points = (points[0] - back, points[1] - back)
     return MatchState(
         sets=tuple(tracker.sets),
         games=tracker.games,
-        points=tracker.points,
+        points=points,
         tiebreak=tracker.tiebreak,
         super_tiebreak=tracker.super_tiebreak,
         winner=tracker.winner,

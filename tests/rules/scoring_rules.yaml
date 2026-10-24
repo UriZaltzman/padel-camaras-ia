@@ -28,7 +28,7 @@
 - id: advantage-lost-returns-to-deuce
   rule: marcador/ventaja
   winners: "11122212"
-  expect: {points: [4, 4], deuce: true}
+  expect: {points: [3, 3], deuce: true}
 
 - id: advantage-converted-wins-the-game
   rule: marcador/ventaja

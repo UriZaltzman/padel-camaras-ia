@@ -77,10 +77,14 @@ def test_state_agrees_with_the_reference_scorer(seed: int) -> None:
     for i, winner in enumerate(winners, start=1):
         state = advance(state, winner, RULES, fmt)
         ref = reconstruct_score(winners[:i], RULES, fmt)
+        points = ref.points
+        if not ref.tiebreak and min(points) >= RULES.points_per_game:
+            back = min(points) - (RULES.points_per_game - 1)  # repeated deuces collapse
+            points = (points[0] - back, points[1] - back)
         assert (state.sets, state.games, state.points, state.winner) == (
             ref.sets,
             ref.games,
-            ref.points,
+            points,
             ref.winner,
         )
 

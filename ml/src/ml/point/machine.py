@@ -17,9 +17,11 @@ player attribution inside a pair never changes who the point is given to.
 
 from __future__ import annotations
 
+from copy import copy
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import StrEnum
+from typing import Any
 
 from ml.labels import PointEndReason, Team
 from ml.point.events import (
@@ -44,6 +46,8 @@ class Phase(StrEnum):
     SERVE_FLIGHT = "serve_flight"
     SERVE_RETRY = "serve_retry"
     RALLY = "rally"
+    PENDING = "pending"
+    """A rule closed the point; it is final only if no shot follows within the reopen window."""
 
 
 def _other(team: Team) -> Team:
@@ -68,6 +72,9 @@ class PointMachine:
     _start_ms: int = 0
     _last_ms: int = 0
     _sides: dict[Team, CourtSide] = field(default_factory=dict)
+    """Roles, not pairs: ``ONE`` is the side of the first shot (the server), ``TWO`` the other."""
+    _votes: dict[tuple[CourtSide, Team], int] = field(default_factory=dict)
+    """How many shots each pair hit from each side; decides which pair is which role."""
     _server: Team | None = None
     _server_player: Position | None = None
     _faults: int = 0
@@ -79,12 +86,22 @@ class PointMachine:
     _factor: float = 1.0
     _last: EventRef | None = None
     _last_was_shot: bool = False
+    _pending: RawPoint | None = None
+    _before: dict[str, Any] | None = None
+    _before_event: dict[str, Any] = field(default_factory=dict)
 
     # ------------------------------------------------------------------ public
 
     def feed(self, event: RallyEvent) -> list[RawPoint]:
         """Process one event; returns the points it closed (zero, one or two)."""
         before = len(self._results)
+        if self.phase is Phase.PENDING:
+            if isinstance(event, ShotIn) and self._within_reopen_window(event.time_ms):
+                self._reopen()
+            elif self._within_reopen_window(event.time_ms):
+                return []  # the ball is still bouncing after the point ended
+            else:
+                self._finalize()
         if self.phase in {Phase.SERVE_FLIGHT, Phase.RALLY} and self._timed_out(event.time_ms):
             self._close_lost()
         if isinstance(event, ShotIn):
@@ -93,9 +110,18 @@ class PointMachine:
             self._on_bounce(event)
         return self._results[before:]
 
+    def flush(self) -> list[RawPoint]:
+        """Make final a point that a rule closed and that no shot has reopened yet."""
+        before = len(self._results)
+        if self.phase is Phase.PENDING:
+            self._finalize()
+        return self._results[before:]
+
     def finish(self, end_ms: int | None = None) -> list[RawPoint]:
         """Close a point left open when the recording ends (rule 7)."""
         before = len(self._results)
+        if self.phase is Phase.PENDING:
+            self._finalize()
         if self.phase in {Phase.SERVE_FLIGHT, Phase.RALLY} and (
             end_ms is None or self._timed_out(end_ms)
         ):
@@ -103,6 +129,47 @@ class PointMachine:
         return self._results[before:]
 
     # ------------------------------------------------------------------ helpers
+
+    def _within_reopen_window(self, now_ms: int) -> bool:
+        return now_ms - self._last_ms <= self.thresholds.reopen_window_s * MS_PER_S
+
+    _SNAPSHOT_FIELDS = (
+        "phase",
+        "_start_ms",
+        "_last_ms",
+        "_sides",
+        "_votes",
+        "_server",
+        "_server_player",
+        "_faults",
+        "_hitter",
+        "_rival_floor",
+        "_net_pending",
+        "_serving",
+        "_chain",
+        "_factor",
+        "_last",
+        "_last_was_shot",
+    )
+
+    def _snapshot(self) -> dict[str, Any]:
+        return {name: copy(getattr(self, name)) for name in self._SNAPSHOT_FIELDS}
+
+    def _reopen(self) -> None:
+        """A shot followed the closing event: it was misread, play on without it."""
+        assert self._before is not None  # noqa: S101 - PENDING always has a snapshot
+        for name, value in self._before.items():
+            setattr(self, name, value)
+        self._factor *= self.thresholds.anomaly_factor
+        self._pending = None
+        self._before = None
+
+    def _finalize(self) -> None:
+        assert self._pending is not None  # noqa: S101 - PENDING always has a point
+        self._results.append(self._pending)
+        self._pending = None
+        self._before = None
+        self._reset()
 
     def _timed_out(self, now_ms: int) -> bool:
         return now_ms - self._last_ms > self.thresholds.ball_lost_timeout_s * MS_PER_S
@@ -130,6 +197,21 @@ class PointMachine:
         self._last_was_shot = False
         self._server = None
         self._server_player = None
+        self._votes = {}
+
+    def _role_team(self, role: Team) -> Team:
+        """The pair playing ``role``: majority of the shots hit from that side of the court."""
+        side = self._sides[Team.ONE]
+        score = {
+            team: self._votes.get((side, team), 0)
+            + self._votes.get((_opposite(side), _other(team)), 0)
+            for team in Team
+        }
+        if score[Team.ONE] == score[Team.TWO] and self._server_player is not None:
+            first = self.team_of[self._server_player]
+        else:
+            first = max(score, key=lambda team: score[team])
+        return first if role is Team.ONE else _other(first)
 
     def _confidence(self, factor: float = 1.0) -> float:
         value = self._factor * factor
@@ -137,22 +219,28 @@ class PointMachine:
             value *= c
         return min(1.0, max(0.0, value))
 
-    def _close(self, loser: Team, reason: PointEndReason, *, factor: float = 1.0) -> None:
-        server = self._server
-        self._results.append(
-            RawPoint(
-                start_ms=self._start_ms,
-                end_ms=max(self._last_ms, self._start_ms + 1),
-                winner=_other(loser),
-                reason=reason,
-                confidence=self._confidence(factor),
-                serve_faults=min(self._faults, self.thresholds.serves_per_point),
-                server_player=self._server_player,
-                server_team=server,
-                deciding_event=self._last,
-            )
+    def _close(
+        self, loser: Team, reason: PointEndReason, *, factor: float = 1.0, final: bool = False
+    ) -> None:
+        server = self._role_team(Team.ONE) if self._server is not None else None
+        point = RawPoint(
+            start_ms=self._start_ms,
+            end_ms=max(self._last_ms, self._start_ms + 1),
+            winner=self._role_team(_other(loser)),
+            reason=reason,
+            confidence=self._confidence(factor),
+            serve_faults=min(self._faults, self.thresholds.serves_per_point),
+            server_player=self._server_player,
+            server_team=server,
+            deciding_event=self._last,
         )
-        self._reset()
+        if final:
+            self._results.append(point)
+            self._reset()
+            return
+        self._pending = point
+        self._before = self._before_event
+        self.phase = Phase.PENDING
 
     def _close_lost(self) -> None:
         """Rule 7: decide by the last valid event; the point is low confidence."""
@@ -165,27 +253,51 @@ class PointMachine:
             loser = hitter
         else:
             loser = _other(hitter)
-        self._close(loser, PointEndReason.BALL_LOST, factor=self.thresholds.ball_lost_factor)
+        self._close(
+            loser, PointEndReason.BALL_LOST, factor=self.thresholds.ball_lost_factor, final=True
+        )
 
     # ------------------------------------------------------------------ shots
 
     def _on_shot(self, shot: ShotIn) -> None:
         if self.phase is Phase.IDLE:
-            self._open_point(shot)
+            silent = shot.time_ms - self._last_ms > self.thresholds.new_point_gap_s * MS_PER_S
+            if shot.is_serve:
+                self._open_point(shot)
+            elif silent or self.options.open_point_without_serve_flag:
+                self._open_rally(shot)
         elif self.phase is Phase.SERVE_RETRY:
             self._second_serve(shot)
         elif self.phase is Phase.SERVE_FLIGHT:
             self._shot_during_serve(shot)
         else:
             self._shot_in_rally(shot)
+        if self.phase is not Phase.IDLE:
+            key = (shot.side, self.team_of[shot.player])
+            self._votes[key] = self._votes.get(key, 0) + 1
+
+    def _open_rally(self, shot: ShotIn) -> None:
+        """The serve was not seen: start in mid-rally, with no server to check."""
+        self._sides = {Team.ONE: shot.side, Team.TWO: _opposite(shot.side)}
+        self._server = None
+        self._server_player = None
+        self._start_ms = shot.time_ms
+        self.phase = Phase.RALLY
+        self._hitter = Team.ONE
+        self._rival_floor = 0
+        self._net_pending = False
+        self._serving = False
+        self._chain = []
+        self._factor = self.thresholds.inferred_event_factor
+        self._touch(shot)
+        self._last_was_shot = True
 
     def _open_point(self, shot: ShotIn) -> None:
-        team = self.team_of[shot.player]
-        self._sides = {team: shot.side, _other(team): _opposite(shot.side)}
-        self._server = team
+        self._sides = {Team.ONE: shot.side, Team.TWO: _opposite(shot.side)}
+        self._server = Team.ONE
         self._server_player = shot.player
         self._start_ms = shot.time_ms
-        self._begin_serve(shot, team)
+        self._begin_serve(shot, Team.ONE)
 
     def _begin_serve(self, shot: ShotIn, team: Team) -> None:
         self.phase = Phase.SERVE_FLIGHT
@@ -255,6 +367,7 @@ class PointMachine:
     def _on_bounce(self, bounce: BounceIn) -> None:
         if self.phase in {Phase.IDLE, Phase.SERVE_RETRY}:
             return  # nothing in play: a stray detection
+        self._before_event = self._snapshot()
         if self.phase is Phase.SERVE_FLIGHT:
             self._bounce_during_serve(bounce)
         else:

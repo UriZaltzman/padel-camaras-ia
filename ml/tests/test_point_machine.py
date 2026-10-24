@@ -32,8 +32,7 @@ def run_case(case: dict[str, Any]) -> list[RawPoint]:
     points: list[RawPoint] = []
     for event in parse_events(case["events"]):
         points += machine.feed(event)
-    if "finish" in case:
-        points += machine.finish(case["finish"])
+    points += machine.finish(case["finish"]) if "finish" in case else machine.flush()
     return points
 
 

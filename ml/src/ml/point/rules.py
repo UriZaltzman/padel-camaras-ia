@@ -49,3 +49,5 @@ class RuleOptions(BaseModel):
     """A8: a "faulted" serve that the receiver then hit was probably a good one."""
     serve_without_bounce_is_good: bool = True
     """A9: the receiver hit the serve and no bounce was seen: assume a good bounce."""
+    open_point_without_serve_flag: bool = False
+    """A10: a shot that is not classified as a serve may open a point (spec: only a serve does)."""

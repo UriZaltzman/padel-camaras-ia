@@ -81,6 +81,8 @@ class PointThresholds(_Section):
     ball_lost_timeout_s: PositiveFloat
     min_confidence: Share
     serves_per_point: PositiveInt
+    reopen_window_s: PositiveFloat
+    new_point_gap_s: PositiveFloat
     inferred_event_factor: Share
     anomaly_factor: Share
     ball_lost_factor: Share
@@ -88,6 +90,7 @@ class PointThresholds(_Section):
     max_event_confidence: Share
     insert_cost: PositiveFloat
     delete_penalty: PositiveFloat
+    server_mismatch_cost: PositiveFloat
     max_inserts_per_gap: PositiveInt
     beam_width: PositiveInt
 
