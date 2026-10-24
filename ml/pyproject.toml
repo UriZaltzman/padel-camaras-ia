@@ -38,7 +38,7 @@ extend = "../packages/config/ruff.toml"
 [tool.ruff.lint.extend-per-file-ignores]
 # The shared "**/tests/**" pattern resolves relative to packages/config, so it does not
 # reach ml/tests; repeat it here.
-"tests/**" = ["S101", "PLR2004", "ANN"]
+"tests/**" = ["S101", "S311", "PLR2004", "ANN"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

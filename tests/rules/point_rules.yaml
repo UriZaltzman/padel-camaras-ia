@@ -1,0 +1,340 @@
+# Hand-written padel point cases (issue #138, spec section 14 "Reglas del pádel").
+# Format of the events: see ml/tests/rules_dsl.py. Pair 1 = players 1, 2 on side A;
+# pair 2 = players 3, 4 on side B. "rule" cites the row of spec section 6 (R1..R7) or the
+# ambiguity id (A1..A9) of docs/ml/rules-ambiguities.md that the case exercises.
+# "expect" lists the points that must be closed, in order; "options" overrides RuleOptions.
+# "finish" is the recording end (ms) passed to the machine; without it the stream just stops.
+
+- id: serve-out-of-box-then-good-serve-wins-on-double-bounce
+  rule: R1
+  events: [serve 1 @0, floor B nobox @600, serve 1 @15000, floor B box @15600, floor B @16400]
+  expect: [{ winner: 1, reason: double_bounce, faults: 1 }]
+
+- id: two-serves-out-of-box-is-a-double-fault
+  rule: R1
+  events: [serve 1 @0, floor B nobox @600, serve 1 @15000, floor B nobox @15600]
+  expect: [{ winner: 2, reason: double_fault, faults: 2 }]
+
+- id: serve-touches-net-is-a-fault-spec-reading
+  rule: R1/A1
+  events: [serve 1 @0, net @500, serve 1 @15000, floor B box @15600, floor B @16400]
+  expect: [{ winner: 1, reason: double_bounce, faults: 1 }]
+
+- id: serve-touches-net-twice-is-a-double-fault
+  rule: R1/A1
+  events: [serve 2 @0, net @500, serve 2 @15000, net @15500]
+  expect: [{ winner: 2, reason: double_fault, faults: 2 }]
+
+- id: serve-net-let-option-replays-without-fault
+  rule: A1
+  options: { serve_net_contact: let }
+  events: [serve 1 @0, net @500, floor B box @700, floor B @1500]
+  expect: [{ winner: 1, reason: double_bounce, faults: 0 }]
+
+- id: serve-bounces-on-own-half-is-a-fault
+  rule: R1
+  events: [serve 1 @0, floor A box @500, serve 1 @15000, floor A box @15500]
+  expect: [{ winner: 2, reason: double_fault, faults: 2 }]
+
+- id: serve-hits-glass-before-bouncing-is-a-fault
+  rule: R1
+  events: [serve 1 @0, back_glass B @500, serve 1 @15000, side_glass B @15500]
+  expect: [{ winner: 2, reason: double_fault, faults: 2 }]
+
+- id: serve-leaves-court-without-bouncing-is-a-fault
+  rule: R1
+  events: [serve 1 @0, out B @500, serve 1 @15000, floor B box @15500, floor B @16300]
+  expect: [{ winner: 1, reason: double_bounce, faults: 1 }]
+
+- id: serve-hits-fence-after-bounce-is-a-fault
+  rule: R1/A2
+  events:
+    [serve 1 @0, floor B box @500, fence B @900, serve 1 @15000, floor B box @15500, floor B @16300]
+  expect: [{ winner: 1, reason: double_bounce, faults: 1 }]
+
+- id: serve-hits-fence-after-bounce-twice-is-a-double-fault
+  rule: R1/A2
+  events:
+    [serve 1 @0, floor B box @500, fence B @900, serve 1 @15000, floor B box @15500, fence B @15900]
+  expect: [{ winner: 2, reason: double_fault, faults: 2 }]
+
+- id: serve-hits-glass-after-bounce-is-good
+  rule: R1/A2
+  events: [serve 1 @0, floor B box @500, back_glass B @900, floor B @1300]
+  expect: [{ winner: 1, reason: double_bounce, faults: 0 }]
+
+- id: fence-option-off-lets-the-serve-hit-the-fence
+  rule: A2
+  options: { serve_fault_walls: [] }
+  events: [serve 1 @0, floor B box @500, fence B @900, floor B @1300]
+  expect: [{ winner: 1, reason: double_bounce, faults: 0 }]
+
+- id: serve-without-box-information-is-accepted
+  rule: R1
+  events: [serve 1 @0, floor B @500, floor B @1300]
+  expect: [{ winner: 1, reason: double_bounce, faults: 0 }]
+
+- id: ace-over-the-glass-after-a-good-bounce
+  rule: R6
+  events: [serve 1 @0, floor B box @500, out B @900]
+  expect: [{ winner: 1, reason: out_of_court, faults: 0 }]
+
+- id: pair-two-serves-from-side-b
+  rule: R1
+  events: [serve 3 @0, floor A box @500, floor A @1300]
+  expect: [{ winner: 2, reason: double_bounce, faults: 0 }]
+
+- id: partner-serves-the-same-point-for-the-pair
+  rule: R1
+  events: [serve 2 @0, floor B box @500, floor B @1300]
+  expect: [{ winner: 1, reason: double_bounce, faults: 0 }]
+
+- id: receiver-returns-a-serve-called-a-fault
+  rule: A8
+  events: [serve 1 @0, floor B nobox @500, hit 3 @1200, floor A @1700, floor A @2500]
+  expect: [{ winner: 2, reason: double_bounce, faults: 0 }]
+
+- id: receiver-volleys-the-serve-with-no-bounce-seen
+  rule: A9
+  events: [serve 1 @0, hit 3 @900, floor A @1400, floor A @2200]
+  expect: [{ winner: 2, reason: double_bounce, faults: 0 }]
+
+- id: hit-ball-lands-on-own-floor-before-the-net
+  rule: R2
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, floor B @1700]
+  expect: [{ winner: 1, reason: own_floor, faults: 0 }]
+
+- id: pair-one-hits-into-its-own-floor
+  rule: R2
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, floor A @1700, hit 1 @2400, floor A @2800]
+  expect: [{ winner: 2, reason: own_floor, faults: 0 }]
+
+- id: own-wall-then-own-floor-is-still-rule-2
+  rule: R2/A3
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, back_glass B @1600, floor B @1900]
+  expect: [{ winner: 1, reason: own_floor, faults: 0 }]
+
+- id: hit-ball-stops-in-the-net
+  rule: R3
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, net @1700, floor B @1900]
+  expect: [{ winner: 1, reason: net, faults: 0 }]
+
+- id: net-cord-that-crosses-is-good
+  rule: R3/A4
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, net @1700, floor A @1900, floor A @2700]
+  expect: [{ winner: 2, reason: double_bounce, faults: 0 }]
+
+- id: net-cord-option-off-loses-the-hitter
+  rule: A4
+  options: { net_cord_valid_in_rally: false }
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, net @1700, floor A @1900]
+  expect: [{ winner: 1, reason: net, faults: 0 }]
+
+- id: net-then-ball-lost-loses-the-hitter
+  rule: R3/R7
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, net @1700]
+  finish: 9000
+  expect: [{ winner: 1, reason: ball_lost, faults: 0 }]
+
+- id: ball-touches-net-and-rival-volleys
+  rule: R3
+  events:
+    [
+      serve 1 @0,
+      floor B box @500,
+      hit 3 @1300,
+      net @1700,
+      hit 1 @2100,
+      floor B @2500,
+      floor B @3300,
+    ]
+  expect: [{ winner: 1, reason: double_bounce, faults: 0 }]
+
+- id: crossed-ball-hits-back-glass-before-the-floor
+  rule: R4
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, back_glass A @1700]
+  expect: [{ winner: 1, reason: direct_wall, faults: 0 }]
+
+- id: crossed-ball-hits-side-glass-before-the-floor
+  rule: R4
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, side_glass A @1700]
+  expect: [{ winner: 1, reason: direct_wall, faults: 0 }]
+
+- id: crossed-ball-hits-the-fence-before-the-floor
+  rule: R4
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, fence A @1700]
+  expect: [{ winner: 1, reason: direct_wall, faults: 0 }]
+
+- id: crossed-ball-leaves-the-court-without-bouncing
+  rule: R4/A7
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, out A @1700]
+  expect: [{ winner: 1, reason: direct_wall, faults: 0 }]
+
+- id: out-before-bounce-option-off-keeps-the-point-open
+  rule: A7
+  options: { out_before_floor_loses_hitter: false }
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, out A @1700]
+  expect: []
+
+- id: contrapared-is-valid-then-double-bounce
+  rule: A3
+  events:
+    [serve 1 @0, floor B box @500, hit 3 @1300, back_glass B @1500, floor A @1900, floor A @2700]
+  expect: [{ winner: 2, reason: double_bounce, faults: 0 }]
+
+- id: contrapared-off-option-loses-the-hitter
+  rule: A3
+  options: { contrapared_valid: false }
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, back_glass B @1500, floor A @1900]
+  expect: [{ winner: 1, reason: own_floor, faults: 0 }]
+
+- id: side-contrapared-is-valid
+  rule: A3
+  events:
+    [
+      serve 1 @0,
+      floor B box @500,
+      hit 3 @1300,
+      side_glass B @1500,
+      floor A @1900,
+      hit 1 @2500,
+      floor B @2900,
+      floor B @3700,
+    ]
+  expect: [{ winner: 1, reason: double_bounce, faults: 0 }]
+
+- id: rival-floor-then-wall-keeps-the-point-alive
+  rule: R5/A5
+  events:
+    [
+      serve 1 @0,
+      floor B box @500,
+      hit 3 @1300,
+      floor A @1700,
+      back_glass A @2000,
+      hit 1 @2400,
+      floor B @2900,
+      floor B @3700,
+    ]
+  expect: [{ winner: 1, reason: double_bounce, faults: 0 }]
+
+- id: rival-floor-wall-floor-is-a-double-bounce
+  rule: R5
+  events:
+    [serve 1 @0, floor B box @500, hit 3 @1300, floor A @1700, back_glass A @2000, floor A @2400]
+  expect: [{ winner: 2, reason: double_bounce, faults: 0 }]
+
+- id: two-floor-bounces-on-the-rival-half
+  rule: R5
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, floor A @1700, floor A @2500]
+  expect: [{ winner: 2, reason: double_bounce, faults: 0 }]
+
+- id: rival-wall-option-off-closes-the-point-on-the-wall
+  rule: A5
+  options: { wall_after_rival_floor_valid: false }
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, floor A @1700, fence A @2000]
+  expect: [{ winner: 2, reason: out_of_court, faults: 0 }]
+
+- id: ball-leaves-over-the-glass-after-the-rival-floor
+  rule: R6
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, floor A @1700, out A @2100]
+  expect: [{ winner: 2, reason: out_of_court, faults: 0 }]
+
+- id: ball-leaves-through-the-door-after-the-rival-floor
+  rule: R6
+  events:
+    [serve 1 @0, floor B box @500, hit 3 @1300, floor A @1700, side_glass A @1900, out B @2200]
+  expect: [{ winner: 2, reason: out_of_court, faults: 0 }]
+
+- id: pair-one-smash-leaves-after-pair-two-floor
+  rule: R6
+  events:
+    [
+      serve 1 @0,
+      floor B box @500,
+      hit 3 @1300,
+      floor A @1700,
+      hit 1 @2200,
+      floor B @2600,
+      out B @3000,
+    ]
+  expect: [{ winner: 1, reason: out_of_court, faults: 0 }]
+
+- id: ball-never-seen-after-rival-floor-hitter-wins
+  rule: R7
+  events: [serve 1 @0, floor B box @500, hit 3 @1300, floor A @1700]
+  finish: 12000
+  expect: [{ winner: 2, reason: ball_lost, faults: 0 }]
+
+- id: ball-never-seen-after-a-shot-hitter-loses
+  rule: R7/A6
+  events: [serve 1 @0, floor B box @500, hit 3 @1300]
+  finish: 12000
+  expect: [{ winner: 1, reason: ball_lost, faults: 0 }]
+
+- id: ball-never-seen-after-a-shot-option-hitter-wins
+  rule: A6
+  options: { lost_after_shot: hitter_wins }
+  events: [serve 1 @0, floor B box @500, hit 3 @1300]
+  finish: 12000
+  expect: [{ winner: 2, reason: ball_lost, faults: 0 }]
+
+- id: gap-of-exactly-four-seconds-is-not-a-lost-ball
+  rule: R7
+  events: [serve 1 @0, floor B box @500, hit 3 @1000, floor A @5000]
+  finish: 5500
+  expect: []
+
+- id: gap-over-four-seconds-is-a-lost-ball
+  rule: R7
+  events: [serve 1 @0, floor B box @500, hit 3 @1000, floor A @5001]
+  expect: [{ winner: 1, reason: ball_lost, faults: 0 }]
+
+- id: next-serve-after-a-lost-ball-starts-a-new-point
+  rule: R7
+  events:
+    [
+      serve 1 @0,
+      floor B box @500,
+      hit 3 @1300,
+      floor A @1700,
+      serve 1 @20000,
+      floor B box @20500,
+      floor B @21300,
+    ]
+  expect:
+    [{ winner: 2, reason: ball_lost, faults: 0 }, { winner: 1, reason: double_bounce, faults: 0 }]
+
+- id: unseen-return-is-inferred-from-the-landing
+  rule: R5
+  events: [serve 1 @0, floor B box @500, floor A @1500, floor A @2300]
+  expect: [{ winner: 2, reason: double_bounce, faults: 0 }]
+
+- id: unseen-return-that-hits-the-net-is-the-rivals-error
+  rule: R3/R7
+  events: [serve 1 @0, floor B box @500, net @1500]
+  finish: 12000
+  expect: [{ winner: 1, reason: ball_lost, faults: 0 }]
+
+- id: long-rally-ends-on-a-double-bounce
+  rule: R5
+  events:
+    [
+      serve 1 @0,
+      floor B box @500,
+      hit 3 @1300,
+      floor A @1700,
+      hit 1 @2300,
+      floor B @2700,
+      hit 4 @3300,
+      floor A @3700,
+      hit 2 @4300,
+      floor B @4700,
+      floor B @5500,
+    ]
+  expect: [{ winner: 1, reason: double_bounce, faults: 0 }]
+
+- id: stray-bounce-before-any-serve-is-ignored
+  rule: R1
+  events: [floor A @100, serve 1 @5000, floor B box @5500, floor B @6300]
+  expect: [{ winner: 1, reason: double_bounce, faults: 0 }]
