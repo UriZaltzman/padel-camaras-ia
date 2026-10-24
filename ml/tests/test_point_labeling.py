@@ -247,13 +247,7 @@ def test_super_tiebreak_decides_the_third_set() -> None:
 
 def test_rules_come_from_the_config() -> None:
     short = ScoringRules(
-        points_per_game=RULES.points_per_game,
-        min_point_lead=RULES.min_point_lead,
-        sets_to_win=1,
-        games_per_set=1,
-        min_game_lead=1,
-        tiebreak_points=RULES.tiebreak_points,
-        super_tiebreak_points=RULES.super_tiebreak_points,
+        **{**RULES.model_dump(), "sets_to_win": 1, "games_per_set": 1, "min_game_lead": 1}
     )
     assert reconstruct_score(_game(TWO), short, MatchFormat()).winner is TWO
 
