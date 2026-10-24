@@ -7,190 +7,190 @@
 
 - id: love-fifteen-thirty-forty-calls
   rule: marcador/15-30-40
-  winners: "1112"
-  expect: {points: [3, 1], calls: [forty, fifteen], games: [0, 0], server: 1}
+  winners: '1112'
+  expect: { points: [3, 1], calls: [forty, fifteen], games: [0, 0], server: 1 }
 
 - id: game-won-at-four-points-with-two-ahead
   rule: marcador/game
-  winners: "1111"
-  expect: {games: [1, 0], points: [0, 0], server: 3, swaps: 1}
+  winners: '1111'
+  expect: { games: [1, 0], points: [0, 0], server: 3, swaps: 1 }
 
 - id: deuce-at-forty-all
   rule: marcador/40-iguales
-  winners: "111222"
-  expect: {points: [3, 3], deuce: true, games: [0, 0]}
+  winners: '111222'
+  expect: { points: [3, 3], deuce: true, games: [0, 0] }
 
 - id: advantage-then-back-to-deuce
   rule: marcador/ventaja
-  winners: "1112221"
-  expect: {points: [4, 3], calls: [advantage, forty], games: [0, 0]}
+  winners: '1112221'
+  expect: { points: [4, 3], calls: [advantage, forty], games: [0, 0] }
 
 - id: advantage-lost-returns-to-deuce
   rule: marcador/ventaja
-  winners: "11122212"
-  expect: {points: [3, 3], deuce: true}
+  winners: '11122212'
+  expect: { points: [3, 3], deuce: true }
 
 - id: advantage-converted-wins-the-game
   rule: marcador/ventaja
-  winners: "11122211"
-  expect: {games: [1, 0], points: [0, 0]}
+  winners: '11122211'
+  expect: { games: [1, 0], points: [0, 0] }
 
 - id: golden-point-decides-at-forty-all
   rule: marcador/punto-de-oro
-  format: {golden: true}
-  winners: "1112221"
-  expect: {games: [1, 0], points: [0, 0]}
+  format: { golden: true }
+  winners: '1112221'
+  expect: { games: [1, 0], points: [0, 0] }
 
 - id: golden-point-for-the-other-pair
   rule: marcador/punto-de-oro
-  format: {golden: true}
-  winners: "1112222"
-  expect: {games: [0, 1], points: [0, 0]}
+  format: { golden: true }
+  winners: '1112222'
+  expect: { games: [0, 1], points: [0, 0] }
 
 - id: set-needs-six-games
   rule: marcador/set
-  winners: "11111111111111111111"
-  expect: {sets: [], games: [5, 0]}
+  winners: '11111111111111111111'
+  expect: { sets: [], games: [5, 0] }
 
 - id: set-won-six-love
   rule: marcador/set
-  winners: "111111111111111111111111"
-  expect: {sets: [[6, 0]], games: [0, 0]}
+  winners: '111111111111111111111111'
+  expect: { sets: [[6, 0]], games: [0, 0] }
 
 - id: six-five-is-not-a-set
   rule: marcador/diferencia-de-2
-  winners: "1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111"
-  expect: {sets: [], games: [6, 5]}
+  winners: '1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111'
+  expect: { sets: [], games: [6, 5] }
 
 - id: seven-five-wins-the-set
   rule: marcador/diferencia-de-2
-  winners: "1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 1111"
-  expect: {sets: [[7, 5]], games: [0, 0]}
+  winners: '1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 1111'
+  expect: { sets: [[7, 5]], games: [0, 0] }
 
 - id: six-all-starts-a-tie-break
   rule: marcador/tie-break
-  winners: "1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222"
-  expect: {games: [6, 6], tiebreak: true, points: [0, 0]}
+  winners: '1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222'
+  expect: { games: [6, 6], tiebreak: true, points: [0, 0] }
 
 - id: tie-break-won-seven-five
   rule: marcador/tie-break
-  winners: "1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1212121212 11"
-  expect: {sets: [[7, 6]], games: [0, 0], tiebreak: false}
+  winners: '1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1212121212 11'
+  expect: { sets: [[7, 6]], games: [0, 0], tiebreak: false }
 
 - id: tie-break-needs-two-ahead
   rule: marcador/tie-break
-  winners: "1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 121212121212 12"
-  expect: {games: [6, 6], tiebreak: true, points: [7, 7]}
+  winners: '1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 121212121212 12'
+  expect: { games: [6, 6], tiebreak: true, points: [7, 7] }
 
 - id: tie-break-won-eight-six
   rule: marcador/tie-break
-  winners: "1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 121212121212 11"
-  expect: {sets: [[7, 6]]}
+  winners: '1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 121212121212 11'
+  expect: { sets: [[7, 6]] }
 
 - id: best-of-three-ends-the-match
   rule: marcador/partido
-  winners: "111111111111111111111111 111111111111111111111111"
-  expect: {sets: [[6, 0], [6, 0]], winner: 1}
+  winners: '111111111111111111111111 111111111111111111111111'
+  expect: { sets: [[6, 0], [6, 0]], winner: 1 }
 
 - id: one-set-each-goes-to-a-third
   rule: marcador/partido
-  winners: "111111111111111111111111 222222222222222222222222"
-  expect: {sets: [[6, 0], [0, 6]], winner: null, games: [0, 0]}
+  winners: '111111111111111111111111 222222222222222222222222'
+  expect: { sets: [[6, 0], [0, 6]], winner: null, games: [0, 0] }
 
 - id: super-tie-break-replaces-the-third-set
   rule: marcador/super-tie-break
-  format: {super: true}
-  winners: "111111111111111111111111 222222222222222222222222"
-  expect: {super_tiebreak: true, tiebreak: true, points: [0, 0]}
+  format: { super: true }
+  winners: '111111111111111111111111 222222222222222222222222'
+  expect: { super_tiebreak: true, tiebreak: true, points: [0, 0] }
 
 - id: super-tie-break-won-ten-eight
   rule: marcador/super-tie-break
-  format: {super: true}
-  winners: "111111111111111111111111 222222222222222222222222 1212121212121212 11"
-  expect: {winner: 1}
+  format: { super: true }
+  winners: '111111111111111111111111 222222222222222222222222 1212121212121212 11'
+  expect: { winner: 1 }
 
 - id: super-tie-break-needs-two-ahead
   rule: marcador/super-tie-break
-  format: {super: true}
-  winners: "111111111111111111111111 222222222222222222222222 121212121212121212 2"
-  expect: {winner: null, super_tiebreak: true}
+  format: { super: true }
+  winners: '111111111111111111111111 222222222222222222222222 121212121212121212 2'
+  expect: { winner: null, super_tiebreak: true }
 
 - id: server-rotates-by-game-between-pairs-first-game
   rule: rotacion/por-game
-  winners: ""
-  expect: {server: 1, swaps: 0}
+  winners: ''
+  expect: { server: 1, swaps: 0 }
 
 - id: server-second-game-is-the-other-pair
   rule: rotacion/por-game
-  winners: "1111"
-  expect: {server: 3}
+  winners: '1111'
+  expect: { server: 3 }
 
 - id: server-third-game-is-the-partner
   rule: rotacion/dentro-de-la-pareja
-  winners: "1111 2222"
-  expect: {server: 2}
+  winners: '1111 2222'
+  expect: { server: 2 }
 
 - id: server-fourth-game-is-the-other-partner
   rule: rotacion/dentro-de-la-pareja
-  winners: "1111 2222 1111"
-  expect: {server: 4}
+  winners: '1111 2222 1111'
+  expect: { server: 4 }
 
 - id: server-fifth-game-is-back-to-the-first
   rule: rotacion/dentro-de-la-pareja
-  winners: "1111 2222 1111 2222"
-  expect: {server: 1}
+  winners: '1111 2222 1111 2222'
+  expect: { server: 1 }
 
 - id: server-does-not-change-inside-a-game
   rule: rotacion/por-game
-  winners: "12121212"
-  expect: {server: 1}
+  winners: '12121212'
+  expect: { server: 1 }
 
 - id: sides-change-after-the-first-game
   rule: cambios-de-lado/impares
-  winners: "1111"
-  expect: {swaps: 1}
+  winners: '1111'
+  expect: { swaps: 1 }
 
 - id: sides-do-not-change-after-the-second-game
   rule: cambios-de-lado/impares
-  winners: "1111 2222"
-  expect: {swaps: 1}
+  winners: '1111 2222'
+  expect: { swaps: 1 }
 
 - id: sides-change-after-the-third-game
   rule: cambios-de-lado/impares
-  winners: "1111 2222 1111"
-  expect: {swaps: 2}
+  winners: '1111 2222 1111'
+  expect: { swaps: 2 }
 
 - id: sides-change-at-the-end-of-an-odd-set
   rule: cambios-de-lado/impares
-  winners: "111111111111111111111111"
-  expect: {swaps: 3, sets: [[6, 0]]}
+  winners: '111111111111111111111111'
+  expect: { swaps: 3, sets: [[6, 0]] }
 
 - id: tie-break-sides-change-every-six-points
   rule: cambios-de-lado/tie-break
-  winners: "1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 121212"
-  expect: {swaps: 7, points: [3, 3]}
+  winners: '1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 121212'
+  expect: { swaps: 7, points: [3, 3] }
 
 - id: tie-break-first-server-serves-one-point
   rule: rotacion/tie-break
-  winners: "1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222"
-  expect: {server: 1}
+  winners: '1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222'
+  expect: { server: 1 }
 
 - id: tie-break-second-point-is-the-other-pair
   rule: rotacion/tie-break
-  winners: "1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1"
-  expect: {server: 3}
+  winners: '1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1'
+  expect: { server: 3 }
 
 - id: tie-break-third-point-is-still-the-other-pair
   rule: rotacion/tie-break
-  winners: "1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 12"
-  expect: {server: 3}
+  winners: '1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 12'
+  expect: { server: 3 }
 
 - id: tie-break-fourth-point-is-the-partner
   rule: rotacion/tie-break
-  winners: "1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 121"
-  expect: {server: 2}
+  winners: '1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 121'
+  expect: { server: 2 }
 
 - id: next-set-starts-with-the-pair-that-received-first-in-the-tie-break
   rule: rotacion/tie-break
-  winners: "1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1212121212 11"
-  expect: {server: 3}
+  winners: '1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1111 2222 1212121212 11'
+  expect: { server: 3 }
