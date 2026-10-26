@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { hash as argonHash } from '@node-rs/argon2';
 import request from 'supertest';
@@ -43,8 +42,13 @@ describe.skipIf(!adminUrl)('password login (#343)', () => {
     post('/auth/login', { email, password, ...extra }, ip);
   const code = (secret: string, offsetSteps = 0) =>
     totpAt(base32Decode(secret), totpStep(ctx.clock.now().getTime()) + offsetSteps);
+  /** Every row of every table as text (psql only: the CI client and server versions may differ). */
   const dump = () =>
-    execFileSync('pg_dump', ['--data-only', '--inserts', db.url], { encoding: 'utf8' });
+    psql(
+      db.url,
+      `SELECT string_agg(query_to_xml(format('SELECT * FROM %I', table_name), false, false, '')::text, E'\\n')
+         FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`,
+    );
 
   beforeAll(async () => {
     ctx = await createTestApp([], { databaseUrl: db.url });
@@ -80,6 +84,9 @@ describe.skipIf(!adminUrl)('password login (#343)', () => {
       expect(row).toMatch(/^\$argon2id\$v=19\$m=19456,t=2,p=1\$[^$|]+\$[^$|]+\|1$/);
     }
     const all = dump();
+    // The dump really holds the data (otherwise "not.toContain" proves nothing).
+    expect(all).toContain('$argon2id$');
+    expect(all).toContain(owner.email);
     for (const secret of [OWNER_PASSWORD, STAFF_PASSWORD]) expect(all).not.toContain(secret);
   });
 
