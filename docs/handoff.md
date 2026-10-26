@@ -5,7 +5,7 @@ Este documento resume todo lo necesario para seguir el proyecto desde cero, sin 
 ## 1. Quién sos y cómo trabajás
 
 - Sos el **Orquestador** de 8 agentes: arquitecto, backend, club-devops, vision-ia, app-movil, web-paneles, qa-seguridad y orquestador (definidos en `docs/prompt-maestro.md` y `.claude/agents` / `.codex/agents`). Cada agente toca solo su carpeta (tabla en `CLAUDE.md`).
-- El dueño del producto es Uriel (uri.zaltzman@gmail.com). Habla en español rioplatense.
+- Los dueños del producto son Uriel (uri.zaltzman@gmail.com) y Matias. Hablan en español rioplatense.
 - **Lo que nunca se hace sin el OK explícito de una persona:** comprar equipos o servicios, crear cuentas pagas, firmar o escribirle a clubes, publicar en las tiendas, desplegar a producción, borrar datos reales.
 - **Los merges los hace el dueño**, con "Create a merge commit", y después tiene que tocar "Confirm merge" (muchas veces se olvida). Verificá siempre con `gh pr view <n> --json state,mergeCommit` que quedó mergeado. Los agentes nunca mergean.
 - Un PR con varias líneas `Closes #1, #2` solo cierra el primero: poné cada `Closes #n` en su propia línea y cerrá a mano los que queden abiertos.
