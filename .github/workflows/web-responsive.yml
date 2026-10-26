@@ -60,18 +60,20 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Only the engine the project needs (WebKit for iPhone and iPad, Chromium for the rest). The
-      # install has hung on apt in CI, so it is capped and retried.
+      # Only the engine the project needs (WebKit for iPhone and iPad, Chromium for the rest).
+      # The runner's own apt jobs can hold the dpkg lock at start, so wait for it first; the step
+      # has a time limit instead of a `timeout` wrapper, which would orphan apt and keep the lock.
       - name: Install browser
+        timeout-minutes: 12
         working-directory: apps/web
         env:
           ENGINE: ${{ startsWith(matrix.project, 'i') && 'webkit' || 'chromium' }}
         run: |
-          for attempt in 1 2 3; do
-            timeout 300 pnpm exec playwright install --with-deps "$ENGINE" && exit 0
-            echo "Browser install attempt $attempt failed or timed out"
+          for _ in $(seq 1 60); do
+            sudo fuser /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock >/dev/null 2>&1 || break
+            sleep 5
           done
-          exit 1
+          pnpm exec playwright install --with-deps "$ENGINE"
       - name: Run the ${{ matrix.project }} project
         working-directory: apps/web
         run: pnpm exec playwright test --project=${{ matrix.project }} --trace retain-on-failure
