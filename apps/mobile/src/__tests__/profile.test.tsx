@@ -26,13 +26,14 @@ jest.mock('expo-secure-store', () => {
 });
 
 const p = esAR.profile;
+const NOW = new Date('2026-10-23T09:00:00Z');
 
 function Status() {
   const { status } = useSession();
   return <Text testID="status">{status}</Text>;
 }
 
-async function renderProfile(server: MockAuthServer = createMockAuthServer()) {
+async function renderProfile(server: MockAuthServer = createMockAuthServer({ now: () => NOW })) {
   await secureTokenStore.save(server.issueTokens());
   await render(
     <SessionProvider fetch={server.fetch} providers={null}>
@@ -141,7 +142,7 @@ describe('ProfileScreen', () => {
     expect(deletion).toHaveLength(1);
 
     const expected = formatDeletionDate(
-      new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      new Date(NOW.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     );
     expect(screen.getByText(p.delete.doneBody.replace('{date}', expected))).toBeTruthy();
 

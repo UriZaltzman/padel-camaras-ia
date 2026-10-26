@@ -18,7 +18,7 @@ export interface MockAuthOptions {
   code?: string;
   /** New Google/Apple users need consent unless listed here. */
   existingOAuth?: boolean;
-  /** Clock of the public availability answers (tests pin it); the real clock by default. */
+  /** The server's clock: slots, bookings, favorites and dates derive from it. Tests always pin it. */
   now?: () => Date;
 }
 
@@ -61,8 +61,8 @@ function error(status: number, code: ErrorCode, details?: Record<string, unknown
   return json(status, { code, message: code, ...(details ? { details } : {}) });
 }
 
-function buildUser(phone: string | null): Schema<'User'> {
-  const now = new Date().toISOString();
+function buildUser(phone: string | null, clock: () => Date): Schema<'User'> {
+  const now = clock().toISOString();
   return {
     id: '01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a5f',
     display_name: 'Sofía Pérez',
@@ -82,6 +82,7 @@ function buildUser(phone: string | null): Schema<'User'> {
 }
 
 export function createMockAuthServer(options: MockAuthOptions = {}): MockAuthServer {
+  const clock = options.now ?? (() => new Date());
   const code = options.code ?? '123456';
   const accounts = new Set(options.existingPhones ?? []);
   const challenges = new Map<string, { expired: boolean; attempts: number }>();
@@ -92,7 +93,7 @@ export function createMockAuthServer(options: MockAuthOptions = {}): MockAuthSer
   const failures = new Map<string, { status: number; code: ErrorCode }>();
   let profile: Schema<'User'> | null = null;
   let deletion: string | null = null;
-  const favorites = createFavoritesMock();
+  const favorites = createFavoritesMock(clock);
 
   function session(phone: string | null, isNew: boolean): Response {
     counter += 1;
@@ -100,7 +101,7 @@ export function createMockAuthServer(options: MockAuthOptions = {}): MockAuthSer
     const refresh = `refresh-${counter}`;
     validAccess.add(access);
     validRefresh.add(refresh);
-    profile = buildUser(phone);
+    profile = buildUser(phone, clock);
     return json(200, {
       access_token: access,
       refresh_token: refresh,
@@ -112,7 +113,7 @@ export function createMockAuthServer(options: MockAuthOptions = {}): MockAuthSer
   }
 
   function handleMe(method: string, body: Record<string, unknown>): Response {
-    profile ??= buildUser(null);
+    profile ??= buildUser(null, clock);
     if (method === 'GET') return json(200, profile);
     if (method === 'PATCH') {
       const keys = Object.keys(body);
@@ -124,7 +125,7 @@ export function createMockAuthServer(options: MockAuthOptions = {}): MockAuthSer
       return json(200, profile);
     }
     if (method === 'DELETE') {
-      deletion ??= new Date(Date.now() + DELETION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+      deletion ??= new Date(clock().getTime() + DELETION_DAYS * 24 * 60 * 60 * 1000).toISOString();
       validAccess.clear();
       validRefresh.clear();
       return json(202, { deletion_scheduled_for: deletion });
@@ -147,7 +148,7 @@ export function createMockAuthServer(options: MockAuthOptions = {}): MockAuthSer
 
     // Public club and availability endpoints (no credentials).
     if (input.method === 'GET') {
-      const booking = handleBookingMock(new URL(input.url), path, options.now?.());
+      const booking = handleBookingMock(new URL(input.url), path, clock());
       if (booking) return booking;
     }
 

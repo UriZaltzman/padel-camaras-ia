@@ -99,7 +99,7 @@ describe('favorite clubs', () => {
   });
 
   it('shows the empty state with the invitation to star clubs', async () => {
-    await renderApp(createMockAuthServer());
+    await renderApp(createMockAuthServer({ now: () => NOW }));
     expect(await screen.findByText(f.empty.title)).toBeTruthy();
     expect(screen.getByText(f.empty.body)).toBeTruthy();
     await fireEvent.press(screen.getByTestId('favorites-find'));
@@ -107,7 +107,7 @@ describe('favorite clubs', () => {
   });
 
   it('star a club, book it and see the booking under that club at once', async () => {
-    const server = createMockAuthServer();
+    const server = createMockAuthServer({ now: () => NOW });
     await renderApp(server, { start: 'book' });
 
     await fireEvent.press(await screen.findByTestId('view-list'));
@@ -130,7 +130,7 @@ describe('favorite clubs', () => {
   });
 
   it('a booking in a club that is not a favorite asks to mark it, and "sí" stars it', async () => {
-    await renderApp(createMockAuthServer(), { start: 'book' });
+    await renderApp(createMockAuthServer({ now: () => NOW }), { start: 'book' });
     await bookFirstSlot(QUILMES);
 
     expect(await screen.findByTestId('just-booked')).toBeTruthy();
@@ -143,7 +143,7 @@ describe('favorite clubs', () => {
   });
 
   it('"ahora no" keeps the booking visible and does not star the club', async () => {
-    await renderApp(createMockAuthServer(), { start: 'book' });
+    await renderApp(createMockAuthServer({ now: () => NOW }), { start: 'book' });
     await bookFirstSlot(PALERMO);
     await fireEvent.press(await screen.findByTestId('favorite-prompt-no'));
     await waitFor(() => expect(screen.queryByTestId('favorite-prompt')).toBeNull());
@@ -151,7 +151,7 @@ describe('favorite clubs', () => {
   });
 
   it('cancels a booking from the home', async () => {
-    await renderApp(createMockAuthServer(), { start: 'book' });
+    await renderApp(createMockAuthServer({ now: () => NOW }), { start: 'book' });
     await fireEvent.press(await screen.findByTestId('view-list'));
     await fireEvent.press(await screen.findByTestId(`favorite-star-${PALERMO}`));
     await fireEvent.press(await screen.findByTestId(`club-${PALERMO}`));
@@ -164,7 +164,7 @@ describe('favorite clubs', () => {
   });
 
   it('edits the favorites: reorders and removes', async () => {
-    const server = createMockAuthServer();
+    const server = createMockAuthServer({ now: () => NOW });
     await renderApp(server, { start: 'book' });
     await fireEvent.press(await screen.findByTestId('view-list'));
     await fireEvent.press(await screen.findByTestId(`favorite-star-${PALERMO}`));
