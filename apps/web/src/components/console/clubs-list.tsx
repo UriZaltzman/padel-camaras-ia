@@ -1,11 +1,13 @@
 'use client';
 
 import type { ApiClient, Schema } from '@app/contracts';
+import { ResponsiveTable } from '@app/ui/web';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
 
 import { t } from '@/i18n';
+import { tr } from '@/i18n/responsive';
 import { apiClient } from '@/lib/api/client';
 import { formatCents, formatDateTime } from '@/lib/player/format';
 
@@ -91,42 +93,50 @@ export function ClubsList({ client = apiClient }: { client?: ApiClient }) {
         </div>
       )}
       {query.data && query.data.items.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr>
-                <th scope="col">{t('admin.clubs.col.name')}</th>
-                <th scope="col">{t('admin.clubs.col.city')}</th>
-                <th scope="col">{t('admin.clubs.col.status')}</th>
-                <th scope="col">{t('admin.clubs.col.plan')}</th>
-                <th scope="col">{t('admin.clubs.col.balance')}</th>
-                <th scope="col">{t('admin.clubs.col.lastPayment')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {query.data.items.map((club) => (
-                <tr key={club.id} className="border-t border-line">
-                  <td className="py-2">
-                    <Link href={`/admin/clubes/${club.id}`} className="font-semibold underline">
-                      {club.name}
-                    </Link>
-                  </td>
-                  <td>{club.city}</td>
-                  <td>
-                    <StatusLabel status={club.status} />
-                  </td>
-                  <td>{t(`admin.plan.${club.plan}`)}</td>
-                  <td>{formatCents(club.balance_cents)}</td>
-                  <td>
-                    {club.last_payment_at
-                      ? formatDateTime(club.last_payment_at)
-                      : t('admin.clubs.noPayment')}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ResponsiveTable
+          caption={tr('admin.clubs.table')}
+          rows={query.data.items}
+          rowKey={(club) => club.id}
+          columns={[
+            {
+              key: 'name',
+              header: t('admin.clubs.col.name'),
+              primary: true,
+              cell: (club) => (
+                <Link
+                  href={`/admin/clubes/${club.id}`}
+                  className="inline-flex min-h-11 items-center font-semibold underline"
+                >
+                  {club.name}
+                </Link>
+              ),
+            },
+            { key: 'city', header: t('admin.clubs.col.city'), cell: (club) => club.city },
+            {
+              key: 'status',
+              header: t('admin.clubs.col.status'),
+              cell: (club) => <StatusLabel status={club.status} />,
+            },
+            {
+              key: 'plan',
+              header: t('admin.clubs.col.plan'),
+              cell: (club) => t(`admin.plan.${club.plan}`),
+            },
+            {
+              key: 'balance',
+              header: t('admin.clubs.col.balance'),
+              cell: (club) => formatCents(club.balance_cents),
+            },
+            {
+              key: 'lastPayment',
+              header: t('admin.clubs.col.lastPayment'),
+              cell: (club) =>
+                club.last_payment_at
+                  ? formatDateTime(club.last_payment_at)
+                  : t('admin.clubs.noPayment'),
+            },
+          ]}
+        />
       )}
     </main>
   );

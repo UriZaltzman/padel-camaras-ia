@@ -1,8 +1,40 @@
 @import 'tailwindcss';
 @config '../../tailwind.config.ts';
+/* Responsive components live in packages/ui; Tailwind has to scan them for their classes. */
+@source '../../../../packages/ui/src';
+
+/* Breakpoints of plan section 2, same numbers as `breakpoints` in packages/ui/src/breakpoints.ts:
+   phone below 640px (no prefix), tablet `sm` 640px, laptop `lg` 1024px, wide `wide` 1440px. */
+@theme {
+  --breakpoint-sm: 40rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-wide: 90rem;
+}
 
 @layer base {
+  html {
+    /* The page never grows sideways; anything wider scrolls inside its own box. */
+    overflow-x: clip;
+  }
   body {
     @apply bg-glass font-sans text-night antialiased;
+    min-height: 100dvh;
+  }
+  /* 16px or more so iOS Safari does not zoom when a field is focused. */
+  input:not([type='checkbox'], [type='radio'], [type='range'], [type='file']),
+  select,
+  textarea {
+    font-size: max(1rem, 16px);
+  }
+  /* Everything that is touched is at least 44px tall (lowest-priority layer: utilities win). */
+  button,
+  select,
+  input:not([type='checkbox'], [type='radio'], [type='hidden']),
+  summary {
+    min-height: 2.75rem;
+  }
+  /* WebKit ignores min-height on a native select, so it gets the height itself. */
+  select:not([multiple], [size]) {
+    height: 2.75rem;
   }
 }

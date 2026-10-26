@@ -1,12 +1,13 @@
 'use client';
 
 import type { ApiClient, Schema } from '@app/contracts';
-import { Button, Card, DataLabel } from '@app/ui/web';
+import { Button, Card, DataLabel, Sheet, useVisibleCourts } from '@app/ui/web';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 
 import { t } from '@/i18n';
+import { tr } from '@/i18n/responsive';
 import type { MessageKey } from '@/i18n';
 import { apiClient } from '@/lib/api/client';
 import {
@@ -221,10 +222,15 @@ const dayLabel = new Intl.DateTimeFormat('es-AR', {
 
 function Grid({ courts, bookings, view, date, weekCourtId, isToday, onSelect }: GridProps) {
   const { start, end } = hourRange(courts);
+  // Booking-grid rule: one court on a phone, two or three on a tablet, all from the laptop up.
+  const perScreen = useVisibleCourts(courts.length);
+  const [firstCourt, setFirstCourt] = useState(0);
+  const first = Math.max(0, Math.min(firstCourt, courts.length - perScreen));
+  const shownCourts = view === 'day' ? courts.slice(first, first + perScreen) : courts;
   const hours = Array.from({ length: end - start }, (_unused, i) => start + i);
   const columns =
     view === 'day'
-      ? courts.map((c) => ({
+      ? shownCourts.map((c) => ({
           key: c.id,
           label: c.name,
           day: date,
@@ -249,6 +255,27 @@ function Grid({ courts, bookings, view, date, weekCourtId, isToday, onSelect }: 
             {t(isToday && view === 'day' ? 'calendar.empty' : 'calendar.emptyOther')}
           </p>
         </Card>
+      )}
+      {view === 'day' && perScreen < courts.length && (
+        <label className="flex flex-col gap-1 text-sm font-semibold">
+          {tr('calendar.courts.window')}
+          <select
+            className={inputClass}
+            value={first}
+            onChange={(e) => setFirstCourt(Number(e.target.value))}
+          >
+            {Array.from({ length: courts.length - perScreen + 1 }, (_unused, i) => (
+              <option key={i} value={i}>
+                {perScreen === 1
+                  ? (courts[i]?.name ?? '')
+                  : tr('calendar.courts.window.option', {
+                      from: courts[i]?.name ?? '',
+                      to: courts[i + perScreen - 1]?.name ?? '',
+                    })}
+              </option>
+            ))}
+          </select>
+        </label>
       )}
       <div
         role="grid"
@@ -363,7 +390,6 @@ function BookingDetail({
   clubId: string;
   onClose: () => void;
 }) {
-  const titleId = useId();
   const queryClient = useQueryClient();
   const [asking, setAsking] = useState(false);
   const [result, setResult] = useState<Schema<'BookingCancellation'> | null>(null);
@@ -396,16 +422,8 @@ function BookingDetail({
   ];
 
   return (
-    <div className="fixed inset-0 z-10 flex items-center justify-center bg-night/60 p-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="flex w-full max-w-md flex-col gap-4 rounded-2xl bg-white p-6"
-      >
-        <h2 id={titleId} className="font-display text-2xl font-bold">
-          {t('calendar.detail.title')}
-        </h2>
+    <Sheet open onClose={onClose} title={t('calendar.detail.title')}>
+      <div className="flex flex-col gap-4">
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
           {rows.map(([label, value]) => (
             <div key={label} className="contents">
@@ -449,6 +467,6 @@ function BookingDetail({
         )}
         <Button label={t('calendar.detail.close')} onClick={onClose} />
       </div>
-    </div>
+    </Sheet>
   );
 }

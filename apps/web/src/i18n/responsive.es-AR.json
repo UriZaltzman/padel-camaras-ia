@@ -1,0 +1,17 @@
+{
+  "shell.menu.open": "Abrir el menú",
+  "shell.menu.close": "Cerrar el menú",
+  "panel.shell.title": "Panel del club",
+  "panel.shell.nav": "Secciones del club",
+  "panel.nav.calendar": "Calendario",
+  "panel.nav.yearCalendar": "Año completo",
+  "panel.nav.cash": "Caja",
+  "panel.nav.players": "Jugadores",
+  "panel.nav.tournaments": "Torneos",
+  "panel.nav.courts": "Canchas",
+  "panel.nav.brand": "Marca del club",
+  "admin.shell.title": "Consola interna",
+  "calendar.courts.window": "Canchas a la vista",
+  "calendar.courts.window.option": "{from} a {to}",
+  "admin.clubs.table": "Lista de clubes"
+}

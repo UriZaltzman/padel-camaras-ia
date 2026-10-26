@@ -1,0 +1,23 @@
+{
+  "$comment": "Each screen of the Design canvases: its route and the spec that tests it on every device. `pnpm e2e:coverage` fails if a screen has no spec, or the spec does not carry the screen id (screenTitle) and call expectResponsive.",
+  "screens": [
+    {
+      "id": "landing",
+      "surface": "web",
+      "route": "/",
+      "spec": "e2e/responsive/landing.spec.ts"
+    },
+    {
+      "id": "club-calendar",
+      "surface": "club",
+      "route": "/panel/clubes/[clubId]/calendario",
+      "spec": "e2e/responsive/club-calendar.spec.ts"
+    },
+    {
+      "id": "console-clubs",
+      "surface": "console",
+      "route": "/admin/clubes",
+      "spec": "e2e/responsive/console-clubs.spec.ts"
+    }
+  ]
+}
