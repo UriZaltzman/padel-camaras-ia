@@ -45,7 +45,9 @@ describe('doors that need per-club authorisation', () => {
   });
 
   it('only PrismaService builds a database client', () => {
-    expect(using(/new PrismaClient\(/)).toEqual(['db/prisma.service.ts']);
+    // The seed (a command line tool for the test clubs, never imported by the API) is the only
+    // other one; it refuses to run against production (seed/guard.ts).
+    expect(using(/new PrismaClient\(/)).toEqual(['db/prisma.service.ts', 'seed/run.ts']);
   });
 
   it('raw SQL always goes through the transaction handed to a repository (never a global client)', () => {
