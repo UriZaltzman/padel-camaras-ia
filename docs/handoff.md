@@ -122,3 +122,5 @@ Son privados y los puede leer otro chat solo si tiene acceso a esa cuenta. **Con
 ## 12. Primer paso al retomar
 
 Leer `CLAUDE.md`, `docs/prompt-maestro.md` y este archivo; actualizar `docs/progreso.md` y el tablero; confirmar con el dueño que mergeó todo; y, si pide seguir, **lanzar la ola 1** (A1, B1, C1 y D en paralelo, una sesión por tramo, con el ciclo que se corrige solo).
+
+Una vez terminada y mergeada la ola 1, lanzar la ola 2, utilizando los mismos criterios que en la ola 1, y así hasta terminar con las olas del 1 al 5.
