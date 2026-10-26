@@ -15,6 +15,7 @@ import courts from './messages/courts.json' with { type: 'json' };
 import crm from './messages/crm.json' with { type: 'json' };
 import playerAuth from './messages/player-auth.json' with { type: 'json' };
 import playerBooking from './messages/player-booking.json' with { type: 'json' };
+import responsive from './messages/responsive.json' with { type: 'json' };
 import site from './messages/site.json' with { type: 'json' };
 import tournaments from './messages/tournaments.json' with { type: 'json' };
 import yearCalendar from './messages/year-calendar.json' with { type: 'json' };
@@ -32,6 +33,7 @@ export const messageParts = {
   crm: crm,
   'player-auth': playerAuth,
   'player-booking': playerBooking,
+  responsive: responsive,
   site: site,
   tournaments: tournaments,
   'year-calendar': yearCalendar,

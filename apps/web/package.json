@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "format:check": "prettier --check .",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "e2e:coverage": "node scripts/check-coverage-map.mjs",
+    "test:e2e:responsive": "playwright test e2e/responsive"
   },
   "dependencies": {
     "@app/config": "workspace:*",
@@ -26,6 +28,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.11.0",
     "@next/eslint-plugin-next": "^16.4.2",
     "@playwright/test": "1.56.1",
     "@tailwindcss/postcss": "^4.3.3",
