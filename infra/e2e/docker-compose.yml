@@ -1,0 +1,61 @@
+# Full-stack e2e environment: Postgres, Redis and the REAL API with migrations applied and the
+# three test clubs loaded. The web (Next.js in real-API mode) is started by Playwright.
+# Not for development: ports are offset so it can run next to the root docker-compose.yml,
+# secrets are public test values, and the payment provider is the fake one.
+name: e2e
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    ports:
+      - '55432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d app']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '56379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/e2e/api.Dockerfile
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      # Development mode on purpose: the WhatsApp provider prints codes to the log (read by the
+      # tests) and the seed is allowed. The API refuses PAYMENT_PROVIDER=fake in production.
+      NODE_ENV: development
+      PORT: '3000'
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://app:app@postgres:5432/app
+      REDIS_URL: redis://redis:6379
+      PAYMENT_PROVIDER: fake
+      MERCADOPAGO_WEBHOOK_SECRET: e2e-only-webhook-secret-not-real
+    ports:
+      - '3300:3000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 3s
+      timeout: 5s
+      retries: 60
+      start_period: 10s
