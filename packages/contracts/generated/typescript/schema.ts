@@ -217,6 +217,153 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/auth/login': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Sign in with email and password (club owners, club staff, internal staff)
+     * @description For people with a password: club owners and staff, and internal staff. Players sign in
+     *     with the WhatsApp code instead.
+     *
+     *     The answer is the same whether the email has an account or not (`INVALID_CREDENTIALS`),
+     *     and takes the same time. After 5 failures for the same email in 15 minutes, or 30 from the
+     *     same IP address, the answer is `429 RATE_LIMITED` with `Retry-After`, whether or not the
+     *     account exists.
+     *
+     *     **Internal staff must send `totp_code`.** Without it the answer is `SECOND_FACTOR_REQUIRED`
+     *     (`details.enrollment_required` tells whether they still have to set up the authenticator
+     *     with `/auth/2fa/enroll`). Their session carries the second factor; the internal console
+     *     refuses any session without it.
+     *
+     *     Web clients keep the tokens in `HttpOnly; Secure; SameSite=Lax` cookies set by their own
+     *     server (never in `localStorage`) and send the CSRF token on every write; see
+     *     `docs/security/password-login.md`.
+     */
+    post: operations['loginWithPassword'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/2fa/enroll': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Start the authenticator (TOTP) setup of an internal staff member
+     * @description Proves the password, then returns a new secret to add to an authenticator app. Only for
+     *     internal staff who have not confirmed a second factor yet (`409 INVALID_STATE_TRANSITION`
+     *     otherwise, `403 FORBIDDEN` for anyone who is not internal staff). Calling it again before
+     *     confirming replaces the secret. The secret is shown only in this answer.
+     */
+    post: operations['startSecondFactorEnrollment'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/2fa/confirm': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Confirm the authenticator with a code and sign in
+     * @description Checks the first 6-digit code of the authenticator started with `/auth/2fa/enroll`. If it
+     *     is right the second factor is on and the answer is a session (with the second factor).
+     *     A wrong code counts as a failed attempt (`SECOND_FACTOR_INVALID`) toward the lock-out.
+     */
+    post: operations['confirmSecondFactorEnrollment'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/password/forgot': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Ask for a password reset link by email
+     * @description Always answers `202` with an empty object, whether the email has an account or not, and
+     *     in the same time. If it does, a single-use link valid for 30 minutes is emailed (only its
+     *     hash is stored). Asking again replaces the earlier link; more than 5 requests per hour per
+     *     email or IP are ignored silently.
+     */
+    post: operations['requestPasswordReset'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/password/reset': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Set a new password with the emailed token
+     * @description The token works once and for 30 minutes. A new password that is too short or too common is
+     *     refused with `WEAK_PASSWORD` and the token stays valid. On success every session of the
+     *     account ends (access and refresh tokens) and the sign-in lock-out is cleared; the person
+     *     then signs in with the new password (internal staff still need their authenticator).
+     */
+    post: operations['resetPassword'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/password/change': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Change the password while signed in
+     * @description Needs the current password. Ends every other session of the account and returns a new
+     *     token pair for this one.
+     */
+    post: operations['changePassword'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/auth/oauth/google': {
     parameters: {
       query?: never;
@@ -2506,6 +2653,42 @@ export interface components {
       /** @description True when this request created the account. */
       is_new_user: boolean;
     };
+    /** Format: email */
+    Email: string;
+    PasswordLoginRequest: {
+      email: components['schemas']['Email'];
+      password: string;
+      /** @description Authenticator code. Mandatory for internal staff. */
+      totp_code?: string;
+    };
+    SecondFactorEnrollRequest: {
+      email: components['schemas']['Email'];
+      password: string;
+    };
+    SecondFactorEnrollment: {
+      /** @description Base32 secret to type into an authenticator app. Shown once. */
+      secret: string;
+      /** @description The same secret as an `otpauth://totp/...` URI, for a QR code. */
+      otpauth_uri: string;
+    };
+    SecondFactorConfirmRequest: {
+      email: components['schemas']['Email'];
+      password: string;
+      totp_code: string;
+    };
+    PasswordForgotRequest: {
+      email: components['schemas']['Email'];
+    };
+    PasswordResetRequest: {
+      /** @description The token in the emailed link. */
+      token: string;
+      /** @description At least 10 characters, any Unicode, not a common password. */
+      new_password: string;
+    };
+    PasswordChangeRequest: {
+      current_password: string;
+      new_password: string;
+    };
     /**
      * @description Self-declared Argentine padel category, from 8va (`8`) to 1ra (`1`).
      * @enum {string}
@@ -3948,6 +4131,11 @@ export interface components {
       | 'OTP_ATTEMPTS_EXCEEDED'
       | 'REFRESH_TOKEN_INVALID'
       | 'TERMS_NOT_ACCEPTED'
+      | 'INVALID_CREDENTIALS'
+      | 'SECOND_FACTOR_REQUIRED'
+      | 'SECOND_FACTOR_INVALID'
+      | 'WEAK_PASSWORD'
+      | 'PASSWORD_RESET_TOKEN_INVALID'
       | 'CLUB_FEATURE_DISABLED'
       | 'CLUB_SERVICE_SUSPENDED'
       | 'BOOKING_SLOT_TAKEN'
@@ -4539,6 +4727,14 @@ export type SchemaAppleSignInRequest = components['schemas']['AppleSignInRequest
 export type SchemaRefreshRequest = components['schemas']['RefreshRequest'];
 export type SchemaTokenPair = components['schemas']['TokenPair'];
 export type SchemaAuthSession = components['schemas']['AuthSession'];
+export type SchemaEmail = components['schemas']['Email'];
+export type SchemaPasswordLoginRequest = components['schemas']['PasswordLoginRequest'];
+export type SchemaSecondFactorEnrollRequest = components['schemas']['SecondFactorEnrollRequest'];
+export type SchemaSecondFactorEnrollment = components['schemas']['SecondFactorEnrollment'];
+export type SchemaSecondFactorConfirmRequest = components['schemas']['SecondFactorConfirmRequest'];
+export type SchemaPasswordForgotRequest = components['schemas']['PasswordForgotRequest'];
+export type SchemaPasswordResetRequest = components['schemas']['PasswordResetRequest'];
+export type SchemaPasswordChangeRequest = components['schemas']['PasswordChangeRequest'];
 export type SchemaDeclaredCategory = components['schemas']['DeclaredCategory'];
 export type SchemaClubRanking = components['schemas']['ClubRanking'];
 export type SchemaClubRankingEntry = components['schemas']['ClubRankingEntry'];
@@ -5156,6 +5352,189 @@ export interface operations {
       400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  loginWithPassword: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "email": "duenio@club.example",
+         *       "password": "una frase larga que solo sabe quien entra"
+         *     }
+         */
+        'application/json': components['schemas']['PasswordLoginRequest'];
+      };
+    };
+    responses: {
+      /** @description Signed in. `is_new_user` is always false. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AuthSession'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  startSecondFactorEnrollment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SecondFactorEnrollRequest'];
+      };
+    };
+    responses: {
+      /** @description The secret to enrol. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SecondFactorEnrollment'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  confirmSecondFactorEnrollment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SecondFactorConfirmRequest'];
+      };
+    };
+    responses: {
+      /** @description Second factor on; signed in. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AuthSession'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      409: components['responses']['Conflict'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  requestPasswordReset: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PasswordForgotRequest'];
+      };
+    };
+    responses: {
+      /** @description Accepted. Nothing in the answer says whether an email was sent. */
+      202: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': Record<string, never>;
+        };
+      };
+      400: components['responses']['BadRequest'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  resetPassword: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PasswordResetRequest'];
+      };
+    };
+    responses: {
+      /** @description Password changed. */
+      204: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      422: components['responses']['UnprocessableEntity'];
+      429: components['responses']['TooManyRequests'];
+      500: components['responses']['InternalError'];
+    };
+  };
+  changePassword: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PasswordChangeRequest'];
+      };
+    };
+    responses: {
+      /** @description Password changed; the new session. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['X-Request-Id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TokenPair'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      422: components['responses']['UnprocessableEntity'];
       429: components['responses']['TooManyRequests'];
       500: components['responses']['InternalError'];
     };

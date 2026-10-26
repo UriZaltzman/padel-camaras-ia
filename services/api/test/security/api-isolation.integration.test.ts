@@ -367,6 +367,12 @@ describe.skipIf(!adminUrl)('API isolation between clubs', () => {
     'POST /v1/auth/otp/whatsapp': 'sign-in',
     'POST /v1/auth/otp/verify': 'sign-in',
     'POST /v1/auth/refresh': 'sign-in',
+    'POST /v1/auth/login': 'sign-in',
+    'POST /v1/auth/2fa/enroll': 'sign-in (proves the password)',
+    'POST /v1/auth/2fa/confirm': 'sign-in (proves the password)',
+    'POST /v1/auth/password/forgot': 'sign-in',
+    'POST /v1/auth/password/reset': 'sign-in (single-use token)',
+    'POST /v1/auth/password/change': 'own credential only; checked in credentials tests',
     'GET /v1/health': 'liveness',
   };
 

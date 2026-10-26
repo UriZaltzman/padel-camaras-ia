@@ -44,6 +44,8 @@ export class StaffGuard implements CanActivate {
       ]) ?? [];
     const member = await this.directory.find(identity.userId);
     if (!member || !allowed.includes(member.role)) throw new AppError('FORBIDDEN');
+    // A WhatsApp or password-only session never reaches the console, whatever the allowlist says.
+    if (!identity.mfa) throw new AppError('SECOND_FACTOR_REQUIRED');
     request.staff = member;
     return true;
   }

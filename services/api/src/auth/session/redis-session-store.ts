@@ -3,6 +3,7 @@ import type { RefreshRecord, SessionStore } from './session-store';
 
 const tokenKey = (id: string): string => `rt:${id}`;
 const familyKey = (id: string): string => `rt-revoked:${id}`;
+const epochKey = (userId: string): string => `sess-epoch:${userId}`;
 
 // Reads the token and flips `used` in one step, so two parallel refreshes cannot both win.
 const MARK_USED = `
@@ -22,6 +23,8 @@ export class RedisSessionStore implements SessionStore {
         userId: record.userId,
         familyId: record.familyId,
         used: record.used ? '1' : '0',
+        epoch: String(record.epoch),
+        mfa: record.mfa ? '1' : '0',
       })
       .expire(tokenKey(record.id), ttlSeconds)
       .exec();
@@ -38,6 +41,8 @@ export class RedisSessionStore implements SessionStore {
       userId: hash.userId ?? '',
       familyId: hash.familyId ?? '',
       used: hash.used === '1',
+      epoch: Number(hash.epoch ?? 0),
+      mfa: hash.mfa === '1',
     };
   }
 
@@ -47,5 +52,13 @@ export class RedisSessionStore implements SessionStore {
 
   async isFamilyRevoked(familyId: string): Promise<boolean> {
     return (await this.redis.exists(familyKey(familyId))) === 1;
+  }
+
+  async getEpoch(userId: string): Promise<number> {
+    return Number((await this.redis.get(epochKey(userId))) ?? 0);
+  }
+
+  async bumpEpoch(userId: string): Promise<number> {
+    return this.redis.incr(epochKey(userId));
   }
 }

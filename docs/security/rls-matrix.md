@@ -76,6 +76,7 @@ Cell = operations the role can do on the rows of its own club: **S**elect, **I**
 | media_assets | `S···` | `S···` | `S···` | `SIUD` | `····` | `SIUD` | `SIUD` |
 | memberships | `S···` | `····` | `S···` | `SIUD` | `S···` | `····` | `SIUD` |
 | notifications | `S·U·` | `····` | `····` | `····` | `····` | `····` | `·I··` |
+| password_reset_tokens | `····` | `····` | `····` | `····` | `····` | `····` | `SIUD` |
 | payments | `S···` | `····` | `····` | `S···` | `····` | `····` | `SIUD` |
 | player_favorite_clubs | `SIUD` | `····` | `····` | `····` | `····` | `····` | `····` |
 | points | `S···` | `S···` | `SIUD` | `SIUD` | `SIUD` | `SIUD` | `SIUD` |
@@ -88,6 +89,7 @@ Cell = operations the role can do on the rows of its own club: **S**elect, **I**
 | tournament_points | `····` | `····` | `SIUD` | `SIUD` | `····` | `····` | `SIUD` |
 | tournament_registrations | `····` | `····` | `SIUD` | `SIUD` | `····` | `····` | `SIUD` |
 | tournaments | `····` | `····` | `SIUD` | `SIUD` | `····` | `····` | `SIUD` |
+| user_credentials | `S·UD` | `····` | `····` | `····` | `····` | `····` | `S·UD` |
 | users | `S·UD` | `S·UD` | `S·UD` | `S·UD` | `S···` | `····` | `SIUD` |
 <!-- matrix:end -->
 

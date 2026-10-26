@@ -8,7 +8,7 @@ from enum import Enum, IntEnum, StrEnum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import AnyUrl, AwareDatetime, BaseModel, ConfigDict, Field, RootModel
+from pydantic import AnyUrl, AwareDatetime, BaseModel, ConfigDict, EmailStr, Field, RootModel
 
 
 class Uuid(RootModel[UUID]):
@@ -652,6 +652,79 @@ class TokenPair(BaseModel):
     """
     Seconds until the access token expires (900).
     """
+
+
+class Email(RootModel[EmailStr]):
+    root: Annotated[EmailStr, Field(max_length=254, min_length=3)]
+
+
+class PasswordLoginRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    email: Email
+    password: Annotated[str, Field(max_length=1024, min_length=1)]
+    totp_code: Annotated[str | None, Field(pattern="^[0-9]{6}$")] = None
+    """
+    Authenticator code. Mandatory for internal staff.
+    """
+
+
+class SecondFactorEnrollRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    email: Email
+    password: Annotated[str, Field(max_length=1024, min_length=1)]
+
+
+class SecondFactorEnrollment(BaseModel):
+    secret: str
+    """
+    Base32 secret to type into an authenticator app. Shown once.
+    """
+    otpauth_uri: str
+    """
+    The same secret as an `otpauth://totp/...` URI, for a QR code.
+    """
+
+
+class SecondFactorConfirmRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    email: Email
+    password: Annotated[str, Field(max_length=1024, min_length=1)]
+    totp_code: Annotated[str, Field(pattern="^[0-9]{6}$")]
+
+
+class PasswordForgotRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    email: Email
+
+
+class PasswordResetRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    token: Annotated[str, Field(max_length=128, min_length=1)]
+    """
+    The token in the emailed link.
+    """
+    new_password: Annotated[str, Field(max_length=1024, min_length=1)]
+    """
+    At least 10 characters, any Unicode, not a common password.
+    """
+
+
+class PasswordChangeRequest(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    current_password: Annotated[str, Field(max_length=1024, min_length=1)]
+    new_password: Annotated[str, Field(max_length=1024, min_length=1)]
 
 
 class DeclaredCategory(StrEnum):
@@ -2638,6 +2711,11 @@ class ErrorCode(StrEnum):
     OTP_ATTEMPTS_EXCEEDED = "OTP_ATTEMPTS_EXCEEDED"
     REFRESH_TOKEN_INVALID = "REFRESH_TOKEN_INVALID"
     TERMS_NOT_ACCEPTED = "TERMS_NOT_ACCEPTED"
+    INVALID_CREDENTIALS = "INVALID_CREDENTIALS"
+    SECOND_FACTOR_REQUIRED = "SECOND_FACTOR_REQUIRED"
+    SECOND_FACTOR_INVALID = "SECOND_FACTOR_INVALID"
+    WEAK_PASSWORD = "WEAK_PASSWORD"
+    PASSWORD_RESET_TOKEN_INVALID = "PASSWORD_RESET_TOKEN_INVALID"
     CLUB_FEATURE_DISABLED = "CLUB_FEATURE_DISABLED"
     CLUB_SERVICE_SUSPENDED = "CLUB_SERVICE_SUSPENDED"
     BOOKING_SLOT_TAKEN = "BOOKING_SLOT_TAKEN"

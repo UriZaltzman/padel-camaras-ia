@@ -45,8 +45,11 @@ describe('/admin/clubs/{id}/modules', () => {
       [5, null], // a club owner: no staff role
     ];
     for (const [n, role] of roles) {
-      if (role) ctx.staff.members.set(user(n), { userId: user(n), role, secondFactor: 'none' });
-      tokens.set(role ?? 'owner', (await sessions.issue(user(n))).access_token);
+      if (role) ctx.staff.members.set(user(n), { userId: user(n), role, secondFactor: 'totp' });
+      tokens.set(
+        role ?? 'owner',
+        (await sessions.issue(user(n), { mfa: role !== null })).access_token,
+      );
     }
   });
   afterAll(() => ctx.app.close());
