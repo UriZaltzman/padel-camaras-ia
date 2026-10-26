@@ -770,7 +770,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-
   /auth/oauth/google:
     post:
       operationId: signInWithGoogle
@@ -5848,7 +5847,7 @@ components:
 
     Email:
       type: string
-      format: email
+      description: An email address. Compared in lowercase.
       minLength: 3
       maxLength: 254
 

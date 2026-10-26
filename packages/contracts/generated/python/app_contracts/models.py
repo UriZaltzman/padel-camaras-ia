@@ -8,7 +8,7 @@ from enum import Enum, IntEnum, StrEnum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import AnyUrl, AwareDatetime, BaseModel, ConfigDict, EmailStr, Field, RootModel
+from pydantic import AnyUrl, AwareDatetime, BaseModel, ConfigDict, Field, RootModel
 
 
 class Uuid(RootModel[UUID]):
@@ -654,8 +654,11 @@ class TokenPair(BaseModel):
     """
 
 
-class Email(RootModel[EmailStr]):
-    root: Annotated[EmailStr, Field(max_length=254, min_length=3)]
+class Email(RootModel[str]):
+    root: Annotated[str, Field(max_length=254, min_length=3)]
+    """
+    An email address. Compared in lowercase.
+    """
 
 
 class PasswordLoginRequest(BaseModel):

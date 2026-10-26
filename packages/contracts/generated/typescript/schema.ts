@@ -2653,7 +2653,7 @@ export interface components {
       /** @description True when this request created the account. */
       is_new_user: boolean;
     };
-    /** Format: email */
+    /** @description An email address. Compared in lowercase. */
     Email: string;
     PasswordLoginRequest: {
       email: components['schemas']['Email'];
