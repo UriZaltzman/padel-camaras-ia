@@ -32,7 +32,7 @@ const NOW = new Date('2026-10-23T09:00:00Z');
 const TODAY = '2026-10-23';
 
 async function renderFind() {
-  const server = createMockAuthServer();
+  const server = createMockAuthServer({ now: () => NOW });
   await secureTokenStore.save(server.issueTokens());
   await render(
     <SessionProvider fetch={server.fetch} providers={null}>
