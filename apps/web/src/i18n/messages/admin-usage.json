@@ -1,0 +1,15 @@
+{
+  "admin.usage.title": "Consumo por club",
+  "admin.usage.period": "Mes",
+  "admin.usage.nearOnly": "Solo clubes cerca de cambiar de tramo",
+  "admin.usage.empty": "Ningún club coincide con el filtro.",
+  "admin.usage.col.club": "Club",
+  "admin.usage.col.players": "Jugadores activos (90 días)",
+  "admin.usage.col.bookings": "Reservas",
+  "admin.usage.col.matches": "Partidos grabados",
+  "admin.usage.col.storage": "Almacenamiento (GB)",
+  "admin.usage.col.video": "Minutos de video",
+  "admin.usage.col.cost": "Costo estimado",
+  "admin.usage.col.invoiced": "Facturado",
+  "admin.usage.near": "Cerca del próximo tramo ({at})"
+}

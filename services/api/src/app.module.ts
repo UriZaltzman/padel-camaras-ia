@@ -4,6 +4,7 @@ import type { Env } from './config/env';
 import { EnvModule } from './config/env.module';
 import { AuthModule } from './auth/auth.module';
 import { BookingsModule } from './bookings/bookings.module';
+import { ClubBookingsModule } from './club-bookings/club-bookings.module';
 import { ClubModulesModule } from './club-modules/club-modules.module';
 import { ClubsModule } from './clubs/clubs.module';
 import { CrmModule } from './crm/crm.module';
@@ -35,6 +36,7 @@ export class AppModule {
         MatchesModule,
         RankingModule,
         CrmModule,
+        ClubBookingsModule,
         FavoritesModule,
         PaymentsModule,
         TournamentsModule,

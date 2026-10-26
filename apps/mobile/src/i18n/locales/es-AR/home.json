@@ -1,0 +1,21 @@
+{
+  "home": {
+    "dataLabel": "Cancha · Jugadores · Pelota",
+    "title": "{brand}",
+    "loading": "Cargando…",
+    "error": "No pudimos cargar esto. Probá de nuevo en un rato.",
+    "nextBooking": {
+      "label": "Próximo turno",
+      "place": "{club} · {court} · {minutes} min",
+      "empty": "No tenés turnos reservados."
+    },
+    "lastMatch": {
+      "label": "Último partido",
+      "won": "Ganaste",
+      "lost": "Perdiste",
+      "place": "{club} · {court} · {when}",
+      "empty": "Todavía no jugaste partidos grabados."
+    },
+    "primaryAction": "Buscar club y turno"
+  }
+}

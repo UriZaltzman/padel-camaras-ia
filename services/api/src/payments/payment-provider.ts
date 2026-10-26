@@ -93,3 +93,40 @@ export class FakePaymentProvider implements PaymentProvider {
     return Promise.resolve();
   }
 }
+
+/**
+ * Stand-in for Mercado Pago in the full-stack e2e environment (`PAYMENT_PROVIDER=fake`, never in
+ * production). Every preference it creates is paid in full as soon as the provider is asked
+ * about it, so a test only has to send the signed webhook with the preference id.
+ */
+export class SelfApprovingPaymentProvider implements PaymentProvider {
+  private readonly preferences = new Map<string, PreferenceRequest>();
+  private readonly refunded = new Set<string>();
+
+  createPreference(request: PreferenceRequest): Promise<Preference> {
+    const preferenceId = `fake-${request.externalReference.split(':')[1] ?? 'pref'}`;
+    this.preferences.set(preferenceId, request);
+    return Promise.resolve({
+      preferenceId,
+      checkoutUrl: `https://fake.mercadopago.test/checkout?pref_id=${preferenceId}`,
+    });
+  }
+
+  getPayment(providerPaymentId: string): Promise<ProviderPayment> {
+    const request = this.preferences.get(providerPaymentId);
+    if (!request) {
+      return Promise.reject(new AppError('PAYMENT_PROVIDER_ERROR', { reason: 'unknown_payment' }));
+    }
+    return Promise.resolve({
+      providerPaymentId,
+      status: this.refunded.has(providerPaymentId) ? 'refunded' : 'approved',
+      amountCents: request.amountCents,
+      externalReference: request.externalReference,
+    });
+  }
+
+  refund(providerPaymentId: string): Promise<void> {
+    this.refunded.add(providerPaymentId);
+    return Promise.resolve();
+  }
+}

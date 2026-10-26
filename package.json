@@ -15,7 +15,8 @@
     "format:check": "prettier --check .",
     "contracts:generate": "turbo run contracts:generate",
     "db:migrate": "turbo run db:migrate",
-    "db:seed": "turbo run db:seed"
+    "db:seed": "turbo run db:seed",
+    "e2e:full": "node infra/e2e/run.mjs"
   },
   "devDependencies": {
     "prettier": "^3.3.3",

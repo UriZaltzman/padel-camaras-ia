@@ -7,7 +7,7 @@ import { createMockAuthServer, type MockAuthServer } from '../auth/mock-api';
 import { SessionProvider, useSession } from '../auth/session';
 import { secureTokenStore } from '../auth/token-store';
 import { i18n } from '../i18n';
-import esAR from '../i18n/locales/es-AR.json';
+import { esAR } from '../i18n/locales';
 import { ProfileScreen } from '../profile/ProfileScreen';
 import { formatDeletionDate, validateProfile } from '../profile/profile-form';
 

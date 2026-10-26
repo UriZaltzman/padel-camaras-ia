@@ -1,0 +1,49 @@
+name: e2e-full
+
+# Full-stack end-to-end run (infra/e2e): real API + Postgres + Redis in Docker Compose with the
+# three seeded clubs, and the web in real-API mode driven by Playwright. Slow, so it does not run
+# on every PR: start it by hand (workflow_dispatch) or put the `e2e-full` label on a pull request.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    types: [labeled, synchronize, reopened]
+
+concurrency:
+  group: e2e-full-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-full:
+    name: Full-stack e2e (real API)
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'e2e-full')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # pnpm version comes from "packageManager" in package.json.
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install the Playwright browser
+        run: pnpm --filter @app/web exec playwright install --with-deps chromium
+      - name: Bring the stack up, run Playwright against the real API, tear it down
+        run: pnpm e2e:full
+      - name: API logs (on failure)
+        if: failure()
+        run: docker compose -f infra/e2e/docker-compose.yml logs --no-color --tail 300 || true
+      - name: Playwright report (on failure)
+        if: failure()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: playwright-full-stack
+          path: apps/web/test-results
+          if-no-files-found: ignore

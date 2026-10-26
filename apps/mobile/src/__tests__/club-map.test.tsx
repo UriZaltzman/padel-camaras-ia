@@ -9,7 +9,7 @@ import { clubPosition } from '../booking/localities';
 import { clusterPins, DEFAULT_VIEWPORT, fitViewport } from '../booking/map-cluster';
 import { mapProvider } from '../booking/map-config';
 import { i18n } from '../i18n';
-import esAR from '../i18n/locales/es-AR.json';
+import { esAR } from '../i18n/locales';
 
 jest.mock('expo-secure-store', () => {
   const items = new Map<string, string>();

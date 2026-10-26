@@ -1,0 +1,15 @@
+.git
+.claude
+.codex
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/coverage
+ml
+infra/hardware
+infra/camsim
+docs
+.env
+.env.*
+!.env.example
