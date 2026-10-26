@@ -64,7 +64,7 @@ jobs:
       # The runner's own apt jobs can hold the dpkg lock at start, so wait for it first; the step
       # has a time limit instead of a `timeout` wrapper, which would orphan apt and keep the lock.
       - name: Install browser
-        timeout-minutes: 12
+        timeout-minutes: 20
         working-directory: apps/web
         env:
           ENGINE: ${{ startsWith(matrix.project, 'i') && 'webkit' || 'chromium' }}
