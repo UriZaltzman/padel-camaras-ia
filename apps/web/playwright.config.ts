@@ -36,7 +36,8 @@ export default defineConfig({
     command: `pnpm exec next dev --port ${PORT}`,
     url: `http://localhost:${PORT}/ingresar`,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    // A cold `next dev` on a CI runner can take minutes to compile the first route.
+    timeout: process.env.CI ? 300_000 : 120_000,
     env: { NEXT_PUBLIC_API_MOCK: 'true' },
   },
 });
