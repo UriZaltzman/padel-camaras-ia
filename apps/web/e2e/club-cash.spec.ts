@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import esAR from '../src/i18n/es-AR.json' with { type: 'json' };
+import { messages as esAR } from '../src/i18n/messages';
 
 const DEMO_CLUB = '01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a60';
 

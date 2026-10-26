@@ -2,7 +2,7 @@
 // @app/config/brand, so the brand name is never written by hand.
 import { brand } from '@app/config/brand';
 
-import esAR from './es-AR.json';
+import { messages as esAR } from './messages';
 
 export const locale = 'es-AR';
 export const timeZone = 'America/Argentina/Buenos_Aires';

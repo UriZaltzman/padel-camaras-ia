@@ -1,7 +1,7 @@
 import { brand } from '@app/config/brand';
 import { describe, expect, it } from 'vitest';
 
-import esAR from './es-AR.json';
+import { messages as esAR } from './messages';
 
 import { t } from '.';
 

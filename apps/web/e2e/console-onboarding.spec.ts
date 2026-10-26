@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import esAR from '../src/i18n/es-AR.json' with { type: 'json' };
+import { messages as esAR } from '../src/i18n/messages';
 
 test('a seller onboards a club in one pass and the link opens the booking page', async ({
   page,

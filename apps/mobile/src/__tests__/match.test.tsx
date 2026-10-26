@@ -6,7 +6,7 @@ import { createApiClient } from '@app/contracts';
 
 import { ApiProvider } from '../api/client';
 import { i18n } from '../i18n';
-import esAR from '../i18n/locales/es-AR.json';
+import { esAR } from '../i18n/locales';
 import { canClaim, filterPoints, statsAreApproximate } from '../matches/match-data';
 import { MatchScreen } from '../matches/MatchScreen';
 import type { MatchVideoComponent } from '../matches/MatchVideo';
