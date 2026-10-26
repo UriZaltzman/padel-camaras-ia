@@ -60,9 +60,18 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Install browsers
+      # Only the engine the project needs (WebKit for iPhone and iPad, Chromium for the rest). The
+      # install has hung on apt in CI, so it is capped and retried.
+      - name: Install browser
         working-directory: apps/web
-        run: pnpm exec playwright install --with-deps chromium webkit
+        env:
+          ENGINE: ${{ startsWith(matrix.project, 'i') && 'webkit' || 'chromium' }}
+        run: |
+          for attempt in 1 2 3; do
+            timeout 300 pnpm exec playwright install --with-deps "$ENGINE" && exit 0
+            echo "Browser install attempt $attempt failed or timed out"
+          done
+          exit 1
       - name: Run the ${{ matrix.project }} project
         working-directory: apps/web
         run: pnpm exec playwright test --project=${{ matrix.project }} --trace retain-on-failure
