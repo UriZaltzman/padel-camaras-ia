@@ -1,0 +1,46 @@
+{
+  "signIn": {
+    "phone": {
+      "title": "Entrá a {brand}",
+      "body": "Te mandamos un código por WhatsApp para entrar.",
+      "label": "Tu número de WhatsApp",
+      "placeholder": "11 5555 0123",
+      "submit": "Mandame el código"
+    },
+    "or": "o",
+    "google": "Seguir con Google",
+    "apple": "Seguir con Apple",
+    "socialUnavailable": "Entrar con Google o Apple todavía no está disponible. Por ahora entrá con WhatsApp.",
+    "code": {
+      "title": "Poné el código",
+      "body": "Te lo mandamos por WhatsApp al {phone}. Vence en 5 minutos.",
+      "label": "Código de 6 dígitos",
+      "placeholder": "000000",
+      "submit": "Entrar",
+      "resend": "Mandame otro código",
+      "resendIn": "Pedí otro en {seconds} s",
+      "changePhone": "Cambiar el número"
+    },
+    "terms": {
+      "title": "Antes de empezar",
+      "body": "Para crear tu cuenta en {brand} tenés que aceptar los términos y la política de privacidad.",
+      "checkbox": "Leí y acepto los términos y condiciones y la política de privacidad.",
+      "readTerms": "Ver términos y condiciones",
+      "readPrivacy": "Ver política de privacidad",
+      "submit": "Aceptar y crear mi cuenta",
+      "back": "Volver"
+    },
+    "errors": {
+      "phoneInvalid": "Revisá el número: tiene que ser un celular con código de área.",
+      "OTP_INVALID_one": "El código no es correcto. Te queda 1 intento.",
+      "OTP_INVALID_other": "El código no es correcto. Te quedan {count} intentos.",
+      "OTP_EXPIRED": "El código venció. Pedí uno nuevo.",
+      "OTP_ATTEMPTS_EXCEEDED": "Te equivocaste demasiadas veces. Pedí un código nuevo.",
+      "RATE_LIMITED": "Hiciste muchos intentos seguidos. Esperá un momento y probá de nuevo.",
+      "VALIDATION_FAILED": "Revisá los datos e intentá de nuevo.",
+      "provider": "No pudimos conectar con tu cuenta. Probá de nuevo o entrá con WhatsApp.",
+      "network": "No hay conexión. Revisá tu internet y probá de nuevo.",
+      "generic": "Algo salió mal. Probá de nuevo en un rato."
+    }
+  }
+}

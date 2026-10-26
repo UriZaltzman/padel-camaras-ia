@@ -4,7 +4,7 @@ import { defineConfig } from 'tsup';
 // ship TypeScript sources, so they are bundled in; npm dependencies stay external.
 // `emitDecoratorMetadata` in tsconfig makes tsup compile with SWC, which NestJS needs for DI.
 export default defineConfig({
-  entry: { main: 'src/main.ts' },
+  entry: { main: 'src/main.ts', seed: 'src/seed/main.ts' },
   format: ['cjs'],
   platform: 'node',
   target: 'node22',

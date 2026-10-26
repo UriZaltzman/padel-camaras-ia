@@ -154,6 +154,12 @@ describe.skipIf(!adminUrl)('API isolation between clubs', () => {
       route: 'DELETE /v1/clubs/:clubId/court-blocks/:blockId',
     },
     {
+      name: 'booking calendar of A',
+      method: 'get',
+      path: `/club-admin/bookings?club_id=${A.club}&from=2026-10-01T00:00:00.000Z&to=2026-10-20T00:00:00.000Z`,
+      route: 'GET /v1/club-admin/bookings',
+    },
+    {
       name: 'crm list of A',
       method: 'get',
       path: `/club-admin/players?club_id=${A.club}`,

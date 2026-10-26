@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import esAR from '../src/i18n/es-AR.json' with { type: 'json' };
+import { messages as esAR } from '../src/i18n/messages';
 
 // Test data of the API mock (src/lib/api/mock-player.ts): any phone, fixed code.
 const MOCK_OTP_CODE = '123456';

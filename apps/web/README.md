@@ -6,13 +6,13 @@ Next.js: web del partido, panel del club y consola interna. Ver `.claude/agents/
 
 ## Estructura
 
-| Dónde                | Qué                                                                                                        |
-| -------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `src/app`            | App Router. `layout.tsx` carga las fuentes (`fonts.ts`) y TanStack Query (`providers.tsx`)                 |
-| `tailwind.config.ts` | Tema de Tailwind armado desde `packages/ui/tokens.ts`. Acá no se escribe ningún color                      |
-| `src/i18n`           | Textos de usuario en `es-AR.json`. `t('clave')` completa `{brand}` y `{tagline}` desde `@app/config/brand` |
-| `src/lib/api`        | Cliente tipado de `@app/contracts` y un mock que responde con el `Error` del contrato                      |
-| `src/lib/env.ts`     | Variables públicas validadas con Zod                                                                       |
+| Dónde                | Qué                                                                                                                                                       |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app`            | App Router. `layout.tsx` carga las fuentes (`fonts.ts`) y TanStack Query (`providers.tsx`)                                                                |
+| `tailwind.config.ts` | Tema de Tailwind armado desde `packages/ui/tokens.ts`. Acá no se escribe ningún color                                                                     |
+| `src/i18n`           | Textos de usuario en `messages/*.json` (uno por módulo, los junta `messages.ts`). `t('clave')` completa `{brand}` y `{tagline}` desde `@app/config/brand` |
+| `src/lib/api`        | Cliente tipado de `@app/contracts` y un mock que responde con el `Error` del contrato                                                                     |
+| `src/lib/env.ts`     | Variables públicas validadas con Zod                                                                                                                      |
 
 ## Formulario de contacto de la landing
 

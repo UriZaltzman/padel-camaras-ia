@@ -10,7 +10,7 @@ import { createFakeProviders, ProviderCancelledError } from '../auth/providers';
 import { SessionProvider, useSession } from '../auth/session';
 import { secureTokenStore } from '../auth/token-store';
 import { i18n } from '../i18n';
-import esAR from '../i18n/locales/es-AR.json';
+import { esAR } from '../i18n/locales';
 
 jest.mock('expo-secure-store', () => {
   const items = new Map<string, string>();

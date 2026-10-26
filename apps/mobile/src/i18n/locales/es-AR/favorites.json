@@ -1,0 +1,46 @@
+{
+  "favorites": {
+    "title": "Mis clubes favoritos",
+    "edit": "Editar",
+    "editTitle": "Mis favoritos",
+    "editHint": "Ordenalos como quieras: el primero aparece arriba en tu Inicio.",
+    "addAnother": "+ Agregar otro club",
+    "done": "Listo",
+    "removeNote": "Quitar un club de favoritos no cancela tus reservas.",
+    "upcoming_zero": "Sin reservas",
+    "upcoming_one": "{count} reserva próxima",
+    "upcoming_other": "{count} reservas próximas",
+    "mark": "Marcar {club} como favorito",
+    "unmark": "Quitar {club} de favoritos",
+    "up": "Subir {club}",
+    "down": "Bajar {club}",
+    "remove": "Quitar {club}",
+    "noBookings": "Todavía no tenés reservas en este club.",
+    "freeToday": "Libres hoy",
+    "booking": {
+      "title": "{when} · {court}",
+      "new": "Nueva",
+      "paid": "Seña pagada",
+      "pending": "Seña pendiente",
+      "share": "Compartir",
+      "cancel": "Cancelar",
+      "again": "Reservar de nuevo",
+      "shareMessage": "Juego en {club} el {when}. ¡Sumate!"
+    },
+    "empty": {
+      "title": "Marcá tus clubes habituales con la estrella",
+      "body": "Acá vas a ver tus próximas reservas de cada club y los horarios libres de hoy, sin buscar.",
+      "action": "Buscar clubes"
+    },
+    "booked": {
+      "title": "Reserva confirmada",
+      "detail": "{club} · {when}"
+    },
+    "prompt": {
+      "title": "¿Marcar {club} como favorito?",
+      "body": "Así vas a ver acá tus reservas y los horarios libres de ese club.",
+      "yes": "Sí, marcar con la estrella",
+      "no": "Ahora no"
+    }
+  }
+}
