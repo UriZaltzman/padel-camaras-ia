@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 
-import esAR from '../../src/i18n/es-AR.json' with { type: 'json' };
+import { messages as esAR } from '../../src/i18n/messages';
 import {
   expectAccessible,
   expectResponsive,
@@ -30,10 +30,10 @@ test(screenTitle('club-calendar', 'the booking calendar fits the device'), async
     await expect(nav).toBeVisible();
   } else {
     await expect(nav).toBeHidden();
-    await page.getByRole('button', { name: 'Abrir el menú' }).click();
+    await page.getByRole('button', { name: esAR['shell.menu.open'] }).click();
     await expect(nav).toBeVisible();
     await expectResponsive(page);
-    await page.getByRole('button', { name: 'Cerrar el menú' }).click();
+    await page.getByRole('button', { name: esAR['shell.menu.close'] }).click();
     await expect(nav).toBeHidden();
   }
 

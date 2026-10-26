@@ -18,6 +18,8 @@ export interface MockAuthOptions {
   code?: string;
   /** New Google/Apple users need consent unless listed here. */
   existingOAuth?: boolean;
+  /** Clock of the public availability answers (tests pin it); the real clock by default. */
+  now?: () => Date;
 }
 
 export interface MockAuthServer {
@@ -145,7 +147,7 @@ export function createMockAuthServer(options: MockAuthOptions = {}): MockAuthSer
 
     // Public club and availability endpoints (no credentials).
     if (input.method === 'GET') {
-      const booking = handleBookingMock(new URL(input.url), path);
+      const booking = handleBookingMock(new URL(input.url), path, options.now?.());
       if (booking) return booking;
     }
 

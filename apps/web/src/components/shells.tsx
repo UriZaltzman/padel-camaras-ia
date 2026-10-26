@@ -6,12 +6,11 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 import { t } from '@/i18n';
-import { tr } from '@/i18n/responsive';
 
 const labels = () => ({
-  nav: tr('panel.shell.nav'),
-  openMenu: tr('shell.menu.open'),
-  closeMenu: tr('shell.menu.close'),
+  nav: t('panel.shell.nav'),
+  openMenu: t('shell.menu.open'),
+  closeMenu: t('shell.menu.close'),
 });
 
 /** Navigation of one club in the panel: side menu on laptop, drawer below. */
@@ -19,13 +18,13 @@ export function ClubPanelShell({ clubId, children }: { clubId: string; children:
   const pathname = usePathname();
   const base = `/panel/clubes/${clubId}`;
   const items: NavItem[] = [
-    { href: `${base}/calendario`, label: tr('panel.nav.calendar') },
-    { href: `${base}/calendario/anual`, label: tr('panel.nav.yearCalendar') },
-    { href: `${base}/caja`, label: tr('panel.nav.cash') },
-    { href: `${base}/jugadores`, label: tr('panel.nav.players') },
-    { href: `${base}/torneos`, label: tr('panel.nav.tournaments') },
-    { href: `${base}/canchas`, label: tr('panel.nav.courts') },
-    { href: `${base}/marca`, label: tr('panel.nav.brand') },
+    { href: `${base}/calendario`, label: t('panel.nav.calendar') },
+    { href: `${base}/calendario/anual`, label: t('panel.nav.yearCalendar') },
+    { href: `${base}/caja`, label: t('panel.nav.cash') },
+    { href: `${base}/jugadores`, label: t('panel.nav.players') },
+    { href: `${base}/torneos`, label: t('panel.nav.tournaments') },
+    { href: `${base}/canchas`, label: t('panel.nav.courts') },
+    { href: `${base}/marca`, label: t('panel.nav.brand') },
   ];
   // The most specific item that matches the path is the current one.
   const current = items
@@ -33,7 +32,7 @@ export function ClubPanelShell({ clubId, children }: { clubId: string; children:
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
   return (
     <PanelShell
-      title={tr('panel.shell.title')}
+      title={t('panel.shell.title')}
       items={items}
       {...(current ? { currentHref: current } : {})}
       labels={labels()}
@@ -59,7 +58,7 @@ export function AdminShell({ banner, children }: { banner: ReactNode; children: 
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
   return (
     <ConsoleShell
-      title={tr('admin.shell.title')}
+      title={t('admin.shell.title')}
       items={items}
       {...(current ? { currentHref: current } : {})}
       labels={{ ...labels(), nav: t('admin.nav.label') }}

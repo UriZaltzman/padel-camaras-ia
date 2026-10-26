@@ -13,7 +13,7 @@ import {
   formatTime,
 } from '../booking/find-slot';
 import { i18n } from '../i18n';
-import esAR from '../i18n/locales/es-AR.json';
+import { esAR } from '../i18n/locales';
 
 jest.mock('expo-secure-store', () => {
   const items = new Map<string, string>();

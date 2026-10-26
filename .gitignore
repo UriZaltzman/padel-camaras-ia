@@ -27,6 +27,6 @@ mlruns/
 .github/planning/created.json
 .claude/worktrees/
 
-# Playwright output (apps/web)
-apps/web/test-results/
-apps/web/playwright-report/
+# Playwright output
+test-results/
+playwright-report/

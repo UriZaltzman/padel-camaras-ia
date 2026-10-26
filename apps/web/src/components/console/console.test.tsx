@@ -7,7 +7,7 @@ import { buildApiClient } from '@/lib/api/client';
 import { parseBom } from '@/lib/hardware/bom';
 
 import { ClubDetail } from './club-detail';
-import esAR from '@/i18n/es-AR.json';
+import { messages as esAR } from '@/i18n/messages';
 
 import { ClubsList } from './clubs-list';
 import { ModulesConfigurator } from './modules-configurator';

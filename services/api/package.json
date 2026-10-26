@@ -15,7 +15,8 @@
     "start": "node dist/main.cjs",
     "format:check": "prettier --check .",
     "db:migrate": "prisma migrate deploy",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "db:seed": "tsup && node dist/seed.cjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",

@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { t } from '@/i18n';
-import { tr } from '@/i18n/responsive';
 import type { MessageKey } from '@/i18n';
 import { apiClient } from '@/lib/api/client';
 import {
@@ -258,7 +257,7 @@ function Grid({ courts, bookings, view, date, weekCourtId, isToday, onSelect }: 
       )}
       {view === 'day' && perScreen < courts.length && (
         <label className="flex flex-col gap-1 text-sm font-semibold">
-          {tr('calendar.courts.window')}
+          {t('calendar.courts.window')}
           <select
             className={inputClass}
             value={first}
@@ -268,7 +267,7 @@ function Grid({ courts, bookings, view, date, weekCourtId, isToday, onSelect }: 
               <option key={i} value={i}>
                 {perScreen === 1
                   ? (courts[i]?.name ?? '')
-                  : tr('calendar.courts.window.option', {
+                  : t('calendar.courts.window.option', {
                       from: courts[i]?.name ?? '',
                       to: courts[i + perScreen - 1]?.name ?? '',
                     })}

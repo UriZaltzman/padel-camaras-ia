@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { t } from '@/i18n';
-import { tr } from '@/i18n/responsive';
 import { apiClient } from '@/lib/api/client';
 import { formatCents, formatDateTime } from '@/lib/player/format';
 
@@ -94,7 +93,7 @@ export function ClubsList({ client = apiClient }: { client?: ApiClient }) {
       )}
       {query.data && query.data.items.length > 0 && (
         <ResponsiveTable
-          caption={tr('admin.clubs.table')}
+          caption={t('admin.clubs.table')}
           rows={query.data.items}
           rowKey={(club) => club.id}
           columns={[

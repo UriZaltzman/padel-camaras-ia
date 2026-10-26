@@ -1,11 +1,11 @@
-// i18n: every user-facing text lives in locales/es-AR.json. The brand name is never written
+// i18n: every user-facing text lives in locales/es-AR/*.json. The brand name is never written
 // there: texts use `{brand}`, filled from packages/config/brand.ts.
 import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
 import { brand } from '@app/config/brand';
 
-import esAR from './locales/es-AR.json';
+import { esAR } from './locales';
 
 export const defaultLocale = 'es-AR';
 
