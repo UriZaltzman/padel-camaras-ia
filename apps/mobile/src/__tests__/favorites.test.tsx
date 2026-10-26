@@ -64,6 +64,10 @@ async function bookFirstSlot(clubId: string) {
   await fireEvent.press(await screen.findByTestId('book-slot'));
 }
 
+// The first test pays the cold start of the whole app (38 to 57 s for the file on a CI runner), so
+// the default 20 s of jest.config.js is not enough there.
+jest.setTimeout(60_000);
+
 describe('favorite clubs', () => {
   beforeEach(async () => {
     jest.useFakeTimers({
