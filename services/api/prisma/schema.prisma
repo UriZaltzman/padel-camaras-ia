@@ -100,12 +100,14 @@ model User {
   updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   authIdentities         AuthIdentity[]
+  credentials            UserCredential?
+  passwordResetTokens    PasswordResetToken[]
   clubPlayerNotes        ClubPlayerNote[]
   memberships            Membership[]
-  bookingsCreated        Booking[]          @relation("BookingCreatedBy")
-  bookingsAsGuardian     Booking[]          @relation("BookingGuardian")
-  bookingPlayers         BookingPlayer[]    @relation("BookingPlayerUser")
-  bookingInvitesSent     BookingPlayer[]    @relation("BookingPlayerInvitedBy")
+  bookingsCreated        Booking[]            @relation("BookingCreatedBy")
+  bookingsAsGuardian     Booking[]            @relation("BookingGuardian")
+  bookingPlayers         BookingPlayer[]      @relation("BookingPlayerUser")
+  bookingInvitesSent     BookingPlayer[]      @relation("BookingPlayerInvitedBy")
   matchPlayers           MatchPlayer[]
   matchStats             MatchStat[]
   insights               Insight[]
@@ -113,12 +115,12 @@ model User {
   payments               Payment[]
   rating                 Rating?
   lessonsAsCoach         Lesson[]
-  lessonStudents         LessonStudent[]    @relation("LessonStudentUser")
-  coachGrantsGiven       CoachAccessGrant[] @relation("CoachGrantStudent")
-  coachGrantsHeld        CoachAccessGrant[] @relation("CoachGrantCoach")
+  lessonStudents         LessonStudent[]      @relation("LessonStudentUser")
+  coachGrantsGiven       CoachAccessGrant[]   @relation("CoachGrantStudent")
+  coachGrantsHeld        CoachAccessGrant[]   @relation("CoachGrantCoach")
   favoriteClubs          PlayerFavoriteClub[]
-  lessonRequestsMade     LessonRequest[]    @relation("LessonRequestStudent")
-  lessonRequestsReceived LessonRequest[]    @relation("LessonRequestCoach")
+  lessonRequestsMade     LessonRequest[]      @relation("LessonRequestStudent")
+  lessonRequestsReceived LessonRequest[]      @relation("LessonRequestCoach")
   notifications          Notification[]
   auditActions           AuditLog[]
 
@@ -139,6 +141,43 @@ model AuthIdentity {
   @@unique([provider, externalId])
   @@index([userId])
   @@map("auth_identities")
+}
+
+/// Email + password credentials (club owners, club staff, internal staff). Players sign in by WhatsApp
+/// and have none. The hash is an Argon2id PHC string; the pepper is never here, only its version.
+model UserCredential {
+  userId            String    @id @map("user_id") @db.Uuid
+  /// `$argon2id$v=19$m=...,t=...,p=...$salt$hash`: algorithm, parameters and salt travel with it.
+  passwordHash      String    @map("password_hash")
+  /// Which pepper (env secret) was mixed in; rotates by adding a new version and rehashing at login.
+  pepperVersion     Int       @map("pepper_version")
+  /// TOTP secret, encrypted (AES-256-GCM) with a key from the environment. Null until enrolled.
+  totpSecretEnc     String?   @map("totp_secret_enc")
+  totpConfirmedAt   DateTime? @map("totp_confirmed_at") @db.Timestamptz(3)
+  /// Last accepted 30-second step: a code can be used once.
+  totpLastStep      BigInt?   @map("totp_last_step")
+  passwordChangedAt DateTime  @default(now()) @map("password_changed_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_credentials")
+}
+
+/// Single-use password reset links. Only the SHA-256 of the token is stored.
+model PasswordResetToken {
+  id        String    @id @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model Membership {

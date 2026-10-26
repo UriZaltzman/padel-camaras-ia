@@ -9,6 +9,8 @@ const prismaDir = join(__dirname, '..', 'prisma');
 const EXPECTED_TABLES = [
   'users',
   'auth_identities',
+  'user_credentials',
+  'password_reset_tokens',
   'memberships',
   'clubs',
   'club_modules',

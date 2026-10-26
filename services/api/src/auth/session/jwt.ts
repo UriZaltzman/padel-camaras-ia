@@ -8,6 +8,10 @@ export interface AccessClaims {
   sid: string;
   iat: number;
   exp: number;
+  /** Session epoch of the user when issued; "end all sessions" raises the user's epoch. */
+  ep?: number;
+  /** The sign-in used a second factor (required for internal staff). */
+  mfa?: boolean;
 }
 
 export type JwtCheck =
@@ -68,6 +72,8 @@ function isClaims(value: unknown): value is AccessClaims {
     typeof v.sub === 'string' &&
     typeof v.sid === 'string' &&
     typeof v.iat === 'number' &&
-    typeof v.exp === 'number'
+    typeof v.exp === 'number' &&
+    (v.ep === undefined || typeof v.ep === 'number') &&
+    (v.mfa === undefined || typeof v.mfa === 'boolean')
   );
 }

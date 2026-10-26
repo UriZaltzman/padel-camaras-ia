@@ -21,6 +21,8 @@ export interface TokenPair {
 export interface AccessIdentity {
   userId: string;
   sessionId: string;
+  /** The sign-in used a second factor. */
+  mfa?: boolean;
 }
 
 const REFRESH_FORMAT = /^rt_([0-9a-f-]{36})\.([A-Za-z0-9_-]{20,})$/;
@@ -40,8 +42,16 @@ export class SessionService {
   ) {}
 
   /** Starts a session (a new token family) after a successful sign-in. */
-  issue(userId: string): Promise<TokenPair> {
-    return this.mint(userId, newId());
+  async issue(userId: string, options: { mfa?: boolean } = {}): Promise<TokenPair> {
+    return this.mint(userId, newId(), await this.store.getEpoch(userId), options.mfa ?? false);
+  }
+
+  /**
+   * Ends every session of the user, access tokens included (after a password reset or change).
+   * Sessions started afterwards are unaffected.
+   */
+  async revokeAllSessions(userId: string): Promise<void> {
+    await this.store.bumpEpoch(userId);
   }
 
   async refresh(refreshToken: string): Promise<TokenPair> {
@@ -61,7 +71,10 @@ export class SessionService {
     if (await this.store.isFamilyRevoked(record.familyId)) {
       throw new AppError('REFRESH_TOKEN_INVALID');
     }
-    return this.mint(record.userId, record.familyId);
+    if (record.epoch !== (await this.store.getEpoch(record.userId))) {
+      throw new AppError('REFRESH_TOKEN_INVALID');
+    }
+    return this.mint(record.userId, record.familyId, record.epoch, record.mfa);
   }
 
   /** Validates an access token. Distinguishes an expired one so clients know to refresh. */
@@ -71,7 +84,10 @@ export class SessionService {
     if (check.status === 'invalid') throw new AppError('UNAUTHENTICATED');
     const { sub, sid } = check.claims;
     if (await this.store.isFamilyRevoked(sid)) throw new AppError('UNAUTHENTICATED');
-    return { userId: sub, sessionId: sid };
+    if ((check.claims.ep ?? 0) !== (await this.store.getEpoch(sub))) {
+      throw new AppError('UNAUTHENTICATED');
+    }
+    return { userId: sub, sessionId: sid, mfa: check.claims.mfa === true };
   }
 
   /** Ends a session: its refresh tokens stop working and its access tokens are refused. */
@@ -79,18 +95,25 @@ export class SessionService {
     return this.store.revokeFamily(sessionId, REFRESH_TTL_SECONDS);
   }
 
-  private async mint(userId: string, familyId: string): Promise<TokenPair> {
+  private async mint(
+    userId: string,
+    familyId: string,
+    epoch: number,
+    mfa: boolean,
+  ): Promise<TokenPair> {
     const now = this.nowSeconds();
     const claims: AccessClaims = {
       sub: userId,
       sid: familyId,
       iat: now,
       exp: now + ACCESS_TTL_SECONDS,
+      ep: epoch,
+      mfa,
     };
     const id = newId();
     const secret = randomBytes(32).toString('base64url');
     await this.store.save(
-      { id, secretHash: sha256(secret), userId, familyId, used: false },
+      { id, secretHash: sha256(secret), userId, familyId, used: false, epoch, mfa },
       REFRESH_TTL_SECONDS,
     );
     return {

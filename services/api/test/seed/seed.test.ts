@@ -6,7 +6,7 @@ import {
   buildSeed,
   type SeedRows,
 } from '../../src/seed/data';
-import { seedCredentials } from '../../src/seed/credentials';
+import { DEFAULT_SEED_PASSWORD, seedCredentials } from '../../src/seed/credentials';
 import { assertSeedAllowed, SeedNotAllowedError } from '../../src/seed/guard';
 import { seedId } from '../../src/seed/ids';
 
@@ -104,8 +104,20 @@ describe('seed data', () => {
     }
   });
 
-  it('has no credentials until the password login fills the hook', () => {
-    expect(seedCredentials()).toEqual([]);
+  it('gives each club owner and receptionist an Argon2id login, hashed at seed time', async () => {
+    const credentials = await seedCredentials({});
+    expect(credentials.map((c) => c.email).sort()).toEqual(
+      ['owner', 'staff']
+        .flatMap((l) => ['palermo', 'pilar', 'quilmes'].map((k) => `${l}.${k}@example.com`))
+        .sort(),
+    );
+    for (const credential of credentials) {
+      expect(credential.passwordHash).toMatch(/^\$argon2id\$v=19\$m=19456,t=2,p=1\$/);
+      expect(credential.passwordHash).not.toContain(DEFAULT_SEED_PASSWORD);
+      expect(
+        rows.users.some((u) => u.id === credential.userId && u.email === credential.email),
+      ).toBe(true);
+    }
   });
 });
 

@@ -14,6 +14,21 @@ export const envSchema = z
     REDIS_URL: z.url(),
     /** Key for hashing one-time codes (HMAC). Required in production; development has a default. */
     AUTH_OTP_SECRET: z.string().min(32).optional(),
+    /**
+     * Password peppers: JSON `{ "<version>": "<secret of 32+ chars>" }`. Secrets manager only, never
+     * the database. Rotate by adding a new version and raising `AUTH_PASSWORD_PEPPER_VERSION`:
+     * old hashes keep verifying with their version and are rehashed at the next login.
+     * Required in production; development has a built-in one.
+     */
+    AUTH_PASSWORD_PEPPERS: z.string().min(1).optional(),
+    /** Pepper version used for new hashes. Defaults to the highest version in `AUTH_PASSWORD_PEPPERS`. */
+    AUTH_PASSWORD_PEPPER_VERSION: z.coerce.number().int().positive().optional(),
+    /** Key that encrypts TOTP secrets at rest (AES-256-GCM, key derived with HKDF). Required in production. */
+    AUTH_TOTP_ENCRYPTION_KEY: z.string().min(32).optional(),
+    /** Page of the web app that takes the reset token (`?token=` is appended). Development default. */
+    /** Proxies in front of the API (0 = none). Needed for the per-IP lock-out to see the real client address. */
+    HTTP_TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).optional(),
+    PASSWORD_RESET_URL: z.url().default('http://localhost:3001/restablecer-clave'),
     /** PKCS#8 PEM of the EC P-256 key that signs access tokens. Required in production. */
     AUTH_JWT_PRIVATE_KEY: z.string().min(1).optional(),
     /** Secret that signs Mercado Pago webhooks (`x-signature`). Unset until the Mercado Pago account exists: the webhook then rejects everything. */
@@ -37,7 +52,12 @@ export const envSchema = z
       });
     }
     if (env.NODE_ENV !== 'production') return;
-    for (const name of ['AUTH_OTP_SECRET', 'AUTH_JWT_PRIVATE_KEY'] as const) {
+    for (const name of [
+      'AUTH_OTP_SECRET',
+      'AUTH_JWT_PRIVATE_KEY',
+      'AUTH_PASSWORD_PEPPERS',
+      'AUTH_TOTP_ENCRYPTION_KEY',
+    ] as const) {
       if (env[name] === undefined) {
         ctx.addIssue({ code: 'custom', path: [name], message: 'required in production' });
       }

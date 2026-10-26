@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { buildSeed, localToday, type SeedRows } from './data';
 import { seedCredentials } from './credentials';
 import { assertSeedAllowed } from './guard';
+import { seedId } from './ids';
 
 interface Delegate {
   createMany(args: { data: never[]; skipDuplicates: boolean }): Promise<{ count: number }>;
@@ -45,10 +46,27 @@ export async function runSeed(
       const result = await delegate.createMany({ data: data as never[], skipDuplicates: true });
       log(`seed ${table}: ${result.count} new of ${data.length}`);
     }
-    // The password login (#343) fills `seedCredentials()`; today it is empty on purpose.
-    for (const credential of seedCredentials()) {
-      log(`seed credential for ${credential.email}: handled by the password login`);
-    }
+    // Dev logins of owners and receptionists: email identity + Argon2id credential (#343).
+    const credentials = await seedCredentials(env);
+    const identities = await prisma.authIdentity.createMany({
+      data: credentials.map((c) => ({
+        id: seedId(`identity:email:${c.userId}`),
+        userId: c.userId,
+        provider: 'email' as const,
+        externalId: c.email,
+      })),
+      skipDuplicates: true,
+    });
+    const hashes = await prisma.userCredential.createMany({
+      data: credentials.map((c) => ({
+        userId: c.userId,
+        passwordHash: c.passwordHash,
+        pepperVersion: c.pepperVersion,
+      })),
+      skipDuplicates: true,
+    });
+    log(`seed email identities: ${identities.count} new of ${credentials.length}`);
+    log(`seed user_credentials: ${hashes.count} new of ${credentials.length}`);
     return rows;
   } finally {
     await prisma.$disconnect();

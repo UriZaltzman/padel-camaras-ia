@@ -13,6 +13,8 @@ const NO_CLUB_ID: Record<string, string> = {
   auth_identities: 'own identities only; workers run as system',
   clubs: 'the club itself: directory for players, own row for club roles',
   ratings: 'follow the player between clubs: self, co-players, workers',
+  user_credentials: 'password hash and TOTP of one user: own row or the API as system (#343)',
+  password_reset_tokens: 'single-use reset links: only the API as system, never a user (#343)',
 };
 
 function rows<T>(url: string, sql: string): T[] {
@@ -79,7 +81,14 @@ describe.skipIf(!adminUrl)('RLS catalog guard', () => {
 
   it('writes by internal support are audited by the database on every club table', () => {
     // users, auth_identities, ratings are person tables (support cannot write them: see the matrix).
-    const exempt = new Set(['audit_log', 'users', 'auth_identities', 'ratings']);
+    const exempt = new Set([
+      'audit_log',
+      'users',
+      'auth_identities',
+      'ratings',
+      'user_credentials',
+      'password_reset_tokens',
+    ]);
     expect(
       tables.filter((t) => !exempt.has(t.name) && !t.support_audit).map((t) => t.name),
     ).toEqual([]);

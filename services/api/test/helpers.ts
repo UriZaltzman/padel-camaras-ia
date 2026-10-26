@@ -3,6 +3,11 @@ import { Writable } from 'node:stream';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Logger } from 'pino';
+import { InMemoryLoginThrottleStore, LOGIN_THROTTLE } from '../src/auth/credentials/login-throttle';
+import {
+  FakePasswordResetSender,
+  PASSWORD_RESET_SENDER,
+} from '../src/auth/credentials/password-reset-sender';
 import { OTP_STORE, InMemoryOtpStore } from '../src/auth/otp/otp-store';
 import { SESSION_STORE, InMemorySessionStore } from '../src/auth/session/session-store';
 import {
@@ -73,6 +78,8 @@ export async function createTestApp(
   const staff = new InMemoryStaffDirectory();
   const whatsapp = new FakeWhatsAppProvider();
   const clock = new FakeClock();
+  const resetSender = new FakePasswordResetSender();
+  const throttle = new InMemoryLoginThrottleStore();
   const builder = Test.createTestingModule({
     imports: [AppModule.register(env)],
     controllers,
@@ -87,6 +94,12 @@ export async function createTestApp(
     .useValue(new InMemoryCheckoutStore())
     .overrideProvider(BOOKING_IDEMPOTENCY)
     .useValue(new InMemoryBookingIdempotency())
+    .overrideProvider(LOGIN_THROTTLE)
+    .useValue(throttle)
+    .overrideProvider(PASSWORD_RESET_SENDER)
+    .useValue(resetSender)
+    .overrideProvider(StaffDirectory)
+    .useValue(staff)
     .overrideProvider(CLOCK)
     .useValue(clock);
   // With a real database the Prisma repository stays; without one the club list is empty.
@@ -96,8 +109,6 @@ export async function createTestApp(
       : builder
           .overrideProvider(ClubsRepository)
           .useValue(clubs)
-          .overrideProvider(StaffDirectory)
-          .useValue(staff)
           .overrideProvider(BookingsRepository)
           .useValue(new InMemoryBookingsRepository())
           .overrideProvider(ClubModulesRepository)
@@ -108,5 +119,16 @@ export async function createTestApp(
   });
   configureApp(app, logger);
   await app.init();
-  return { app, logs: lines, whatsapp, clock, modules, clubs, staff, moduleRef };
+  return {
+    app,
+    logs: lines,
+    whatsapp,
+    clock,
+    modules,
+    clubs,
+    staff,
+    moduleRef,
+    resetSender,
+    throttle,
+  };
 }

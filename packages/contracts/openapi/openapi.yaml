@@ -536,6 +536,240 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /auth/login:
+    post:
+      operationId: loginWithPassword
+      tags: [Auth]
+      summary: Sign in with email and password (club owners, club staff, internal staff)
+      description: |
+        For people with a password: club owners and staff, and internal staff. Players sign in
+        with the WhatsApp code instead.
+
+        The answer is the same whether the email has an account or not (`INVALID_CREDENTIALS`),
+        and takes the same time. After 5 failures for the same email in 15 minutes, or 30 from the
+        same IP address, the answer is `429 RATE_LIMITED` with `Retry-After`, whether or not the
+        account exists.
+
+        **Internal staff must send `totp_code`.** Without it the answer is `SECOND_FACTOR_REQUIRED`
+        (`details.enrollment_required` tells whether they still have to set up the authenticator
+        with `/auth/2fa/enroll`). Their session carries the second factor; the internal console
+        refuses any session without it.
+
+        Web clients keep the tokens in `HttpOnly; Secure; SameSite=Lax` cookies set by their own
+        server (never in `localStorage`) and send the CSRF token on every write; see
+        `docs/security/password-login.md`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordLoginRequest'
+            example:
+              email: duenio@club.example
+              password: una frase larga que solo sabe quien entra
+      responses:
+        '200':
+          description: Signed in. `is_new_user` is always false.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/2fa/enroll:
+    post:
+      operationId: startSecondFactorEnrollment
+      tags: [Auth]
+      summary: Start the authenticator (TOTP) setup of an internal staff member
+      description: |
+        Proves the password, then returns a new secret to add to an authenticator app. Only for
+        internal staff who have not confirmed a second factor yet (`409 INVALID_STATE_TRANSITION`
+        otherwise, `403 FORBIDDEN` for anyone who is not internal staff). Calling it again before
+        confirming replaces the secret. The secret is shown only in this answer.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SecondFactorEnrollRequest'
+      responses:
+        '200':
+          description: The secret to enrol.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecondFactorEnrollment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/2fa/confirm:
+    post:
+      operationId: confirmSecondFactorEnrollment
+      tags: [Auth]
+      summary: Confirm the authenticator with a code and sign in
+      description: |
+        Checks the first 6-digit code of the authenticator started with `/auth/2fa/enroll`. If it
+        is right the second factor is on and the answer is a session (with the second factor).
+        A wrong code counts as a failed attempt (`SECOND_FACTOR_INVALID`) toward the lock-out.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SecondFactorConfirmRequest'
+      responses:
+        '200':
+          description: Second factor on; signed in.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/password/forgot:
+    post:
+      operationId: requestPasswordReset
+      tags: [Auth]
+      summary: Ask for a password reset link by email
+      description: |
+        Always answers `202` with an empty object, whether the email has an account or not, and
+        in the same time. If it does, a single-use link valid for 30 minutes is emailed (only its
+        hash is stored). Asking again replaces the earlier link; more than 5 requests per hour per
+        email or IP are ignored silently.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordForgotRequest'
+      responses:
+        '202':
+          description: Accepted. Nothing in the answer says whether an email was sent.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/password/reset:
+    post:
+      operationId: resetPassword
+      tags: [Auth]
+      summary: Set a new password with the emailed token
+      description: |
+        The token works once and for 30 minutes. A new password that is too short or too common is
+        refused with `WEAK_PASSWORD` and the token stays valid. On success every session of the
+        account ends (access and refresh tokens) and the sign-in lock-out is cleared; the person
+        then signs in with the new password (internal staff still need their authenticator).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      responses:
+        '204':
+          description: Password changed.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/password/change:
+    post:
+      operationId: changePassword
+      tags: [Auth]
+      summary: Change the password while signed in
+      description: |
+        Needs the current password. Ends every other session of the account and returns a new
+        token pair for this one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+      responses:
+        '200':
+          description: Password changed; the new session.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /auth/oauth/google:
     post:
       operationId: signInWithGoogle
@@ -5611,6 +5845,110 @@ components:
               type: boolean
               description: True when this request created the account.
 
+    Email:
+      type: string
+      description: An email address. Compared in lowercase.
+      minLength: 3
+      maxLength: 254
+
+    PasswordLoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          $ref: '#/components/schemas/Email'
+        password:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+        totp_code:
+          type: string
+          pattern: '^[0-9]{6}$'
+          description: Authenticator code. Mandatory for internal staff.
+
+    SecondFactorEnrollRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          $ref: '#/components/schemas/Email'
+        password:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+
+    SecondFactorEnrollment:
+      type: object
+      required: [secret, otpauth_uri]
+      properties:
+        secret:
+          type: string
+          description: Base32 secret to type into an authenticator app. Shown once.
+        otpauth_uri:
+          type: string
+          description: The same secret as an `otpauth://totp/...` URI, for a QR code.
+
+    SecondFactorConfirmRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password, totp_code]
+      properties:
+        email:
+          $ref: '#/components/schemas/Email'
+        password:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+        totp_code:
+          type: string
+          pattern: '^[0-9]{6}$'
+
+    PasswordForgotRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email:
+          $ref: '#/components/schemas/Email'
+
+    PasswordResetRequest:
+      type: object
+      additionalProperties: false
+      required: [token, new_password]
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: The token in the emailed link.
+        new_password:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+          description: At least 10 characters, any Unicode, not a common password.
+
+    PasswordChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+        new_password:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+
     DeclaredCategory:
       type: string
       description: Self-declared Argentine padel category, from 8va (`8`) to 1ra (`1`).
@@ -8839,6 +9177,11 @@ components:
         - OTP_ATTEMPTS_EXCEEDED
         - REFRESH_TOKEN_INVALID
         - TERMS_NOT_ACCEPTED
+        - INVALID_CREDENTIALS
+        - SECOND_FACTOR_REQUIRED
+        - SECOND_FACTOR_INVALID
+        - WEAK_PASSWORD
+        - PASSWORD_RESET_TOKEN_INVALID
         # Clubs
         - CLUB_FEATURE_DISABLED
         - CLUB_SERVICE_SUSPENDED
@@ -8924,6 +9267,23 @@ components:
         - code: TERMS_NOT_ACCEPTED
           http_status: 403
           description: The user has not accepted the terms and privacy policy (Ley 25.326).
+        - code: INVALID_CREDENTIALS
+          http_status: 401
+          description: Email or password is wrong. Identical whether or not the email has an account.
+        - code: SECOND_FACTOR_REQUIRED
+          http_status: 401
+          description: Internal staff need the authenticator code (or a session that used it).
+          details: '`enrollment_required`: boolean, true when the authenticator is not set up yet.'
+        - code: SECOND_FACTOR_INVALID
+          http_status: 401
+          description: The authenticator code is wrong, expired or was already used.
+        - code: WEAK_PASSWORD
+          http_status: 422
+          description: The new password is shorter than 10 characters, is too common or contains the email.
+          details: '`problems`: array of `too_short`, `too_long`, `too_common`, `contains_email`.'
+        - code: PASSWORD_RESET_TOKEN_INVALID
+          http_status: 401
+          description: The reset link is wrong, expired or was already used. Ask for a new one.
         - code: CLUB_FEATURE_DISABLED
           http_status: 403
           description: The club has not enabled this feature or paid extra.

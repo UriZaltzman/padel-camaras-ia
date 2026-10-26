@@ -17,6 +17,8 @@ export async function bootstrap(
   const app = await NestFactory.create<NestExpressApplication>(AppModule.register(env), {
     logger: new PinoLoggerService(logger),
   });
+  // The lock-out per IP address needs the client's address, not the proxy's.
+  if (env.HTTP_TRUST_PROXY_HOPS) app.set('trust proxy', env.HTTP_TRUST_PROXY_HOPS);
   configureApp(app, logger);
   app.enableShutdownHooks();
   await app.listen(env.PORT);

@@ -41,7 +41,14 @@ const PUBLIC_DIRECTORY = new Set([
   'club_modules',
 ]);
 /** Tables without club_id that the trusted `system` role (sign-in, rating workers) reaches whole. */
-const SYSTEM_GLOBAL = new Set(['users', 'auth_identities', 'ratings', 'clubs']);
+const SYSTEM_GLOBAL = new Set([
+  'users',
+  'auth_identities',
+  'ratings',
+  'clubs',
+  'user_credentials',
+  'password_reset_tokens',
+]);
 const q = (s: string): string => `'${s}'`;
 const uuid = (): string => randomUUID();
 
@@ -117,6 +124,7 @@ function valueFor(col: Column, c: Cast, enums: Map<string, string>): string {
     };
     return q(byName[n] ?? uuid());
   }
+  if (n === 'password_hash') return q('$argon2id$v=19$m=19456,t=2,p=1$c2FsdA$aGFzaA');
   if (col.udt === 'text' || col.udt === 'varchar' || col.udt === 'bpchar') return q(uuid());
   if (['int2', 'int4', 'int8', 'numeric', 'float4', 'float8'].includes(col.udt)) return '1';
   if (col.udt === 'bool') return 'false';
@@ -155,7 +163,8 @@ describe.skipIf(!adminUrl)('RLS matrix: roles x tables x operations', () => {
     if (table === 'clubs') return `id = '${c.club}'`;
     if (table === 'users')
       return `id IN ('${c.player}', '${c.coach}', '${c.staff}', '${c.owner}', '${c.other}')`;
-    if (table === 'ratings' || table === 'auth_identities') return `user_id = '${c.player}'`;
+    if (['ratings', 'auth_identities', 'user_credentials', 'password_reset_tokens'].includes(table))
+      return `user_id = '${c.player}'`;
     return `club_id = '${c.club}'`;
   };
 

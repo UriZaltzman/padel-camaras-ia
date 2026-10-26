@@ -6,6 +6,9 @@ export interface RefreshRecord {
   /** All tokens descending from one sign-in share a family; reuse revokes the family. */
   familyId: string;
   used: boolean;
+  /** User's session epoch when the sign-in happened. */
+  epoch: number;
+  mfa: boolean;
 }
 
 /** Where refresh tokens and revoked sessions live. */
@@ -18,6 +21,10 @@ export interface SessionStore {
   markUsed(id: string): Promise<RefreshRecord | null>;
   revokeFamily(familyId: string, ttlSeconds: number): Promise<void>;
   isFamilyRevoked(familyId: string): Promise<boolean>;
+  /** Session epoch of a user (0 until their sessions are first ended all at once). */
+  getEpoch(userId: string): Promise<number>;
+  /** Ends every session of the user at once (password reset or change); returns the new epoch. */
+  bumpEpoch(userId: string): Promise<number>;
 }
 
 export const SESSION_STORE = Symbol('SESSION_STORE');
@@ -25,6 +32,7 @@ export const SESSION_STORE = Symbol('SESSION_STORE');
 export class InMemorySessionStore implements SessionStore {
   private readonly tokens = new Map<string, RefreshRecord>();
   private readonly revoked = new Set<string>();
+  private readonly epochs = new Map<string, number>();
 
   save(record: RefreshRecord): Promise<void> {
     this.tokens.set(record.id, { ...record });
@@ -46,5 +54,15 @@ export class InMemorySessionStore implements SessionStore {
 
   isFamilyRevoked(familyId: string): Promise<boolean> {
     return Promise.resolve(this.revoked.has(familyId));
+  }
+
+  getEpoch(userId: string): Promise<number> {
+    return Promise.resolve(this.epochs.get(userId) ?? 0);
+  }
+
+  bumpEpoch(userId: string): Promise<number> {
+    const next = (this.epochs.get(userId) ?? 0) + 1;
+    this.epochs.set(userId, next);
+    return Promise.resolve(next);
   }
 }

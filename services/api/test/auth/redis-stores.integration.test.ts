@@ -53,7 +53,10 @@ describe.skipIf(!available)(`Redis stores (${SKIP_REASON})`, () => {
 
   it('marks a refresh token used once and reports it as used afterwards', async () => {
     const store = new RedisSessionStore(redis);
-    await store.save({ id: 't1', secretHash: 'h', userId: 'u', familyId: 'f', used: false }, 60);
+    await store.save(
+      { id: 't1', secretHash: 'h', userId: 'u', familyId: 'f', used: false, epoch: 0, mfa: false },
+      60,
+    );
     expect(await redis.ttl('rt:t1')).toBeGreaterThan(50);
     const [a, b] = await Promise.all([store.markUsed('t1'), store.markUsed('t1')]);
     expect([a?.used, b?.used].sort()).toEqual([false, true]);
