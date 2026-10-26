@@ -26,3 +26,7 @@ mlruns/
 *.parquet
 .github/planning/created.json
 .claude/worktrees/
+
+# Playwright output
+test-results/
+playwright-report/

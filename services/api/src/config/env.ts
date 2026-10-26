@@ -40,8 +40,17 @@ export const envSchema = z
      */
     INTERNAL_STAFF: z.string().optional(),
     MERCADOPAGO_ACCESS_TOKEN: z.string().min(1).optional(),
+    /** `fake` pays every checkout without Mercado Pago, for the e2e stack. Refused in production. */
+    PAYMENT_PROVIDER: z.enum(['mercadopago', 'fake']).default('mercadopago'),
   })
   .superRefine((env, ctx) => {
+    if (env.NODE_ENV === 'production' && env.PAYMENT_PROVIDER === 'fake') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['PAYMENT_PROVIDER'],
+        message: 'the fake provider is not allowed in production',
+      });
+    }
     if (env.NODE_ENV !== 'production') return;
     for (const name of [
       'AUTH_OTP_SECRET',

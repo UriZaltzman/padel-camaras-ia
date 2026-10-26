@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { t } from '@/i18n';
-import esAR from '@/i18n/es-AR.json';
+import { messages as esAR } from '@/i18n/messages';
 
 import HomePage from './page';
 

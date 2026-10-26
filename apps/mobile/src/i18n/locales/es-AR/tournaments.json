@@ -1,0 +1,47 @@
+{
+  "tournaments": {
+    "title": "Torneos del club",
+    "loading": "Cargando torneos…",
+    "error": "No pudimos cargar los torneos. Probá de nuevo.",
+    "disabled": "Este club no tiene torneos activos.",
+    "empty": "Todavía no hay torneos en este club.",
+    "free": "Gratis",
+    "summary": "{category}ª categoría · {pairs} parejas · Inscripción: {fee}",
+    "status": {
+      "registration": "Inscripción abierta",
+      "in_progress": "En juego",
+      "finished": "Terminado",
+      "cancelled": "Cancelado"
+    },
+    "stage": {
+      "group": "Zona",
+      "round_of_16": "Octavos",
+      "quarter": "Cuartos",
+      "semi": "Semifinal",
+      "final": "Final"
+    },
+    "group": "Zona {letter}",
+    "standingRow": "{pos}. {pair} · PJ {played} · G {wins}",
+    "fixture": "Fixture",
+    "toBeDefined": "A definir",
+    "mine": {
+      "label": "Tu inscripción",
+      "registered": "Estás anotado con {pair}.",
+      "payAtClub": "Inscripción: {fee}. Se paga en el club.",
+      "next": "Tu próximo partido: {when} vs {rival}",
+      "noNext": "No tenés partidos pendientes."
+    },
+    "register": {
+      "label": "Inscribirme",
+      "category": "Categoría {category}ª",
+      "partnerPlaceholder": "Buscá a tu compañero por nombre",
+      "fee": "La inscripción es {fee} y se paga en el club.",
+      "submit": "Inscribirnos",
+      "unavailable": "La inscripción desde la app todavía no está disponible.",
+      "error": "No pudimos inscribirte. Probá de nuevo.",
+      "error_TOURNAMENT_PLAYER_TAKEN": "Vos o tu compañero ya están anotados en este torneo.",
+      "error_TOURNAMENT_REGISTRATION_CLOSED": "La inscripción ya cerró."
+    },
+    "open": "Ver torneos"
+  }
+}

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import esAR from '../src/i18n/es-AR.json' with { type: 'json' };
+import { messages as esAR } from '../src/i18n/messages';
 
 test('the console simulates a club of 900 players and shows its band', async ({ page }) => {
   await page.goto('/admin/tarifas');

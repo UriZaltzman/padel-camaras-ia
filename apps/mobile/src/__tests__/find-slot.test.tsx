@@ -13,7 +13,7 @@ import {
   formatTime,
 } from '../booking/find-slot';
 import { i18n } from '../i18n';
-import esAR from '../i18n/locales/es-AR.json';
+import { esAR } from '../i18n/locales';
 
 jest.mock('expo-secure-store', () => {
   const items = new Map<string, string>();
@@ -37,7 +37,7 @@ const MAINTENANCE = '01928f6e-7c1a-7d4e-9b3a-2f6c8e1d4a63';
 const NOW = new Date('2026-10-23T09:00:00Z');
 
 async function renderFind(
-  server: MockAuthServer = createMockAuthServer(),
+  server: MockAuthServer = createMockAuthServer({ now: () => NOW }),
   onSelectSlot?: (s: SelectedSlot) => void,
 ) {
   await secureTokenStore.save(server.issueTokens());
@@ -132,7 +132,7 @@ describe('FindSlotScreen', () => {
   });
 
   it('shows the contract error when availability fails', async () => {
-    const server = createMockAuthServer();
+    const server = createMockAuthServer({ now: () => NOW });
     await renderFind(server);
     server.failNext(`/courts/${COURT_1}/availability`, 429, 'RATE_LIMITED');
     await fireEvent.press(screen.getByTestId(`club-${PALERMO}`));

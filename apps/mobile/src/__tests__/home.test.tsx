@@ -11,7 +11,7 @@ import { formatSets, formatSlot } from '../home/home-data';
 import { HomeScreen } from '../home/HomeScreen';
 import { mockLastMatch, mockNextBooking, withHomeMock } from '../home/mock-home';
 import { i18n } from '../i18n';
-import esAR from '../i18n/locales/es-AR.json';
+import { esAR } from '../i18n/locales';
 
 const h = esAR.home;
 const notFound = () => Promise.resolve(new Response('{}', { status: 404 }));
